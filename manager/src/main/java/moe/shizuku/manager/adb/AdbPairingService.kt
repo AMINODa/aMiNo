@@ -157,7 +157,7 @@ class AdbPairingService : Service() {
     private fun onInput(code: String, host: String, port: Int): Notification {
         GlobalScope.launch(Dispatchers.IO) {
             val key = try {
-                AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "sasuki-anime")
+                AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "amino")
             } catch (e: Throwable) {
                 e.printStackTrace()
                 return@launch

@@ -23,8 +23,8 @@ public class ThemeHelper {
     }
 
     public static boolean isUsingSystemColor() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                && ShizukuSettings.getPreferences().getBoolean(ShizukuSettings.Keys.KEY_USE_SYSTEM_COLOR, true);
+        // aMiNo: always use the signature Sharingan red palette, never Material You colors
+        return false;
     }
 
     public static String getTheme(Context context) {
@@ -37,13 +37,8 @@ public class ThemeHelper {
 
     @StyleRes
     public static int getThemeStyleRes(Context context) {
-        switch (getTheme(context)) {
-            case THEME_BLACK:
-                return R.style.ThemeOverlay_Black;
-            case THEME_DEFAULT:
-            default:
-                return R.style.ThemeOverlay;
-        }
+        // aMiNo: pure black background everywhere, day or night
+        return R.style.ThemeOverlay_Black;
     }
 
     public static void applySnackbarTheme(Context context, Snackbar snackbar) {

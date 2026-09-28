@@ -14,7 +14,7 @@ plugins {
 android {
     namespace = "moe.shizuku.manager"
     defaultConfig {
-        applicationId = "com.sasuki.anime"
+        applicationId = "com.amino.manager"
         versionCode = rootProject.ext.versionCode
         versionName = rootProject.ext.versionName
         externalNativeBuild {
@@ -78,7 +78,7 @@ autoResConfig {
 materialThemeBuilder {
     themes {
         shizuku {
-            primaryColor = "#3F51B5"
+            primaryColor = "#D32F2F"
             lightThemeFormat = "Theme.Material3Expressive.Light.%s"
             lightThemeParent = "Theme.Material3Expressive.Light"
             darkThemeFormat = "Theme.Material3Expressive.Dark.%s"
@@ -124,7 +124,7 @@ afterEvaluate {
 
 android.applicationVariants.configureEach { variant ->
     variant.outputs.configureEach {
-        outputFileName = "sasuki-v${variant.versionName}-${variant.name}.apk"
+        outputFileName = "amino-v${variant.versionName}-${variant.name}.apk"
 
         variant.assembleProvider.get().doLast {
             def outDir = new File(rootDir, "out")

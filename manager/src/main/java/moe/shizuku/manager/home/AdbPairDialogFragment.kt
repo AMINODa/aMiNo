@@ -125,7 +125,10 @@ class AdbPairDialogFragment : DialogFragment() {
 
         viewModel.result.observe(this) {
             if (it == null) {
-                dismissAllowingStateLoss()
+                // aMiNo: do not close the window right after pairing succeeds.
+                // Show the success state and offer to continue (open the connection
+                // dialog once more -> start service -> Shell).
+                dialog?.let { d -> onPairingSucceeded(d) }
             } else {
                 when (it) {
                     is ConnectException -> {
@@ -140,6 +143,25 @@ class AdbPairDialogFragment : DialogFragment() {
                     }
                 }
             }
+        }
+    }
+
+    private fun onPairingSucceeded(dialog: AlertDialog) {
+        val context = requireContext()
+        dialog.setTitle(R.string.dialog_adb_pairing_success_title)
+        binding.text1.isVisible = true
+        binding.text2.isVisible = false
+        binding.pairingCode.isVisible = false
+        binding.port.isVisible = false
+        binding.text1.text = context.getString(R.string.dialog_adb_pairing_success_text)
+
+        val positive = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+        positive.text = context.getString(R.string.shell_continue_start)
+        positive.isVisible = true
+        positive.setOnClickListener {
+            // open the pairing/connection flow once more (wireless debugging discovery)
+            AdbDialogFragment().show(parentFragmentManager)
+            dismissAllowingStateLoss()
         }
     }
 
@@ -181,7 +203,7 @@ class ViewModel(application: Application) : AndroidViewModel(application) {
             val host = resolvedHost
 
             val key = try {
-                AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "sasuki-anime")
+                AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "amino")
             } catch (e: Throwable) {
                 e.printStackTrace()
                 _result.postValue(AdbKeyException(e))

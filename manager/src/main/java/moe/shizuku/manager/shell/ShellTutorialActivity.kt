@@ -22,7 +22,7 @@ class ShellTutorialActivity : AppBarActivity() {
     companion object {
 
         private val SH_NAME = "rish"
-        private val DEX_NAME = "rish_sasuki.dex"
+        private val DEX_NAME = "rish_amino.dex"
     }
 
     private val openDocumentsTree =

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="notification">#3F51B5</color>
+    <color name="notification">#B71C1C</color>
 
-    <color name="app_color_light">#3F51B5</color>
-    <color name="app_color_dark">#B1B8DF</color>
+    <color name="app_color_light">#D32F2F</color>
+    <color name="app_color_dark">#FF867C</color>
 </resources>

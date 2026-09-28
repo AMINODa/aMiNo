@@ -2,14 +2,25 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <!-- Sharingan ring -->
   <path
-      android:pathData="M11.25,54 C24.75,31.5 38.7,23.4 54,23.4 C69.3,23.4 83.25,31.5 96.75,54 C83.25,76.5 69.3,84.6 54,84.6 C38.7,84.6 24.75,76.5 11.25,54 Z"
-      android:strokeColor="#FF000000"
-      android:strokeWidth="8.1"
-      android:fillColor="#00000000"/>
+      android:fillType="evenOdd"
+      android:pathData="M12,2.5 A9.5,9.5 0 1,0 12,21.5 A9.5,9.5 0 1,0 12,2.5 Z M12,4.8 A7.2,7.2 0 1,1 12,19.2 A7.2,7.2 0 1,1 12,4.8 Z"
+      android:fillColor="#FF000000"/>
+  <!-- three tomoe -->
   <path
-      android:pathData="M54,36.9 C61.45,36.9 71.1,41.55 71.1,54 C71.1,63.45 63.45,71.1 54,71.1 C44.55,71.1 36.9,63.45 36.9,54 C36.9,44.55 44.55,36.9 54,36.9 Z"
+      android:pathData="M12,5.85 A1.55,1.55 0 1,0 12,8.95 A1.55,1.55 0 1,0 12,5.85 Z"
+      android:fillColor="#FF000000"/>
+  <path
+      android:pathData="M8.02,12.75 A1.55,1.55 0 1,0 8.02,15.85 A1.55,1.55 0 1,0 8.02,12.75 Z"
+      android:fillColor="#FF000000"/>
+  <path
+      android:pathData="M15.98,12.75 A1.55,1.55 0 1,0 15.98,15.85 A1.55,1.55 0 1,0 15.98,12.75 Z"
+      android:fillColor="#FF000000"/>
+  <!-- center pupil -->
+  <path
+      android:pathData="M12,10.1 A1.9,1.9 0 1,0 12,13.9 A1.9,1.9 0 1,0 12,10.1 Z"
       android:fillColor="#FF000000"/>
 </vector>

@@ -13,13 +13,13 @@ private val app = ShizukuApplication.application
 
 object Starter {
 
-    private val starterFile = File(app.applicationInfo.nativeLibraryDir, "libsasuki.so")
+    private val starterFile = File(app.applicationInfo.nativeLibraryDir, "libamino.so")
 
     val userCommand: String = starterFile.absolutePath
     val adbCommand = "adb shell $userCommand"
     val internalCommand = "$userCommand --apk=${app.applicationInfo.sourceDir}"
 
-    val serviceStartedMessage = "Service started, this window will be automatically closed in 3 seconds"
+    val serviceStartedMessage = "Service started successfully. This window stays open - tap SHELL to open the terminal"
 
     suspend fun waitForBinder(log: ((String) -> Unit)? = null) {
         try {

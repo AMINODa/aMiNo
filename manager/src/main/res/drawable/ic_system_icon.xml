@@ -4,12 +4,23 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+  <!-- Sharingan ring -->
   <path
-      android:pathData="M2.5,12 C5.5,7 8.6,5.2 12,5.2 C15.4,5.2 18.5,7 21.5,12 C18.5,17 15.4,18.8 12,18.8 C8.6,18.8 5.5,17 2.5,12 Z"
-      android:strokeColor="#FFFFFFFF"
-      android:strokeWidth="1.8"
-      android:fillColor="#00000000"/>
+      android:fillType="evenOdd"
+      android:pathData="M12,2.5 A9.5,9.5 0 1,0 12,21.5 A9.5,9.5 0 1,0 12,2.5 Z M12,4.8 A7.2,7.2 0 1,1 12,19.2 A7.2,7.2 0 1,1 12,4.8 Z"
+      android:fillColor="#FFFFFFFF"/>
+  <!-- three tomoe -->
   <path
-      android:pathData="M12,8.2 C14.1,8.2 15.8,9.9 15.8,12 C15.8,14.1 14.1,15.8 12,15.8 C9.9,15.8 8.2,14.1 8.2,12 C8.2,9.9 9.9,8.2 12,8.2 Z"
+      android:pathData="M12,5.85 A1.55,1.55 0 1,0 12,8.95 A1.55,1.55 0 1,0 12,5.85 Z"
+      android:fillColor="#FFFFFFFF"/>
+  <path
+      android:pathData="M8.02,12.75 A1.55,1.55 0 1,0 8.02,15.85 A1.55,1.55 0 1,0 8.02,12.75 Z"
+      android:fillColor="#FFFFFFFF"/>
+  <path
+      android:pathData="M15.98,12.75 A1.55,1.55 0 1,0 15.98,15.85 A1.55,1.55 0 1,0 15.98,12.75 Z"
+      android:fillColor="#FFFFFFFF"/>
+  <!-- center pupil -->
+  <path
+      android:pathData="M12,10.1 A1.9,1.9 0 1,0 12,13.9 A1.9,1.9 0 1,0 12,10.1 Z"
       android:fillColor="#FFFFFFFF"/>
 </vector>

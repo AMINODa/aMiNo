@@ -8,6 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
+import androidx.core.view.isVisible
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.topjohnwu.superuser.CallbackList
 import com.topjohnwu.superuser.Shell
@@ -29,6 +30,7 @@ import moe.shizuku.manager.adb.AdbStarter
 import moe.shizuku.manager.app.AppBarActivity
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import moe.shizuku.manager.databinding.StarterActivityBinding
+import moe.shizuku.manager.shell.ShellActivity
 import rikka.lifecycle.Resource
 import rikka.lifecycle.Status
 
@@ -46,12 +48,14 @@ class StarterActivity : AppBarActivity() {
 
         val binding = StarterActivityBinding.inflate(layoutInflater, rootView, true)
 
+        binding.openShell.setOnClickListener { openShell() }
+
         viewModel.output.observe(this) {
             val output = it.data!!.trim()
             if (output.endsWith(Starter.serviceStartedMessage)) {
-                window?.decorView?.postDelayed({
-                    if (!isFinishing) finish()
-                }, 3000)
+                // aMiNo: keep this window open, offer the live Shell terminal
+                binding.starterStaysOpen.isVisible = true
+                binding.openShell.isVisible = true
             } else if (it.status == Status.ERROR) {
                 var message = 0
                 when (it.error) {
@@ -94,6 +98,10 @@ class StarterActivity : AppBarActivity() {
                 intent.getIntExtra(EXTRA_PORT, 0)
             )
         }
+    }
+
+    private fun openShell() {
+        startActivity(android.content.Intent(this, ShellActivity::class.java))
     }
 
     companion object {

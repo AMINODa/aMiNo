@@ -8,7 +8,7 @@
     <string name="home_status_service_version_update"><![CDATA[Έκδοση %2$s, %1$s<br>Κάντε ξανά εκκίνηση για ενημέρωση στην έκδοση %3$s]]></string>
     <!-- Home - Adb -->
     <string name="home_adb_title"><![CDATA[Έναρξη μέσω σύνδεσης με υπολογιστή]]></string>
-    <string name="home_adb_description"><![CDATA[Για συσκευές χωρίς πρόσβαση root, πρέπει να χρησιμοποιήσετε το adb για την εκκίνηση του Sasuki Anime (απαιτεί σύνδεση σε υπολογιστή). Αυτή η διαδικασία θα πρέπει να επαναλαμβάνεται κάθε φορά που επανεκκινείται η συσκευή. <b><a href="%1$s">Διαβάστε τη βοήθεια</a></b>.]]></string>
+    <string name="home_adb_description"><![CDATA[Για συσκευές χωρίς πρόσβαση root, πρέπει να χρησιμοποιήσετε το adb για την εκκίνηση του aMiNo (απαιτεί σύνδεση σε υπολογιστή). Αυτή η διαδικασία θα πρέπει να επαναλαμβάνεται κάθε φορά που επανεκκινείται η συσκευή. <b><a href="%1$s">Διαβάστε τη βοήθεια</a></b>.]]></string>
     <string name="home_adb_button_view_help">Ανάγνωση βοήθειας</string>
     <string name="home_adb_button_view_command">Προβολή εντολής</string>
     <string name="home_adb_dialog_view_command_message"><![CDATA[<font face="monospace">%1$s</font><br><br>* Υπάρχουν και άλλες σκέψεις, παρακαλούμε επιβεβαιώστε ότι έχετε διαβάσει πρώτα τη βοήθεια.]]></string>
@@ -16,7 +16,7 @@
     <string name="home_adb_dialog_view_command_button_send">Στέλνω</string>
     <!-- Home - Wireless Adb -->
     <string name="home_wireless_adb_title"><![CDATA[Έναρξη μέσω Ασύρματου εντοπισμού σφαλμάτων]]></string>
-    <string name="home_wireless_adb_description"><![CDATA[Σε Android 11 ή νεότερη έκδοση, μπορείτε να ενεργοποιήσετε την ασύρματη αποσφαλμάτωση και να ξεκινήσετε το Sasuki Anime απευθείας από τη συσκευή σας, χωρίς να συνδεθείτε σε υπολογιστή.<p>Παρακαλούμε δείτε πρώτα τον αναλυτικό οδηγό.]]></string>
+    <string name="home_wireless_adb_description"><![CDATA[Σε Android 11 ή νεότερη έκδοση, μπορείτε να ενεργοποιήσετε την ασύρματη αποσφαλμάτωση και να ξεκινήσετε το aMiNo απευθείας από τη συσκευή σας, χωρίς να συνδεθείτε σε υπολογιστή.<p>Παρακαλούμε δείτε πρώτα τον αναλυτικό οδηγό.]]></string>
     <string name="home_wireless_adb_description_pre_11"><![CDATA[Πριν από το Android 11, είναι απαραίτητη η σύνδεση με έναν υπολογιστή για την ενεργοποίηση του ασύρματου εντοπισμού σφαλμάτων.]]></string>
     <string name="home_wireless_adb_view_guide_button">Αναλυτικός οδηγός</string>
     <!-- Adb -->
@@ -24,7 +24,7 @@
     <string name="dialog_adb_discovery_message">Ενεργοποιήστε την επιλογή \"Ασύρματη αποσφαλμάτωση\"
         στις \"Επιλογές προγραμματιστή\". Η επιλογή \"Ασύρματη αποσφαλμάτωση\" απενεργοποιείται
         αυτόματα όταν αλλάζει το δίκτυο.\n\nΣημείωση: μην απενεργοποιήσετε τις \"Επιλογές
-        προγραμματιστή\" ή την επιλογή \"Εντοπισμός σφαλμάτων USB\", διαφορετικά το Sasuki Anime θα
+        προγραμματιστή\" ή την επιλογή \"Εντοπισμός σφαλμάτων USB\", διαφορετικά το aMiNo θα
         σταματήσει.</string>
     <string name="dialog_adb_discovery_message_toggle_wireless_debugging">Δοκιμάστε να
         απενεργοποιήσετε και να ενεργοποιήσετε την επιλογή \"Ασύρματη αποσφαλμάτωση\" εάν συνεχίζει
@@ -37,7 +37,7 @@
     <string name="dialog_adb_pairing_paring_code">Κωδικός σύζευξης</string>
     <string name="paring_code_is_wrong">Ο κωδικός σύζευξης είναι εσφαλμένος.</string>
     <string name="cannot_connect_port">Δεν είναι δυνατή η σύνδεση με την υπηρεσία ασύρματου
-        εντοπισμού σφαλμάτων.\n\nΒεβαιωθείτε ότι το Sasuki Anime είναι στη λίστα επιτρεπόμενων σε όλες
+        εντοπισμού σφαλμάτων.\n\nΒεβαιωθείτε ότι το aMiNo είναι στη λίστα επιτρεπόμενων σε όλες
         τις εφαρμογές τείχους προστασίας, αποκλεισμού διαφημίσεων, VPN ή παρόμοιες εφαρμογές που
         μπορούν να περιορίσουν την πρόσβαση στο δίκτυο.</string>
     <string name="dialog_wireless_adb_not_enabled">Η ασύρματη λειτουργία εντοπισμού σφαλμάτων δεν
@@ -51,20 +51,20 @@
         debugging\"\n- Πατήστε \"Σύζευξη συσκευής με κωδικό σύζευξης\"\n- Εισαγάγετε τον κωδικό
         σύζευξης στην ειδοποίηση</string>
     <string name="dialog_adb_pairing_accessibility_permission">Στο Android 14, η
-        εγκατάσταση/ενημέρωση του Sasuki Anime με το Package Installer ανακαλεί την άδεια ^1, η οποία
+        εγκατάσταση/ενημέρωση του aMiNo με το Package Installer ανακαλεί την άδεια ^1, η οποία
         απαιτείται για την ενεργοποίηση της υπηρεσίας προσβασιμότητας για τη σύζευξη.\n\nΓια να την
         εκχωρήσετε, εκτελέστε την ακόλουθη εντολή ADB:\n\n^2\n\nΑφού εκτελέσετε την εντολή, μπορείτε
         να συνεχίσετε με τη διαδικασία σύζευξης.\n\nΣημείωση: μπορείτε να παρακάμψετε αυτήν την
-        επιλογή εγκαθιστώντας/ενημερώνοντας το Sasuki Anime με το ADB.</string>
+        επιλογή εγκαθιστώντας/ενημερώνοντας το aMiNo με το ADB.</string>
     <string name="dialog_adb_pairing_accessibility_enable">Ενεργοποιήστε την υπηρεσία
-        προσβασιμότητας για να ξεκινήσει η διαδικασία σύζευξης. Αυτό επιτρέπει στο Sasuki Anime να
+        προσβασιμότητας για να ξεκινήσει η διαδικασία σύζευξης. Αυτό επιτρέπει στο aMiNo να
         εντοπίσει τον κωδικό σύζευξης.\n\nΗ υπηρεσία προσβασιμότητας θα απενεργοποιηθεί όταν βρεθεί
         ο κωδικός ή μετά από 1 λεπτό για εξοικονόμηση ενέργειας.</string>
     <string name="dialog_adb_pairing_accessibility_navigate">Ξεκινήστε τη σύζευξη ακολουθώντας τα
         παρακάτω βήματα:\n- Μεταβείτε στις \"Επιλογές προγραμματιστή\"\n- Ενεργοποιήστε τις
         \"Εντοπισμός σφαλμάτων USB\" και \"Ασύρματος εντοπισμός σφαλμάτων\"\n- Πατήστε την αριστερή
         πλευρά της επιλογής \"Ασύρματος εντοπισμός σφαλμάτων\"\n- Πατήστε \"Σύζευξη συσκευής με
-        κωδικό σύζευξης\". Το Sasuki Anime θα εντοπίσει αυτόματα τον κωδικό σύζευξης.</string>
+        κωδικό σύζευξης\". Το aMiNo θα εντοπίσει αυτόματα τον κωδικό σύζευξης.</string>
     <string name="adb_pairing_requires_multi_window">Παρακαλώ, μεταβείτε πρώτα σε λειτουργία
         διαιρεμένης οθόνης (πολλαπλών παραθύρων).</string>
     <string name="adb_pairing_requires_multi_window_reason">Το σύστημα απαιτεί το παράθυρο διαλόγου
@@ -79,8 +79,8 @@
     <string name="enable">Ενεργοποιώ</string>
     <string name="development_settings">Επιλογές προγραμματιστή</string>
     <string name="notification_settings">Επιλογές ειδοποιήσεων</string>
-    <string name="adb_pairing_tutorial_title">Συνδέστε το Sasuki Anime με τη συσκευή σας</string>
-    <string name="adb_pairing_tutorial_content_notification">Μια ειδοποίηση από το Sasuki Anime θα σας
+    <string name="adb_pairing_tutorial_title">Συνδέστε το aMiNo με τη συσκευή σας</string>
+    <string name="adb_pairing_tutorial_content_notification">Μια ειδοποίηση από το aMiNo θα σας
         βοηθήσει να ολοκληρώσετε τη σύζευξη.</string>
     <string name="adb_pairing_tutorial_content_steps">Μεταβείτε στις \"Επιλογές προγραμματιστή\"
         και, στη συνέχεια, ενεργοποιήστε τις \"Εντοπισμός σφαλμάτων USB\" και \"Ασύρματος εντοπισμός
@@ -89,24 +89,24 @@
         επιλογής \"Ασύρματος εντοπισμός σφαλμάτων\" και, στη συνέχεια, πατήστε \"Σύζευξη συσκευής με
         κωδικό σύζευξης\". Εισαγάγετε τον κωδικό στην ειδοποίηση για να ολοκληρώσετε τη σύζευξη.</string>
     <string name="adb_pairing_tutorial_content_notification_blocked">Η διαδικασία σύζευξης απαιτεί
-        να αλληλεπιδράσετε με μια ειδοποίηση από το Sasuki Anime. Επιτρέψτε στο Sasuki Anime να δημοσιεύει
+        να αλληλεπιδράσετε με μια ειδοποίηση από το aMiNo. Επιτρέψτε στο aMiNo να δημοσιεύει
         ειδοποιήσεις.</string>
     <string name="adb_pairing_tutorial_content_miui">Οι χρήστες MIUI ίσως χρειαστεί να αλλάξουν το
         στυλ ειδοποιήσεων σε \"Android\" από \"Ειδοποίηση\" - \"Σκιά ειδοποιήσεων\" στις ρυθμίσεις
         συστήματος.</string>
     <string name="adb_pairing_tutorial_content_miui_2">Διαφορετικά, ενδέχεται να μην μπορείτε να
         εισαγάγετε τον κωδικό σύζευξης από την ειδοποίηση.</string>
-    <string name="adb_pairing_tutorial_content_finish">Επιστρέψτε στο Sasuki Anime και ξεκινήστε το
-        Sasuki Anime.</string>
-    <string name="adb_pairing_tutorial_content_network">Το Sasuki Anime χρειάζεται πρόσβαση στο τοπικό
+    <string name="adb_pairing_tutorial_content_finish">Επιστρέψτε στο aMiNo και ξεκινήστε το
+        aMiNo.</string>
+    <string name="adb_pairing_tutorial_content_network">Το aMiNo χρειάζεται πρόσβαση στο τοπικό
         δίκτυο. Ελέγχεται από τα δικαιώματα δικτύου.</string>
     <string name="adb_pairing_tutorial_content_network_limation_not_foreground">Ορισμένα συστήματα
         (όπως το MIUI) δεν επιτρέπουν στις εφαρμογές να έχουν πρόσβαση στο δίκτυο όταν δεν είναι
         ορατές, ακόμα κι αν η εφαρμογή χρησιμοποιεί μια υπηρεσία πρώτου πλάνου. Απενεργοποιήστε τις
-        λειτουργίες βελτιστοποίησης μπαταρίας για το Sasuki Anime σε τέτοια συστήματα.</string>
+        λειτουργίες βελτιστοποίησης μπαταρίας για το aMiNo σε τέτοια συστήματα.</string>
     <!-- Home - Root -->
     <string name="home_root_title"><![CDATA[Έναρξη (για συσκευές με root)]]></string>
-    <string name="home_root_description"><![CDATA[Αν χρησιμοποιείτε Magisk, μπορείτε να δοκιμάσετε το %1$s. Για τους χρήστες root, τελικά θα αντικαταστήσει το Sasuki Anime. Σημειώστε ότι οι υπάρχουσες εφαρμογές πρέπει να αλλάξουν λίγο για να χρησιμοποιήσουν το %2$s.]]></string>
+    <string name="home_root_description"><![CDATA[Αν χρησιμοποιείτε Magisk, μπορείτε να δοκιμάσετε το %1$s. Για τους χρήστες root, τελικά θα αντικαταστήσει το aMiNo. Σημειώστε ότι οι υπάρχουσες εφαρμογές πρέπει να αλλάξουν λίγο για να χρησιμοποιήσουν το %2$s.]]></string>
     <string name="home_root_button_start">Αρχή</string>
     <string name="home_root_button_restart">Επανεκκίνηση</string>
     <!-- Home - Application management -->
@@ -117,11 +117,11 @@
     </plurals>
     <string name="home_app_management_view_authorized_apps"><![CDATA[Πατήστε για να διαχειριστείτε εξουσιοδοτημένες εφαρμογές]]></string>
     <string name="home_app_management_empty">Οι εφαρμογές που έχουν ζητήσει ή δηλώσει την άδεια
-        Sasuki Anime θα εμφανίζονται εδώ.</string>
+        aMiNo θα εμφανίζονται εδώ.</string>
     <!-- Home - Automation -->
-    <string name="home_automation_title">Ελέγξτε το Sasuki Anime με εφαρμογές αυτοματισμού</string>
+    <string name="home_automation_title">Ελέγξτε το aMiNo με εφαρμογές αυτοματισμού</string>
     <string name="home_automation_description">Εφαρμογές όπως το Tasker και το MacroDroid μπορούν να
-        στείλουν intents για την αυτόματη εκκίνηση/διακοπή του Sasuki Anime.</string>
+        στείλουν intents για την αυτόματη εκκίνηση/διακοπή του aMiNo.</string>
     <string name="home_automation_button_view_intents">Προβολή προθέσεων</string>
     <string name="home_automation_dialog_label_action">Δράση</string>
     <string name="home_automation_dialog_label_package">Πακέτο</string>
@@ -129,28 +129,28 @@
     <string name="home_automation_dialog_label_target">Στόχος</string>
     <!-- Home - Learn more -->
     <string name="home_learn_more_title">Οδηγός προγραμματιστή</string>
-    <string name="home_learn_more_description">Μάθετε πώς να αναπτύσσεστε με το Sasuki Anime</string>
+    <string name="home_learn_more_description">Μάθετε πώς να αναπτύσσεστε με το aMiNo</string>
     <!-- Home - Adb permissions limited -->
     <string name="home_adb_is_limited_title">Πρέπει να κάνεις ένα επιπλέον βήμα</string>
     <string name="home_adb_is_limited_description">Ο κατασκευαστής της συσκευής σας έχει περιορίσει
-        τα δικαιώματα adb και οι εφαρμογές που χρησιμοποιούν το Sasuki Anime δεν θα λειτουργούν
+        τα δικαιώματα adb και οι εφαρμογές που χρησιμοποιούν το aMiNo δεν θα λειτουργούν
         σωστά.\n\nΣυνήθως, αυτός ο περιορισμός μπορεί να αρθεί προσαρμόζοντας ορισμένες επιλογές
         στις \"Επιλογές προγραμματιστή\". Διαβάστε τη βοήθεια για λεπτομέρειες σχετικά με το πώς να
-        το κάνετε αυτό.\n\nΕνδέχεται να χρειαστεί να επανεκκινήσετε το Sasuki Anime για να τεθεί σε ισχύ
+        το κάνετε αυτό.\n\nΕνδέχεται να χρειαστεί να επανεκκινήσετε το aMiNo για να τεθεί σε ισχύ
         η λειτουργία.</string>
     <!-- Application management -->
     <string name="app_management_dialog_adb_is_limited_title">Η άδεια του adb είναι περιορισμένη</string>
     <string name="app_management_dialog_adb_is_limited_message"><![CDATA[Είναι πολύ πιθανό ο κατασκευαστής της συσκευής σας να περιορίζει την άδεια του adb.<p>Μπορεί να υπάρχει μια λύση για το σύστημά σας σε <b><a href=\"%1$s\">αυτό το έγγραφο</a></b>.]]></string>
-    <string name="app_management_item_summary_requires_root">* απαιτεί εκτέλεση Sasuki Anime με root</string>
+    <string name="app_management_item_summary_requires_root">* απαιτεί εκτέλεση aMiNo με root</string>
     <string name="app_management_toggle_all">Εναλλαγή όλων</string>
     <!-- Terminal -->
-    <string name="home_terminal_title">Χρήση Sasuki Anime σε εφαρμογές τερματικού</string>
+    <string name="home_terminal_title">Χρήση aMiNo σε εφαρμογές τερματικού</string>
     <string name="home_terminal_description">Εκτέλεση εντολών κελύφους σε εφαρμογές τερματικού μέσω
-        Sasuki Anime</string>
+        aMiNo</string>
     <string name="terminal_tutorial_miui">Οι χρήστες έχουν αναφέρει ότι το MIUI παραβιάζει το
         Storage Access Framework, το οποίο χρησιμοποιείται από τη λειτουργία εξαγωγής.</string>
     <string name="terminal_tutorial_miui_2">Εάν χρησιμοποιείτε MIUI, ίσως χρειαστεί να εξαγάγετε το
-        αρχείο από τον φάκελο assets στο APK του Sasuki Anime.</string>
+        αρχείο από τον φάκελο assets στο APK του aMiNo.</string>
     <string name="terminal_tutorial_1">Εξαγάγετε τα αρχεία σε έναν νέο φάκελο.</string>
     <string name="terminal_tutorial_1_description">Θα εξαχθούν δύο αρχεία: %1$s και %2$s. Εάν τα
         αρχεία υπάρχουν ήδη στον επιλεγμένο φάκελο, θα διαγραφούν.</string>
@@ -175,23 +175,23 @@
         διαλόγου εξουσιοδότησης.</string>
     <string name="settings_use_system_color">Χρήση χρώματος θέματος συστήματος</string>
     <string name="settings_watchdog">Άγρυπνος φρουρός</string>
-    <string name="settings_watchdog_summary">Αυτόματη επανεκκίνηση του Sasuki Anime σε περίπτωση διακοπής
+    <string name="settings_watchdog_summary">Αυτόματη επανεκκίνηση του aMiNo σε περίπτωση διακοπής
         λειτουργίας</string>
     <string name="settings_tcp_mode">Λειτουργία TCP</string>
-    <string name="settings_tcp_mode_summary">"Επιτρέπει στο Sasuki Anime να επανεκκινήσει χωρίς Wi-Fi.
-        (Το Sasuki Anime πρέπει να ξεκίνησε μία φορά από την επανεκκίνηση)"</string>
+    <string name="settings_tcp_mode_summary">"Επιτρέπει στο aMiNo να επανεκκινήσει χωρίς Wi-Fi.
+        (Το aMiNo πρέπει να ξεκίνησε μία φορά από την επανεκκίνηση)"</string>
     <string name="settings_tcp_mode_dialog_close_port">"Η θύρα TCP θα κλείσει αμέσως. Θα χρειαστείτε
         Wi-Fi για να ενεργοποιήσετε ξανά τη λειτουργία TCP. Θέλετε να συνεχίσετε;"</string>
     <string name="settings_tcp_mode_closing_port">Κλείσιμο θύρας TCP...</string>
     <string name="settings_restart_dialog_title">Απαιτείται επανεκκίνηση</string>
-    <string name="settings_restart_dialog_message">Το Sasuki Anime πρέπει να επανεκκινηθεί για να
+    <string name="settings_restart_dialog_message">Το aMiNo πρέπει να επανεκκινηθεί για να
         εφαρμοστεί αυτή η ρύθμιση.</string>
-    <string name="settings_restart_dialog_message_wifi_required"><![CDATA[<br><br><b>Απαιτείται Wi-Fi. Το Sasuki Anime θα συνεχίσει να εκτελείται και θα περιμένει σύνδεση Wi-Fi πριν από την επανεκκίνηση στο παρασκήνιο.</b>]]></string>
+    <string name="settings_restart_dialog_message_wifi_required"><![CDATA[<br><br><b>Απαιτείται Wi-Fi. Το aMiNo θα συνεχίσει να εκτελείται και θα περιμένει σύνδεση Wi-Fi πριν από την επανεκκίνηση στο παρασκήνιο.</b>]]></string>
     <string name="settings_tcp_port">Θύρα TCP</string>
     <string name="settings_tcp_port_default">Προεπιλογή (5555)</string>
     <string name="settings_tcp_port_hint">Αφήστε κενό για χρήση προεπιλογής (5555)</string>
     <string name="settings_tcp_learn_more">Μάθετε περισσότερα σχετικά με τη χρήση εφαρμογών
-        αυτοματισμού για τον έλεγχο του Sasuki Anime</string>
+        αυτοματισμού για τον έλεγχο του aMiNo</string>
     <string name="settings_language">Γλώσσα</string>
     <string name="settings_translation_contributors">Συνεισφέροντες στη μετάφραση</string>
     <string name="settings_translation">Συμμετοχή στη μετάφραση</string>
@@ -229,10 +229,10 @@
     <string name="snackbar_action_fix">Διορθώνω</string>
     <!-- Toast -->
     <string name="toast_no_email_app">Δεν βρέθηκε εφαρμογή email</string>
-    <string name="toast_shizuku_already_starting">Το Sasuki Anime ξεκινά ήδη στο παρασκήνιο</string>
+    <string name="toast_shizuku_already_starting">Το aMiNo ξεκινά ήδη στο παρασκήνιο</string>
     <string name="toast_accessibility_tv_only">Αυτή η υπηρεσία υποστηρίζεται μόνο σε συσκευές
         τηλεόρασης.</string>
-    <string name="toast_pairing_timeout">Το χρονικό όριο της υπηρεσίας σύζευξης Sasuki Anime έληξε.</string>
+    <string name="toast_pairing_timeout">Το χρονικό όριο της υπηρεσίας σύζευξης aMiNo έληξε.</string>
     <!-- Dark Mode Setting Override -->
     <string name="dark_theme">Θέμα</string>
     <string name="dark_theme_off">Πάντα ελαφρύ</string>
@@ -242,14 +242,14 @@
     <string name="about_dialog_button_close">Κλείνω</string>
     <string name="about_view_source_code"><![CDATA[Δείτε τον πηγαίο κώδικα στη διεύθυνση %s]]></string>
     <!-- Start -->
-    <string name="action_start">Ξεκινήστε το Sasuki Anime</string>
+    <string name="action_start">Ξεκινήστε το aMiNo</string>
     <!-- Stop -->
-    <string name="action_stop">Σταματήστε το Sasuki Anime</string>
-    <string name="dialog_stop_message">Η υπηρεσία Sasuki Anime θα διακοπεί.</string>
+    <string name="action_stop">Σταματήστε το aMiNo</string>
+    <string name="dialog_stop_message">Η υπηρεσία aMiNo θα διακοπεί.</string>
     <!-- Notification -->
     <string name="notification_channel_service_status">Κατάσταση έναρξης υπηρεσίας</string>
-    <string name="notification_service_starting">Η υπηρεσία Sasuki Anime ξεκινά…</string>
-    <string name="notification_service_start_failed">Η έναρξη της υπηρεσίας Sasuki Anime απέτυχε.</string>
+    <string name="notification_service_starting">Η υπηρεσία aMiNo ξεκινά…</string>
+    <string name="notification_service_start_failed">Η έναρξη της υπηρεσίας aMiNo απέτυχε.</string>
     <string name="notification_service_start_no_root">Αποτυχία αιτήματος δικαιωμάτων root.</string>
     <string name="notification_working">Εργασία…</string>
     <string name="notification_channel_adb_pairing">Ασύρματη αντιστοίχιση εντοπισμού σφαλμάτων</string>
@@ -259,13 +259,13 @@
     <string name="notification_adb_pairing_stop_searching">Διακοπή αναζήτησης</string>
     <string name="notification_adb_pairing_working_title">Σύζευξη σε εξέλιξη</string>
     <string name="notification_adb_pairing_succeed_title">Η σύζευξη ήταν επιτυχής</string>
-    <string name="notification_adb_pairing_succeed_text">Μπορείτε να ξεκινήσετε την υπηρεσία Sasuki Anime
+    <string name="notification_adb_pairing_succeed_text">Μπορείτε να ξεκινήσετε την υπηρεσία aMiNo
         τώρα.</string>
     <string name="notification_adb_pairing_failed_title">Η σύζευξη απέτυχε</string>
     <string name="notification_adb_pairing_retry">Δοκιμάζω πάλι</string>
     <!-- Permission related, appears in system permission UI -->
-    <string name="permission_label">πρόσβαση στο Sasuki Anime</string>
-    <string name="permission_description">Επιτρέψτε στην εφαρμογή να χρησιμοποιεί το Sasuki Anime.</string>
+    <string name="permission_label">πρόσβαση στο aMiNo</string>
+    <string name="permission_description">Επιτρέψτε στην εφαρμογή να χρησιμοποιεί το aMiNo.</string>
     <string name="permission_warning_template"><![CDATA[Επιτρέπεται η χρήση του <b>%1$s</b> σε %2$s;]]></string>
     <string name="grant_dialog_button_allow_always">Επιτρέπεται συνεχώς</string>
     <string name="grant_dialog_button_deny">"Αρνούμαι"</string>
@@ -280,14 +280,14 @@
     <string name="wadb_error_title">Σφάλμα κατά την εκκίνηση κατά την εκκίνηση</string>
     <string name="wadb_error_notify_dev">Πατήστε για να ειδοποιήσετε τον προγραμματιστή.</string>
     <string name="wadb_permission_error_notification_title">Σφάλμα άδειας</string>
-    <string name="wadb_permission_error_notification_content">Ο Sasuki Anime χρειάζεται
+    <string name="wadb_permission_error_notification_content">Ο aMiNo χρειάζεται
         WRITE_SECURE_SETTINGS για να ξεκινήσει από την εκκίνηση. Αγγίξτε το για να μάθετε πώς
         μπορείτε να το εκχωρήσετε.</string>
     <string name="wadb_notification_channel">Υπηρεσία αυτόματης εκκίνησης ADB</string>
     <!-- Watchdog -->
     <string name="watchdog_running">Το Watchdog τρέχει</string>
     <string name="watchdog_turn_off">Κλείνω</string>
-    <string name="watchdog_shizuku_crashed_title">Ο Sasuki Anime συνετρίβη πρόσφατα</string>
+    <string name="watchdog_shizuku_crashed_title">Ο aMiNo συνετρίβη πρόσφατα</string>
     <string name="watchdog_shizuku_crashed_text">Το Watchdog επανεκκίνησε την υπηρεσία. Πατήστε για
         να μάθετε σχετικά με πιθανές επιδιορθώσεις για την αποτροπή μελλοντικών σφαλμάτων.</string>
     <string name="watchdog_shizuku_crashed_action_turn_off_alerts">Απενεργοποίηση ειδοποιήσεων</string>
@@ -297,13 +297,13 @@
     <string name="toast_copied_to_clipboard">Αντιγράφηκε στο πρόχειρο</string>
     <string name="accessibility_service_description">Παρέχει υποστήριξη σύζευξης για συσκευές (π.χ.,
         τηλεοράσεις με Android 14+) όπου δεν μπορούν να χρησιμοποιηθούν ειδοποιήσεις ή διαιρεμένη
-        οθόνη.\n\nΕπιτρέπει στο Sasuki Anime να εξαγάγει τον κωδικό σύζευξης από την οθόνη σύζευξης
+        οθόνη.\n\nΕπιτρέπει στο aMiNo να εξαγάγει τον κωδικό σύζευξης από την οθόνη σύζευξης
         ασύρματου εντοπισμού σφαλμάτων. Θα απενεργοποιηθεί μόνο του μόλις βρεθεί ο κωδικός σύζευξης.</string>
     <!-- Messages for legacy -->
-    <string name="dialog_legacy_not_support_title">Το %1$s δεν υποστηρίζει το σύγχρονο Sasuki Anime</string>
-    <string name="dialog_legacy_not_support_message"><![CDATA[Το παλαιότερο Sasuki Anime έχει καταργηθεί από τον Μάρτιο του 2019. Επίσης, το παλαιότερο Sasuki Anime δεν λειτουργεί σε νεότερα συστήματα Android.<p>Παρακαλούμε ρωτήστε τον προγραμματιστή του <b>%1$s</b> για ενημέρωση.]]></string>
-    <string name="dialog_requesting_legacy_title">Το %1$s ζητά παλαιότερο Sasuki Anime</string>
-    <string name="dialog_requesting_legacy_message"><![CDATA[<b>%1$s</b> υποστηρίζει το σύγχρονο Sasuki Anime, αλλά ζητά παλαιότερο Sasuki Anime. Αυτό μπορεί να οφείλεται στο ότι το Sasuki Anime δεν εκτελείται, ελέγξτε στην εφαρμογή Sasuki Anime.<p>Το παλαιότερο Sasuki Anime έχει καταργηθεί από τον Μάρτιο του 2019.]]></string>
-    <string name="dialog_requesting_legacy_button_open_shizuku">Ανοίξτε το Sasuki Anime</string>
+    <string name="dialog_legacy_not_support_title">Το %1$s δεν υποστηρίζει το σύγχρονο aMiNo</string>
+    <string name="dialog_legacy_not_support_message"><![CDATA[Το παλαιότερο aMiNo έχει καταργηθεί από τον Μάρτιο του 2019. Επίσης, το παλαιότερο aMiNo δεν λειτουργεί σε νεότερα συστήματα Android.<p>Παρακαλούμε ρωτήστε τον προγραμματιστή του <b>%1$s</b> για ενημέρωση.]]></string>
+    <string name="dialog_requesting_legacy_title">Το %1$s ζητά παλαιότερο aMiNo</string>
+    <string name="dialog_requesting_legacy_message"><![CDATA[<b>%1$s</b> υποστηρίζει το σύγχρονο aMiNo, αλλά ζητά παλαιότερο aMiNo. Αυτό μπορεί να οφείλεται στο ότι το aMiNo δεν εκτελείται, ελέγξτε στην εφαρμογή aMiNo.<p>Το παλαιότερο aMiNo έχει καταργηθεί από τον Μάρτιο του 2019.]]></string>
+    <string name="dialog_requesting_legacy_button_open_shizuku">Ανοίξτε το aMiNo</string>
     <string name="wadb_notification_attempt_now">Προσπαθήστε τώρα</string>
 </resources>

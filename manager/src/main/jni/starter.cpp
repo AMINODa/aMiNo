@@ -150,8 +150,8 @@ static void start_server(const char *path, const char *main_class, const char *p
             read(fds[0], &ready, 1);
             close(fds[0]);
 
-            printf("info: sasuki_server pid is %d\n", pid);
-            printf("info: sasuki_starter exit with 0\n");
+            printf("info: amino_server pid is %d\n", pid);
+            printf("info: amino_starter exit with 0\n");
             exit(EXIT_SUCCESS);
         }
     }

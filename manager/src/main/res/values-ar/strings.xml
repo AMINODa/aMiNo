@@ -8,7 +8,7 @@
     <string name="home_status_service_version_update"><![CDATA[الإصدار %2$s, %1$s<br>اعد تشغيل التطبيق من جديد للتحديث إلى الإصدار %3$s]]></string>
     <!-- Home - Adb -->
     <string name="home_adb_title"><![CDATA[ابدأ بالاتصال بجهاز كمبيوتر]]></string>
-    <string name="home_adb_description"><![CDATA[بالنسبة للأجهزة التي لا تحتوي على الجذر (Root) ، تحتاج إلى استخدام adb لبدء Sasuki Anime (يتطلب اتصال الكمبيوتر). يجب تكرار هذه العملية في كل مرة يتم فيها إعادة تشغيل الجهاز. يرجى <b><a href="%1$s"> قراءة التعليمات </a></b>.]]></string>
+    <string name="home_adb_description"><![CDATA[بالنسبة للأجهزة التي لا تحتوي على الجذر (Root) ، تحتاج إلى استخدام adb لبدء aMiNo (يتطلب اتصال الكمبيوتر). يجب تكرار هذه العملية في كل مرة يتم فيها إعادة تشغيل الجهاز. يرجى <b><a href="%1$s"> قراءة التعليمات </a></b>.]]></string>
     <string name="home_adb_button_view_help">اقرأ التعليمات</string>
     <string name="home_adb_button_view_command">عرض الأمر</string>
     <string name="home_adb_dialog_view_command_message"><![CDATA[font face=monospace>%1$s</font><br><br>* هناك بعض الاعتبارات الأخرى، يرجى تأكيد أنك قرأت التعليمات أولا.]]></string>
@@ -16,7 +16,7 @@
     <string name="home_adb_dialog_view_command_button_send">إرسال</string>
     <!-- Home - Wireless Adb -->
     <string name="home_wireless_adb_title"><![CDATA[البدء باستخدام التصحيح اللاسلكي]]></string>
-    <string name="home_wireless_adb_description"><![CDATA[على أندرويد 11 وما فوق ، يمكنك تفعيل التصحيح اللاسلكي وبدء Sasuki Anime مباشرة من جهازك ، دون الاحتياج إتصال بالكمبيوتر.<p>يرجى الإطلاع أولاً على التعليمات المفصلة خطوة بخطوة.]]></string>
+    <string name="home_wireless_adb_description"><![CDATA[على أندرويد 11 وما فوق ، يمكنك تفعيل التصحيح اللاسلكي وبدء aMiNo مباشرة من جهازك ، دون الاحتياج إتصال بالكمبيوتر.<p>يرجى الإطلاع أولاً على التعليمات المفصلة خطوة بخطوة.]]></string>
     <string name="home_wireless_adb_description_pre_11"><![CDATA[على الأجهزة الأقدم من إصدار الأندرويد 11 ، يلزم الاتصال بجهاز كمبيوتر لتمكين المعالجة/التصحيح اللاسلكي.]]></string>
     <string name="home_wireless_adb_view_guide_button">‌دليل خطوة بخطوة</string>
     <!-- Adb -->
@@ -24,7 +24,7 @@
     <string name="dialog_adb_discovery_message">يرجى تمكين \"التصحيح اللاسلكي\" في \"خيارات
         المطور\". \"تصحيح لاسلكي\" يتم تعطيلها عندما تتغير الشبكة تلقائيا.
         \n
-        \n ملاحظة، لا تعطل \"خيارات المطور\" أو \"تصحيح USB\"، أو سيتم إيقاف ساسوكي أنمي</string>
+        \n ملاحظة، لا تعطل \"خيارات المطور\" أو \"تصحيح USB\"، أو سيتم إيقاف aMiNo</string>
     <string name="dialog_adb_discovery_message_toggle_wireless_debugging">يرجى محاولة تعطيل
         \"التصحيح اللاسلكي\" وتمكينه إذا استمر في البحث.</string>
     <string name="dialog_adb_port">المنفذ</string>
@@ -35,7 +35,7 @@
     <string name="dialog_adb_pairing_paring_code">كود الاقتران</string>
     <string name="paring_code_is_wrong">رمز الاقتران خاطئ.</string>
     <string name="cannot_connect_port">لا يمكن الاتصال بخدمة تصحيح الأخطاء اللاسلكية.\n\nيرجى التأكد
-        من إدراج Sasuki Anime في القائمة البيضاء لجميع جدران الحماية، أو تطبيقات حظر الإعلانات، أو VPN،
+        من إدراج aMiNo في القائمة البيضاء لجميع جدران الحماية، أو تطبيقات حظر الإعلانات، أو VPN،
         أو التطبيقات المماثلة التي يمكنها تقييد الوصول إلى الشبكة.</string>
     <string name="dialog_wireless_adb_not_enabled">التصحيح اللاسلكي غير ممكّن.
         \nملاحظة ، قبل Android 11 ، لتمكين التصحيح اللاسلكي ، يجب أن يكون الاتصال بالكمبيوتر أمرًا
@@ -47,16 +47,16 @@
         اللاسلكية\"\n- انقر على الجانب الأيسر من \"تصحيح الأخطاء اللاسلكية\"\n- انقر على \"إقران
         الجهاز برمز الاقتران\"\n- أدخل رمز الاقتران في الإشعار</string>
     <string name="dialog_adb_pairing_accessibility_permission">في نظام Android 14، يؤدي تثبيت/تحديث
-        تطبيق Sasuki Anime باستخدام مُثبِّت الحزم إلى إلغاء إذن ^1، وهو الإذن المطلوب لتفعيل خدمة إمكانية
+        تطبيق aMiNo باستخدام مُثبِّت الحزم إلى إلغاء إذن ^1، وهو الإذن المطلوب لتفعيل خدمة إمكانية
         الوصول للاقتران.\n\nلمنحه، شغِّل أمر ADB التالي:\n\n^2\n\nبعد تشغيل الأمر، يمكنك متابعة
-        عملية الاقتران.\n\nملاحظة: يمكنك تجاوز هذا الإجراء بتثبيت/تحديث Sasuki Anime باستخدام ADB.</string>
+        عملية الاقتران.\n\nملاحظة: يمكنك تجاوز هذا الإجراء بتثبيت/تحديث aMiNo باستخدام ADB.</string>
     <string name="dialog_adb_pairing_accessibility_enable">يرجى تفعيل خدمة إمكانية الوصول لبدء عملية
-        الاقتران. هذا يسمح لـ Sasuki Anime باكتشاف رمز الاقتران.\n\nسيتم إيقاف خدمة إمكانية الوصول عند
+        الاقتران. هذا يسمح لـ aMiNo باكتشاف رمز الاقتران.\n\nسيتم إيقاف خدمة إمكانية الوصول عند
         العثور على الرمز أو بعد دقيقة واحدة لتوفير الطاقة.</string>
     <string name="dialog_adb_pairing_accessibility_navigate">يرجى بدء عملية الاقتران من خلال تنفيذ
         الخطوات التالية:\n- انتقل إلى \"خيارات المطور\"\n- قم بتمكين \"تصحيح أخطاء USB\" و\"تصحيح
         الأخطاء اللاسلكية\"\n- انقر على الجانب الأيسر من \"تصحيح الأخطاء اللاسلكية\"\n- انقر على
-        \"إقران الجهاز برمز الاقتران\". سيكتشف Sasuki Anime رمز الاقتران تلقائيًا.</string>
+        \"إقران الجهاز برمز الاقتران\". سيكتشف aMiNo رمز الاقتران تلقائيًا.</string>
     <string name="adb_pairing_requires_multi_window">الرجاء إدخال وضع تقسيم الشاشة (متعدد النوافذ)
         أولاً.</string>
     <string name="adb_pairing_requires_multi_window_reason">يتطلب النظام أن يكون مربع حوار الاقتران
@@ -70,8 +70,8 @@
     <string name="enable">يُمكَِن</string>
     <string name="development_settings">خيارات للمطور</string>
     <string name="notification_settings">إعداد الإشعارات</string>
-    <string name="adb_pairing_tutorial_title">قم بإقران Sasuki Anime بجهازك</string>
-    <string name="adb_pairing_tutorial_content_notification">سيساعدك إشعار من Sasuki Anime على إكمال
+    <string name="adb_pairing_tutorial_title">قم بإقران aMiNo بجهازك</string>
+    <string name="adb_pairing_tutorial_content_notification">سيساعدك إشعار من aMiNo على إكمال
         الاقتران.</string>
     <string name="adb_pairing_tutorial_content_steps">انتقل إلى \"خيارات المطور\"، ثم قم بتمكين
         \"تصحيح أخطاء USB\" و\"تصحيح أخطاء اللاسلكي\".</string>
@@ -79,20 +79,20 @@
         الأخطاء اللاسلكية\"، ثم انقر على \"إقران الجهاز برمز الاقتران\". أدخل الرمز في الإشعار
         لإكمال عملية الاقتران.</string>
     <string name="adb_pairing_tutorial_content_notification_blocked">تحتاج عملية الاقتران إلى
-        التفاعل مع إشعار من Sasuki Anime. يرجى السماح لساسوكي أنمي بنشر الإخطارات.</string>
+        التفاعل مع إشعار من aMiNo. يرجى السماح لaMiNo بنشر الإخطارات.</string>
     <string name="adb_pairing_tutorial_content_miui">قد يحتاج مستخدمو MIUI إلى تبديل نمط الإعلام إلى
         \"Android\" من \"Notification\" - \"Notification Shade\" في إعدادات النظام.</string>
     <string name="adb_pairing_tutorial_content_miui_2">وإلا، فقد لا تتمكن من إدخال رمز الاقتران من
         الإشعار.</string>
-    <string name="adb_pairing_tutorial_content_finish">ارجع إلى ساسوكي أنمي وابدأ في ساسوكي أنمي.</string>
-    <string name="adb_pairing_tutorial_content_network">يحتاج ساسوكي أنمي إلى الوصول إلى الشبكة المحلية.
+    <string name="adb_pairing_tutorial_content_finish">ارجع إلى aMiNo وابدأ في aMiNo.</string>
+    <string name="adb_pairing_tutorial_content_network">يحتاج aMiNo إلى الوصول إلى الشبكة المحلية.
         يتم التحكم به من خلال أذونات الشبكة.</string>
     <string name="adb_pairing_tutorial_content_network_limation_not_foreground">بعض الأنظمة (مثل
         MIUI) تمنع التطبيقات من الوصول إلى الشبكة عند عدم ظهورها، حتى لو كانت تستخدم خدمة الواجهة
-        الأمامية. يُرجى تعطيل ميزات تحسين أداء البطارية لتطبيق Sasuki Anime على هذه الأنظمة.</string>
+        الأمامية. يُرجى تعطيل ميزات تحسين أداء البطارية لتطبيق aMiNo على هذه الأنظمة.</string>
     <!-- Home - Root -->
     <string name="home_root_title"><![CDATA[ابدأ (للأجهزة المجذرة)]]></string>
-    <string name="home_root_description"><![CDATA[إذا كنت تستخدم Magisk، يمكنك تجربة %1$s. بالنسبة لمستخدمي الجذر، سيحل هذا الخيار محل Sasuki Anime في نهاية المطاف. ملاحظة: تحتاج التطبيقات الحالية إلى تغيير بسيط لاستخدام %2$s.]]></string>
+    <string name="home_root_description"><![CDATA[إذا كنت تستخدم Magisk، يمكنك تجربة %1$s. بالنسبة لمستخدمي الجذر، سيحل هذا الخيار محل aMiNo في نهاية المطاف. ملاحظة: تحتاج التطبيقات الحالية إلى تغيير بسيط لاستخدام %2$s.]]></string>
     <string name="home_root_button_start">البدء بالتشغيل</string>
     <string name="home_root_button_restart">إعادة البدء بالتشغيل</string>
     <!-- Home - Application management -->
@@ -106,11 +106,11 @@
         <item quantity="other"><![CDATA[تطبيقات %d معتمدة]]></item>
     </plurals>
     <string name="home_app_management_view_authorized_apps"><![CDATA[انقر لإدارة التطبيقات المصرح بها]]></string>
-    <string name="home_app_management_empty">ستظهر هنا التطبيقات التي طلبت أو أعلنت عن إذن Sasuki Anime.</string>
+    <string name="home_app_management_empty">ستظهر هنا التطبيقات التي طلبت أو أعلنت عن إذن aMiNo.</string>
     <!-- Home - Automation -->
-    <string name="home_automation_title">التحكم في ساسوكي أنمي باستخدام تطبيقات الأتمتة</string>
+    <string name="home_automation_title">التحكم في aMiNo باستخدام تطبيقات الأتمتة</string>
     <string name="home_automation_description">يمكن للتطبيقات مثل Tasker وMacroDroid إرسال نوايا
-        لبدء/إيقاف Sasuki Anime تلقائيًا.</string>
+        لبدء/إيقاف aMiNo تلقائيًا.</string>
     <string name="home_automation_button_view_intents">عرض النوايا</string>
     <string name="home_automation_dialog_label_action">فعل</string>
     <string name="home_automation_dialog_label_package">طَرد</string>
@@ -118,29 +118,29 @@
     <string name="home_automation_dialog_label_target">هدف</string>
     <!-- Home - Learn more -->
     <string name="home_learn_more_title">دليل المطور</string>
-    <string name="home_learn_more_description">تعلم كيف تطور مع Sasuki Anime</string>
+    <string name="home_learn_more_description">تعلم كيف تطور مع aMiNo</string>
     <!-- Home - Adb permissions limited -->
     <string name="home_adb_is_limited_title">أنت بحاجة إلى اتخاذ خطوة إضافية</string>
     <string name="home_adb_is_limited_description">قامت الشركة المصنعة لجهازك بتقييد أذونات adb ولن
-        تعمل التطبيقات التي تستخدم Sasuki Anime بشكل صحيح.
+        تعمل التطبيقات التي تستخدم aMiNo بشكل صحيح.
         \n
         \nعادة ، يمكن رفع هذا القيد عن طريق تعديل بعض الخيارات في \"خيارات المطور\". يرجى قراءة
         التعليمات للحصول على تفاصيل حول كيفية القيام بذلك.
         \n
-        \nقد تحتاج إلى إعادة تشغيل Sasuki Anime حتى تدخل العملية حيز التنفيذ.</string>
+        \nقد تحتاج إلى إعادة تشغيل aMiNo حتى تدخل العملية حيز التنفيذ.</string>
     <!-- Application management -->
     <string name="app_management_dialog_adb_is_limited_title">إذن الADB محدود</string>
     <string name="app_management_dialog_adb_is_limited_message"><![CDATA[من المحتمل جدًا أن تحدد الشركة المصنعة للجهاز إذن adb. <p> قد يكون هناك حل لنظامك في <b><a href="%1$s">هذا المستند</a></b>.]]></string>
-    <string name="app_management_item_summary_requires_root">* يطلب Sasuki Anime الجذر (الروت) للعمل</string>
+    <string name="app_management_item_summary_requires_root">* يطلب aMiNo الجذر (الروت) للعمل</string>
     <string name="app_management_toggle_all">تبديل الكل</string>
     <!-- Terminal -->
-    <string name="home_terminal_title">استخدم Sasuki Anime في تطبيقات المحطة</string>
+    <string name="home_terminal_title">استخدم aMiNo في تطبيقات المحطة</string>
     <string name="home_terminal_description">تشغيل أوامر shell في تطبيقات المحطة الطرفية من خلال
-        Sasuki Anime</string>
+        aMiNo</string>
     <string name="terminal_tutorial_miui">أبلغ المستخدمون أن MIUI يكسر إطار عمل الوصول إلى التخزين،
         والذي تستخدمه وظيفة التصدير.</string>
     <string name="terminal_tutorial_miui_2">إذا كنت تستخدم MIUI، فقد تحتاج إلى استخراج الملف من مجلد
-        الأصول في ملف APK الخاص بـ Sasuki Anime.</string>
+        الأصول في ملف APK الخاص بـ aMiNo.</string>
     <string name="terminal_tutorial_1">تصدير الملفات إلى مجلد جديد.</string>
     <string name="terminal_tutorial_1_description">سيتم تصدير ملفين: %1$s و %2$s. إذا كانت الملفات
         موجودة بالفعل في المجلد المحدد، فسيتم حذفها.</string>
@@ -162,21 +162,21 @@
         خلال النقر على \"السماح\" عند ظهور مربع حوار التفويض.</string>
     <string name="settings_use_system_color">استخدم لون سمة النظام</string>
     <string name="settings_watchdog">مراقب</string>
-    <string name="settings_watchdog_summary">إعادة تشغيل Sasuki Anime تلقائيًا في حالة تعطله</string>
+    <string name="settings_watchdog_summary">إعادة تشغيل aMiNo تلقائيًا في حالة تعطله</string>
     <string name="settings_tcp_mode">وضع TCP</string>
-    <string name="settings_tcp_mode_summary">"يسمح لـ Sasuki Anime بإعادة التشغيل دون اتصال Wi-Fi. (يجب
-        أن يكون Sasuki Anime قد بدأ مرة واحدة بعد إعادة التشغيل)"</string>
+    <string name="settings_tcp_mode_summary">"يسمح لـ aMiNo بإعادة التشغيل دون اتصال Wi-Fi. (يجب
+        أن يكون aMiNo قد بدأ مرة واحدة بعد إعادة التشغيل)"</string>
     <string name="settings_tcp_mode_dialog_close_port">"سيتم إغلاق منفذ TCP فورًا. ستحتاج إلى اتصال
         Wi-Fi لإعادة تشغيل وضع TCP. هل تريد المتابعة؟"</string>
     <string name="settings_tcp_mode_closing_port">إغلاق منفذ TCP...</string>
     <string name="settings_restart_dialog_title">مطلوب إعادة التشغيل</string>
-    <string name="settings_restart_dialog_message">يجب على Sasuki Anime إعادة التشغيل لتطبيق هذا الإعداد.</string>
-    <string name="settings_restart_dialog_message_wifi_required"><![CDATA[<br><br><b>يتطلب اتصالاً لاسلكياً. سيستمر ساسوكي أنمي بالعمل وينتظر اتصالاً لاسلكياً قبل إعادة التشغيل في الخلفية.</b>]]></string>
+    <string name="settings_restart_dialog_message">يجب على aMiNo إعادة التشغيل لتطبيق هذا الإعداد.</string>
+    <string name="settings_restart_dialog_message_wifi_required"><![CDATA[<br><br><b>يتطلب اتصالاً لاسلكياً. سيستمر aMiNo بالعمل وينتظر اتصالاً لاسلكياً قبل إعادة التشغيل في الخلفية.</b>]]></string>
     <string name="settings_tcp_port">منفذ TCP</string>
     <string name="settings_tcp_port_default">افتراضي (5555)</string>
     <string name="settings_tcp_port_hint">اتركه فارغًا لاستخدام الإعداد الافتراضي (5555)</string>
     <string name="settings_tcp_learn_more">تعرف على المزيد حول استخدام تطبيقات الأتمتة للتحكم في
-        Sasuki Anime</string>
+        aMiNo</string>
     <string name="settings_language">اللغة</string>
     <string name="settings_translation_contributors">المساهمون في الترجمة</string>
     <string name="settings_translation">شارك في الترجمة</string>
@@ -213,9 +213,9 @@
     <string name="snackbar_action_fix">يصلح</string>
     <!-- Toast -->
     <string name="toast_no_email_app">لم يتم العثور على تطبيق البريد الإلكتروني</string>
-    <string name="toast_shizuku_already_starting">ساسوكي أنمي بدأت بالفعل في الخلفية</string>
+    <string name="toast_shizuku_already_starting">aMiNo بدأت بالفعل في الخلفية</string>
     <string name="toast_accessibility_tv_only">هذه الخدمة مدعومة فقط على أجهزة التلفزيون.</string>
-    <string name="toast_pairing_timeout">انتهت مهلة خدمة إقران ساسوكي أنمي.</string>
+    <string name="toast_pairing_timeout">انتهت مهلة خدمة إقران aMiNo.</string>
     <!-- Dark Mode Setting Override -->
     <string name="dark_theme">سمة</string>
     <string name="dark_theme_off">دائما خفيف</string>
@@ -225,14 +225,14 @@
     <string name="about_dialog_button_close">يغلق</string>
     <string name="about_view_source_code"><![CDATA[عرض التعليمات البرمجية المصدر في %s]]></string>
     <!-- Start -->
-    <string name="action_start">ابدأ ساسوكي أنمي</string>
+    <string name="action_start">ابدأ aMiNo</string>
     <!-- Stop -->
-    <string name="action_stop">إيقاف Sasuki Anime</string>
-    <string name="dialog_stop_message">سيتم إيقاف خدمة Sasuki Anime.</string>
+    <string name="action_stop">إيقاف aMiNo</string>
+    <string name="dialog_stop_message">سيتم إيقاف خدمة aMiNo.</string>
     <!-- Notification -->
     <string name="notification_channel_service_status">بدء حالة الخدمة</string>
-    <string name="notification_service_starting">بدأت خدمة Sasuki Anime…</string>
-    <string name="notification_service_start_failed">فشل بدء تشغيل خدمة Sasuki Anime.</string>
+    <string name="notification_service_starting">بدأت خدمة aMiNo…</string>
+    <string name="notification_service_start_failed">فشل بدء تشغيل خدمة aMiNo.</string>
     <string name="notification_service_start_no_root">فشل في طلب إذن الجذر (الروت).</string>
     <string name="notification_working">يعمل…</string>
     <string name="notification_channel_adb_pairing">اقتران التصحيح/العلاج اللاسلكي</string>
@@ -242,12 +242,12 @@
     <string name="notification_adb_pairing_stop_searching">توقف عن البحث</string>
     <string name="notification_adb_pairing_working_title">الاقتران قيد التقدم</string>
     <string name="notification_adb_pairing_succeed_title">تم الاقتران بنجاح</string>
-    <string name="notification_adb_pairing_succeed_text">يمكنك بدء خدمة Sasuki Anime الآن.</string>
+    <string name="notification_adb_pairing_succeed_text">يمكنك بدء خدمة aMiNo الآن.</string>
     <string name="notification_adb_pairing_failed_title">فشل الاقتران</string>
     <string name="notification_adb_pairing_retry">أعد المحاولة</string>
     <!-- Permission related, appears in system permission UI -->
-    <string name="permission_label">الوصول إلى Sasuki Anime</string>
-    <string name="permission_description">اسمح للتطبيق باستخدام Sasuki Anime.</string>
+    <string name="permission_label">الوصول إلى aMiNo</string>
+    <string name="permission_description">اسمح للتطبيق باستخدام aMiNo.</string>
     <string name="permission_warning_template"><![CDATA[هل تريد السماح لـ <b>%1$s</b> بـ %2$s؟]]></string>
     <string name="grant_dialog_button_allow_always">السماح في كل وقت</string>
     <string name="grant_dialog_button_deny">"منع"</string>
@@ -256,19 +256,19 @@
     <string name="start_with_root_failed">لا يمكن بدء الخدمة لأنه لم يتم منح إذن الجذر (الروت) أو قد
         يكون هذا الجهاز ليس مزوّدًا بحق الوصول إلى الجذر (الروت).</string>
     <!-- WADB Starter -->
-    <string name="wadb_notification_title">بداية ساسوكي أنمي…</string>
+    <string name="wadb_notification_title">بداية aMiNo…</string>
     <string name="wadb_notification_wifi_required">في انتظار اتصال Wi-Fi قبل المتابعة</string>
     <string name="wadb_notification_retry">في انتظار إعادة المحاولة</string>
     <string name="wadb_error_title">حدث خطأ أثناء بدء التشغيل</string>
     <string name="wadb_error_notify_dev">انقر هنا لإعلام المطور.</string>
     <string name="wadb_permission_error_notification_title">خطأ في الإذن</string>
-    <string name="wadb_permission_error_notification_content">يحتاج ساسوكي أنمي إلى WRITE_SECURE_SETTINGS
+    <string name="wadb_permission_error_notification_content">يحتاج aMiNo إلى WRITE_SECURE_SETTINGS
         للبدء عند بدء التشغيل. انقر لمعرفة كيفية تفعيله.</string>
     <string name="wadb_notification_channel">خدمة بدء التشغيل التلقائي لـ ADB</string>
     <!-- Watchdog -->
     <string name="watchdog_running">مراقب يعمل</string>
     <string name="watchdog_turn_off">إيقاف التشغيل</string>
-    <string name="watchdog_shizuku_crashed_title">تحطمت ساسوكي أنمي مؤخرًا</string>
+    <string name="watchdog_shizuku_crashed_title">تحطمت aMiNo مؤخرًا</string>
     <string name="watchdog_shizuku_crashed_text">أعاد برنامج المراقبة تشغيل الخدمة. انقر لمعرفة
         المزيد عن الحلول الممكنة لمنع الأعطال المستقبلية.</string>
     <string name="watchdog_shizuku_crashed_action_turn_off_alerts">إيقاف التنبيهات</string>
@@ -277,13 +277,41 @@
     <string name="toast_copied_to_clipboard">تم نسخها إلى الحافظة</string>
     <string name="accessibility_service_description">يوفر دعمًا للاقتران للأجهزة (مثل أجهزة
         التلفزيون التي تعمل بنظام أندرويد 14+) التي لا يمكن فيها استخدام الإشعارات أو تقسيم
-        الشاشة.\n\nيُمكّن ساسوكي أنمي من استخراج رمز الاقتران من شاشة اقتران تصحيح أخطاء الشبكة
+        الشاشة.\n\nيُمكّن aMiNo من استخراج رمز الاقتران من شاشة اقتران تصحيح أخطاء الشبكة
         اللاسلكية. سيُعطّل تلقائيًا بمجرد العثور على رمز الاقتران.</string>
     <!-- Messages for legacy -->
-    <string name="dialog_legacy_not_support_title">%1$s لا يدعم النسخة الحديثة من Sasuki Anime</string>
-    <string name="dialog_legacy_not_support_message"><![CDATA[تم إهمال Legacy Sasuki Anime منذ آذار (مارس) 2019. أيضًا ، لا يعمل Sasuki Anime القديم على أنظمة Android الأحدث. <p> يُرجى مطالبة مطور <b> %1$s </b> بالتحديث.]]></string>
-    <string name="dialog_requesting_legacy_title">يطلب %1$s تطبيق Sasuki Anime القديم</string>
-    <string name="dialog_requesting_legacy_message"><![CDATA[يحتوي <b> %1$s </b> على دعم Sasuki Anime الحديث ، لكنه يتطلب ساسوكي أنمي القديم. قد يكون هذا بسبب عدم تشغيل Sasuki Anime ، يرجى التحقق في تطبيق Sasuki Anime. <p> تم إيقاف Legacy Sasuki Anime منذ آذار (مارس) 2019.]]></string>
-    <string name="dialog_requesting_legacy_button_open_shizuku">افتح Sasuki Anime</string>
+    <string name="dialog_legacy_not_support_title">%1$s لا يدعم النسخة الحديثة من aMiNo</string>
+    <string name="dialog_legacy_not_support_message"><![CDATA[تم إهمال Legacy aMiNo منذ آذار (مارس) 2019. أيضًا ، لا يعمل aMiNo القديم على أنظمة Android الأحدث. <p> يُرجى مطالبة مطور <b> %1$s </b> بالتحديث.]]></string>
+    <string name="dialog_requesting_legacy_title">يطلب %1$s تطبيق aMiNo القديم</string>
+    <string name="dialog_requesting_legacy_message"><![CDATA[يحتوي <b> %1$s </b> على دعم aMiNo الحديث ، لكنه يتطلب aMiNo القديم. قد يكون هذا بسبب عدم تشغيل aMiNo ، يرجى التحقق في تطبيق aMiNo. <p> تم إيقاف Legacy aMiNo منذ آذار (مارس) 2019.]]></string>
+    <string name="dialog_requesting_legacy_button_open_shizuku">افتح aMiNo</string>
     <string name="wadb_notification_attempt_now">حاول الآن</string>
+
+    <!-- aMiNo Shell -->
+    <string name="shell_title">Shell</string>
+    <string name="home_shell_title">Shell — طرفية aMiNo</string>
+    <string name="home_shell_description">افتح طرفية مباشرة متصلة بالجهاز بعد الاقتران. يبقى الاتصال مفتوحًا.</string>
+    <string name="shell_status_connecting">جارٍ الاتصال…</string>
+    <string name="shell_status_connected">متصل — الجلسة مفتوحة</string>
+    <string name="shell_status_disconnected">غير متصل</string>
+    <string name="shell_disconnected">انقطع الاتصال — اضغط إعادة الاتصال</string>
+    <string name="shell_reconnect">إعادة الاتصال</string>
+    <string name="shell_input_hint">اكتب الأمر هنا…</string>
+    <string name="shell_send_description">إرسال</string>
+    <string name="shell_clear">مسح الشاشة</string>
+    <string name="shell_experimental">خيارات تجريبية</string>
+    <string name="shell_cmd_ping">فحص الاقتران</string>
+    <string name="shell_cmd_whoami">من أنا</string>
+    <string name="shell_cmd_device">معلومات الجهاز</string>
+    <string name="shell_cmd_service">خدمة aMiNo</string>
+    <string name="shell_cmd_wadb">التصحيح اللاسلكي</string>
+    <string name="shell_pair_ok">تم الاقتران والاتصال بنجاح — Shell يعمل!</string>
+    <string name="shell_service_ok">خدمة aMiNo تعمل على الجهاز</string>
+    <string name="shell_welcome">aMiNo Shell — الاتصال يبقى مفتوحًا.\nاكتب أمرًا واضغط إرسال، أو جرّب الخيارات التجريبية أدناه.\nجرّب \'help\' لعرض الأوامر التجريبية.</string>
+    <string name="starter_open_shell">فتح Shell</string>
+    <string name="starter_stays_open">الخدمة تعمل — تبقى هذه النافذة مفتوحة الآن. اضغط SHELL لفتح الطرفية المباشرة.</string>
+    <string name="shell_continue_start">متابعة: تشغيل الخدمة</string>
+    <string name="dialog_adb_pairing_success_title">تم الاقتران بنجاح</string>
+    <string name="dialog_adb_pairing_success_text">تم إقران الجهاز بنجاح. شغّل خدمة aMiNo الآن، ثم افتح طرفية Shell — سيبقى الاتصال مفتوحًا.</string>
+
 </resources>

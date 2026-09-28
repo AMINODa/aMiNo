@@ -123,7 +123,7 @@ object ShizukuReceiverStarter {
             ShizukuStateMachine.set(ShizukuStateMachine.State.STARTING)
             Shell.cmd(Starter.internalCommand).exec()
         } catch (e: Exception) {
-            Log.e(AppConstants.TAG, "Failed to start Sasuki with root", e)
+            Log.e(AppConstants.TAG, "Failed to start aMiNo with root", e)
             ShizukuStateMachine.update()
         }
     }

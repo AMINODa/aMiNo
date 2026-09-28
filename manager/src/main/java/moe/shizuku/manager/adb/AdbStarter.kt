@@ -32,7 +32,7 @@ object AdbStarter {
             log?.invoke("Starting with wireless adb...\n")
         
             withContext(Dispatchers.IO) {
-                val key = runCatching { AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "sasuki-anime") }
+                val key = runCatching { AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "amino") }
                     .getOrElse {
                         if (it is CancellationException) throw it
                         else throw AdbKeyException(it)
@@ -62,6 +62,8 @@ object AdbStarter {
                 AdbClient("127.0.0.1", activePort, key).use { client ->
                     connectWithRetry(client)
                     log?.invoke("Successfully connected on port $activePort...\n")
+                    // aMiNo Shell: remember the working port so the terminal can reconnect
+                    ShizukuSettings.setShellPort(activePort)
                     client.runCommand("shell:${Starter.internalCommand}")
                 }
             }
@@ -83,7 +85,7 @@ object AdbStarter {
             if (adbEnabled == 0) throw IllegalStateException("ADB is not enabled")
 
             ShizukuStateMachine.set(ShizukuStateMachine.State.STOPPING)
-            val key = AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "sasuki-anime")
+            val key = AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "amino")
             withContext(Dispatchers.IO) {
                 AdbClient("127.0.0.1", port, key).use { client ->
                     connectWithRetry(client)

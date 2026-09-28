@@ -82,7 +82,7 @@ class AdbPairingAccessibilityService : AccessibilityService() {
                 val host = "127.0.0.1"
 
                 val key = try {
-                    AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "sasuki-anime")
+                    AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "amino")
                 } catch (e: Throwable) {
                     toastMsg = getString(R.string.adb_error_key_store)
                     return@launch

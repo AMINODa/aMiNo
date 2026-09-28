@@ -28,6 +28,7 @@ public class ShizukuSettings {
         public static final String KEY_WATCHDOG = "watchdog";
         public static final String KEY_TCP_MODE = "tcp_mode";
         public static final String KEY_TCP_PORT = "tcp_port";
+        public static final String KEY_SHELL_PORT = "shell_last_port";
         public static final String KEY_AUTO_DISABLE_USB_DEBUGGING = "auto_disable_usb_debugging";
         public static final String KEY_LANGUAGE = "language";
         public static final String KEY_TRANSLATION = "translation";
@@ -189,7 +190,16 @@ public class ShizukuSettings {
         } else {
             getPreferences().edit().remove(Keys.KEY_TCP_PORT).apply();
         }
-        
+
+    }
+
+    /** aMiNo Shell: last successfully used wireless adb port. */
+    public static int getShellPort() {
+        return getPreferences().getInt(Keys.KEY_SHELL_PORT, 0);
+    }
+
+    public static void setShellPort(int port) {
+        getPreferences().edit().putInt(Keys.KEY_SHELL_PORT, port).apply();
     }
 
     public static boolean getLegacyPairing() {

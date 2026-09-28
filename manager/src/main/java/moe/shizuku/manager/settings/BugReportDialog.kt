@@ -56,7 +56,7 @@ class BugReportDialog : DialogFragment() {
 
                     Device: ${Build.MANUFACTURER} ${Build.MODEL}
                     Android Version: ${Build.VERSION.RELEASE}
-                    Sasuki Anime Version: ${BuildConfig.VERSION_NAME}
+                    aMiNo Version: ${BuildConfig.VERSION_NAME}
                 """.trimIndent()
 
                 val intent = Intent(Intent.ACTION_SENDTO, Uri.parse(

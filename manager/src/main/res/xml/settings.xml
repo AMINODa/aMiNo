@@ -75,10 +75,6 @@
             android:summary="@string/settings_black_night_theme_summary"
             android:title="@string/settings_black_night_theme" />
 
-        <SwitchPreferenceCompat
-            android:key="use_system_color"
-            android:title="@string/settings_use_system_color" />
-
     </PreferenceCategory>
 
     <PreferenceCategory

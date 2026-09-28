@@ -8,7 +8,7 @@
     <string name="home_status_service_version_update"><![CDATA[Версия %2$s, %1$s<br>Запустите снова что бы обновиться до версии %3$s]]></string>
     <!-- Home - Adb -->
     <string name="home_adb_title"><![CDATA[Запуск через соединение с ПК]]></string>
-    <string name="home_adb_description"><![CDATA[Для устройств без root прав потребуется обращаться к adb для запуска Sasuki Anime (не обойтись без соединения с компьютером). Этот процесс нужно повторять каждый раз, когда устройство перезагружается. Пожалуйста, <b><a href="%1$s">прочтите справку</a></b>.]]></string>
+    <string name="home_adb_description"><![CDATA[Для устройств без root прав потребуется обращаться к adb для запуска aMiNo (не обойтись без соединения с компьютером). Этот процесс нужно повторять каждый раз, когда устройство перезагружается. Пожалуйста, <b><a href="%1$s">прочтите справку</a></b>.]]></string>
     <string name="home_adb_button_view_help">Читать справку</string>
     <string name="home_adb_button_view_command">Просмотр команды</string>
     <string name="home_adb_dialog_view_command_message"><![CDATA[<font face=monospace>%1$s</font><br><br>* Есть и другие способы; сначала убедитесь, что сперва прочли справку.]]></string>
@@ -24,7 +24,7 @@
     <string name="dialog_adb_discovery_message">Пожалуйста, включите пункт «Отладка по Wi-Fi» в меню
         «Для разработчиков». «Отладка по Wi-Fi» автоматически отключается при изменении сети.
         \n
-        \nВнимание: не отключайте пункт «Для разработчиков» или «Отладка по USB», иначе Sasuki Anime
+        \nВнимание: не отключайте пункт «Для разработчиков» или «Отладка по USB», иначе aMiNo
         остановит работу.</string>
     <string name="dialog_adb_discovery_message_toggle_wireless_debugging">Попробуй выключить и снова
         включить \"Отладка по Wi-Fi\", если поиск продолжается.</string>
@@ -36,7 +36,7 @@
     <string name="dialog_adb_pairing_paring_code">Код сопряжения</string>
     <string name="paring_code_is_wrong">Неверный код сопряжения.</string>
     <string name="cannot_connect_port">Не могу подключиться к беспроводной отладке.\n\nПожалуйста,
-        убедитесь, что Sasuki Anime внесен в белый список во всех фаерволах, блокировке рекламы, VPN или
+        убедитесь, что aMiNo внесен в белый список во всех фаерволах, блокировке рекламы, VPN или
         подобных приложениях, которые могут ограничивать доступ к сети.</string>
     <string name="dialog_wireless_adb_not_enabled">Отладка по Wi-Fi не включена.
         \nВнимание: на системах старше Android 11 для включения этой отладки необходимо соединение с
@@ -48,12 +48,12 @@
         отладку»\n- Нажать на левую сторону раздела «Беспроводная отладка»\n- Нажмите «Сопарить
         устройство с кодом сопряжения»\n- Введите код сопряжения в уведомление</string>
     <string name="dialog_adb_pairing_accessibility_permission">На Android 14 установка/обновление
-        Sasuki Anime с помощью Package Installer отменяет разрешение ^1, необходимое для включения службы
+        aMiNo с помощью Package Installer отменяет разрешение ^1, необходимое для включения службы
         специальных возможностей при сопряжении.\n\nЧтобы предоставить его, выполните следующую
         команду ADB:\n\n^2\n\nПосле выполнения команды вы можете продолжить процесс
-        сопряжения.\n\nПримечание: вы можете обойти это, установив/обновив Sasuki Anime с помощью ADB.</string>
+        сопряжения.\n\nПримечание: вы можете обойти это, установив/обновив aMiNo с помощью ADB.</string>
     <string name="dialog_adb_pairing_accessibility_enable">Включите службу специальных возможностей,
-        чтобы начать процесс сопряжения. Это позволит Sasuki Anime обнаружить код сопряжения.\n\nСлужба
+        чтобы начать процесс сопряжения. Это позволит aMiNo обнаружить код сопряжения.\n\nСлужба
         специальных возможностей будет отключена после обнаружения кода или через 1 минуту для
         экономии энергии.</string>
     <string name="dialog_adb_pairing_accessibility_navigate">Пожалуйста, начните спаривать с
@@ -74,8 +74,8 @@
     <string name="enable">Давать возможность</string>
     <string name="development_settings">Параметры разработчика</string>
     <string name="notification_settings">Настройки уведомлений</string>
-    <string name="adb_pairing_tutorial_title">Сопряжение Sasuki Anime с вашим устройством</string>
-    <string name="adb_pairing_tutorial_content_notification">Уведомление от Sasuki Anime поможет
+    <string name="adb_pairing_tutorial_title">Сопряжение aMiNo с вашим устройством</string>
+    <string name="adb_pairing_tutorial_content_notification">Уведомление от aMiNo поможет
         завершить процедуру сопряжения.</string>
     <string name="adb_pairing_tutorial_content_steps">Перейдите в «Настройки разработчика», затем
         включите «USB debugging» и «Wireless debugging».</string>
@@ -83,7 +83,7 @@
         «Беспроводная отладка», затем выберите «Сопряжь устройство с кодом сопряжения». Введите код
         в уведомлении, чтобы завершить сопряжение.</string>
     <string name="adb_pairing_tutorial_content_notification_blocked">Процедура сопряжения
-        подразумевает взаимодействие с уведомлением от Sasuki Anime. Для продолжения выдайте Sasuki Anime
+        подразумевает взаимодействие с уведомлением от aMiNo. Для продолжения выдайте aMiNo
         разрешение на показ уведомлений.</string>
     <string name="adb_pairing_tutorial_content_miui">На оболочке MIUI может потребоваться сменить
         параметр в пункте системных настроек «Уведомления» – «Стиль уведомлений» на «Android».</string>
@@ -95,10 +95,10 @@
     <string name="adb_pairing_tutorial_content_network_limation_not_foreground">Некоторые системы
         (например, MIUI) запрещают приложениям получать доступ к сети, если они невидимы, даже если
         приложение использует сервис переднего плана. Пожалуйста, отключите функции оптимизации
-        батареи для Sasuki Anime на таких системах.</string>
+        батареи для aMiNo на таких системах.</string>
     <!-- Home - Root -->
     <string name="home_root_title"><![CDATA[Запуск (для устройств с root правами)]]></string>
-    <string name="home_root_description"><![CDATA[Если вы используете Magisk, попробуйте %1$s. Для пользователей root он в конечном итоге заменит Sasuki Anime. Обратите внимание, что существующие приложения необходимо немного изменить для использования %2$s.]]></string>
+    <string name="home_root_description"><![CDATA[Если вы используете Magisk, попробуйте %1$s. Для пользователей root он в конечном итоге заменит aMiNo. Обратите внимание, что существующие приложения необходимо немного изменить для использования %2$s.]]></string>
     <string name="home_root_button_start">Запустить</string>
     <string name="home_root_button_restart">Перезапустить</string>
     <!-- Home - Application management -->
@@ -111,11 +111,11 @@
     </plurals>
     <string name="home_app_management_view_authorized_apps"><![CDATA[Нажмите для управления списком допущенных приложений]]></string>
     <string name="home_app_management_empty">Здесь будут отображаться приложения, которые запросили
-        или заявили разрешение Sasuki Anime.</string>
+        или заявили разрешение aMiNo.</string>
     <!-- Home - Automation -->
     <string name="home_automation_title">Управляйте Сидзуку с помощью приложений автоматизации</string>
     <string name="home_automation_description">Приложения, такие как Tasker и MacroDroid, могут
-        отправлять намерения на автоматический запуск/остановку Sasuki Anime.</string>
+        отправлять намерения на автоматический запуск/остановку aMiNo.</string>
     <string name="home_automation_button_view_intents">Просмотр намерений</string>
     <string name="home_automation_dialog_label_action">Действие</string>
     <string name="home_automation_dialog_label_package">Упаковка</string>
@@ -123,30 +123,30 @@
     <string name="home_automation_dialog_label_target">Цель</string>
     <!-- Home - Learn more -->
     <string name="home_learn_more_title">Руководство разработчика</string>
-    <string name="home_learn_more_description">Узнайте, как начать разрабатывать с Sasuki Anime</string>
+    <string name="home_learn_more_description">Узнайте, как начать разрабатывать с aMiNo</string>
     <!-- Home - Adb permissions limited -->
     <string name="home_adb_is_limited_title">Нужен дополнительный шаг</string>
     <string name="home_adb_is_limited_description">Производитель вашего устройства ограничил права
-        ADB, приложения использующие Sasuki Anime будут работать не корректно.
+        ADB, приложения использующие aMiNo будут работать не корректно.
         \n
         \nОбычно эти ограничения можно снять в настройках для разработчиков. Пожалуйста, прочитай
         раздел помощи, чтобы узнать как это сделать.
         \n
-        \nВозможно Вам понадобится перезапустить Sasuki Anime для применения изменений.</string>
+        \nВозможно Вам понадобится перезапустить aMiNo для применения изменений.</string>
     <!-- Application management -->
     <string name="app_management_dialog_adb_is_limited_title">Доступ к adb ограничен</string>
     <string name="app_management_dialog_adb_is_limited_message"><![CDATA[Возможно, что производитель вашего устройства ограничивает доступ к adb.<p>Решение для вашей системы может быть описано <b><a href="%1$s">здесь</a></b>.]]></string>
-    <string name="app_management_item_summary_requires_root">* требуется Sasuki Anime, запущенный с root
+    <string name="app_management_item_summary_requires_root">* требуется aMiNo, запущенный с root
         правами</string>
     <string name="app_management_toggle_all">Переключить все</string>
     <!-- Terminal -->
-    <string name="home_terminal_title">Применение Sasuki Anime в эмуляторах терминала</string>
+    <string name="home_terminal_title">Применение aMiNo в эмуляторах терминала</string>
     <string name="home_terminal_description">Выполнение команд оболочки в терминальных приложениях
-        через Sasuki Anime</string>
+        через aMiNo</string>
     <string name="terminal_tutorial_miui">Пользователи сообщают, что MIUI нарушает работу Storage
         Access Framework, который используется функцией экспорта.</string>
     <string name="terminal_tutorial_miui_2">Если вы используете MIUI, вам, возможно, придется
-        извлечь файл из папки assets в APK-файле Sasuki Anime.</string>
+        извлечь файл из папки assets в APK-файле aMiNo.</string>
     <string name="terminal_tutorial_1">Экспортируйте файлы в новую папку.</string>
     <string name="terminal_tutorial_1_description">Будут экспортированы два файла: %1$s и %2$s. Если
         файлы уже существуют в выбранной папке, они будут удалены.</string>
@@ -169,9 +169,9 @@
         авторизировать сеть, нажав «Разрешить» при появлении диалога авторизации.</string>
     <string name="settings_use_system_color">Палитра цветов из системы</string>
     <string name="settings_watchdog">Сторожевой пес</string>
-    <string name="settings_watchdog_summary">Автоматически перезапускать Sasuki Anime в случае сбоя</string>
+    <string name="settings_watchdog_summary">Автоматически перезапускать aMiNo в случае сбоя</string>
     <string name="settings_tcp_mode">TCP-режим</string>
-    <string name="settings_tcp_mode_summary">"Позволяет Sasuki Anime перезапуститься без Wi-Fi. (Sasuki Anime
+    <string name="settings_tcp_mode_summary">"Позволяет aMiNo перезапуститься без Wi-Fi. (aMiNo
         должен был запуститься один раз после перезагрузки)"</string>
     <string name="settings_tcp_mode_dialog_close_port">"TCP-порт будет немедленно закрыт. Для
         повторного включения TCP-режима потребуется Wi-Fi. Продолжить?"</string>
@@ -240,12 +240,12 @@
     <!-- Start -->
     <string name="action_start">Запустить Шизуку</string>
     <!-- Stop -->
-    <string name="action_stop">Остановить Sasuki Anime</string>
-    <string name="dialog_stop_message">Служба Sasuki Anime будет остановлена.</string>
+    <string name="action_stop">Остановить aMiNo</string>
+    <string name="dialog_stop_message">Служба aMiNo будет остановлена.</string>
     <!-- Notification -->
     <string name="notification_channel_service_status">Состояние работы службы</string>
-    <string name="notification_service_starting">Служба Sasuki Anime запускается…</string>
-    <string name="notification_service_start_failed">Не удалось запустить службу Sasuki Anime.</string>
+    <string name="notification_service_starting">Служба aMiNo запускается…</string>
+    <string name="notification_service_start_failed">Не удалось запустить службу aMiNo.</string>
     <string name="notification_service_start_no_root">Не удалось запросить root права.</string>
     <string name="notification_working">Работает…</string>
     <string name="notification_channel_adb_pairing">Сопряжение с отладкой по Wi-Fi</string>
@@ -255,12 +255,12 @@
     <string name="notification_adb_pairing_stop_searching">Прекратить поиск</string>
     <string name="notification_adb_pairing_working_title">Выполняется сопряжение</string>
     <string name="notification_adb_pairing_succeed_title">Сопряжение выполнено</string>
-    <string name="notification_adb_pairing_succeed_text">Теперь можете запустить службу Sasuki Anime.</string>
+    <string name="notification_adb_pairing_succeed_text">Теперь можете запустить службу aMiNo.</string>
     <string name="notification_adb_pairing_failed_title">Не удалось выполнить сопряжение</string>
     <string name="notification_adb_pairing_retry">Повторить попытку</string>
     <!-- Permission related, appears in system permission UI -->
-    <string name="permission_label">доступ Sasuki Anime</string>
-    <string name="permission_description">Разрешить приложению использовать Sasuki Anime.</string>
+    <string name="permission_label">доступ aMiNo</string>
+    <string name="permission_description">Разрешить приложению использовать aMiNo.</string>
     <string name="permission_warning_template"><![CDATA[Разрешить <b>%1$s</b> следующее: %2$s\?]]></string>
     <string name="grant_dialog_button_allow_always">Разрешить всегда</string>
     <string name="grant_dialog_button_deny">"Запретить"</string>
@@ -275,7 +275,7 @@
     <string name="wadb_error_title">Ошибка при запуске загрузки</string>
     <string name="wadb_error_notify_dev">Нажмите, чтобы уведомить разработчика.</string>
     <string name="wadb_permission_error_notification_title">Ошибка разрешения</string>
-    <string name="wadb_permission_error_notification_content">Для запуска Sasuki Anime при загрузке
+    <string name="wadb_permission_error_notification_content">Для запуска aMiNo при загрузке
         требуется разрешение WRITE_SECURE_SETTINGS. Нажмите, чтобы узнать, как его предоставить.</string>
     <string name="wadb_notification_channel">Служба автоматического запуска ADB</string>
     <!-- Watchdog -->
@@ -290,13 +290,13 @@
     <string name="toast_copied_to_clipboard">Скопировано в буфер обмена</string>
     <string name="accessibility_service_description">Обеспечивает поддержку сопряжения для устройств
         (например, телевизоров на Android 14+), на которых невозможно использовать уведомления или
-        разделение экрана.\n\nПозволяет Sasuki Anime извлекать код сопряжения из экрана сопряжения
+        разделение экрана.\n\nПозволяет aMiNo извлекать код сопряжения из экрана сопряжения
         беспроводной отладки. Устройство отключится после обнаружения кода сопряжения.</string>
     <!-- Messages for legacy -->
-    <string name="dialog_legacy_not_support_title">%1$s не поддерживает актуальную версию Sasuki Anime</string>
-    <string name="dialog_legacy_not_support_message"><![CDATA[Изначальная версия Sasuki Anime устарела с марта 2019 года. Кроме того, она не работает на новых системах Android.<p>Пожалуйста, попросите разработчика <b>%1$s</b> внести поправки.]]></string>
-    <string name="dialog_requesting_legacy_title">%1$s запрашивает устаревшую версию Sasuki Anime</string>
-    <string name="dialog_requesting_legacy_message"><![CDATA[<b>%1$s</b> имеет поддержку актуального Sasuki Anime, но запрашивает его устаревшую версию. Возможно это происходит оттого, что Sasuki Anime не запущен, пожалуйста, перепроверьте в приложении Sasuki Anime.<p>Изначальная версия Sasuki Anime признана устаревшей ещё в марте 2019 года.]]></string>
-    <string name="dialog_requesting_legacy_button_open_shizuku">Открыть Sasuki Anime</string>
+    <string name="dialog_legacy_not_support_title">%1$s не поддерживает актуальную версию aMiNo</string>
+    <string name="dialog_legacy_not_support_message"><![CDATA[Изначальная версия aMiNo устарела с марта 2019 года. Кроме того, она не работает на новых системах Android.<p>Пожалуйста, попросите разработчика <b>%1$s</b> внести поправки.]]></string>
+    <string name="dialog_requesting_legacy_title">%1$s запрашивает устаревшую версию aMiNo</string>
+    <string name="dialog_requesting_legacy_message"><![CDATA[<b>%1$s</b> имеет поддержку актуального aMiNo, но запрашивает его устаревшую версию. Возможно это происходит оттого, что aMiNo не запущен, пожалуйста, перепроверьте в приложении aMiNo.<p>Изначальная версия aMiNo признана устаревшей ещё в марте 2019 года.]]></string>
+    <string name="dialog_requesting_legacy_button_open_shizuku">Открыть aMiNo</string>
     <string name="wadb_notification_attempt_now">Попробуй сейчас</string>
 </resources>

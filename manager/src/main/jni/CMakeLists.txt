@@ -20,14 +20,14 @@ endif ()
 find_package(boringssl REQUIRED CONFIG)
 find_package(cxx REQUIRED CONFIG)
 
-add_executable(libsasuki.so
+add_executable(libamino.so
         starter.cpp misc.cpp selinux.cpp cgroup.cpp)
 
-target_link_libraries(libsasuki.so log cxx::cxx)
+target_link_libraries(libamino.so log cxx::cxx)
 
 if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-    add_custom_command(TARGET libsasuki.so POST_BUILD
-            COMMAND ${CMAKE_STRIP} --remove-section=.comment "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libsasuki.so")
+    add_custom_command(TARGET libamino.so POST_BUILD
+            COMMAND ${CMAKE_STRIP} --remove-section=.comment "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/libamino.so")
 endif ()
 
 add_library(adb SHARED
