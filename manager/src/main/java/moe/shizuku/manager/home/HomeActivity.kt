@@ -155,6 +155,10 @@ abstract class HomeActivity : AppBarActivity() {
 
     override fun onResume() {
         super.onResume()
+        // aMiNo r1372: synchronous refresh FIRST (live system-state cards such as
+        // accessibility / connection states update the instant the user returns
+        // from the system settings), then the async service status reload.
+        adapter.updateData()
         checkServerStatus()
         appsModel.load()
     }
@@ -164,18 +168,20 @@ abstract class HomeActivity : AppBarActivity() {
         SnackbarHelper.dismiss()
     }
 
+    // aMiNo r1372: these dialogs WARN the user but must never close the whole
+    // app (the previous finishAffinity() here was killing ShellActivity and any
+    // other open screen - this was the "app exits the page" symptom).
+    private var exitDialogShown = false
+
     private fun showExitDialog(title: String, message: String) {
-        val dialog = MaterialAlertDialogBuilder(this)
+        if (exitDialogShown) return
+        exitDialogShown = true
+
+        MaterialAlertDialogBuilder(this)
             .setTitle(title)
             .setMessage(message)
             .setPositiveButton(R.string.home_dialog_button_exit, null)
-            .setOnDismissListener {
-                this.finishAffinity()
-            }
-            .create()
-
-        dialog.setCanceledOnTouchOutside(false)
-        dialog.show()
+            .show()
     }
 
     private fun checkServerStatus() {

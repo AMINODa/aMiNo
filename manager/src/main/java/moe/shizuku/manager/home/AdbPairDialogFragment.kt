@@ -148,6 +148,13 @@ class AdbPairDialogFragment : DialogFragment() {
 
     private fun onPairingSucceeded(dialog: AlertDialog) {
         val context = requireContext()
+
+        // aMiNo r1372: a REAL aMiNo notification (own channel, own identity) -
+        // NOT a fake system-settings notification. Android itself shows no
+        // system notification for wireless-debugging pairing; only aMiNo's own
+        // status notification appears (if notifications are allowed).
+        moe.shizuku.manager.shell.AminoStatusNotifier.onPaired(context)
+
         dialog.setTitle(R.string.dialog_adb_pairing_success_title)
         binding.text1.isVisible = true
         binding.text2.isVisible = false

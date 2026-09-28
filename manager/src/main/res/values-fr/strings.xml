@@ -304,4 +304,28 @@
     <string name="dialog_requesting_legacy_message"><![CDATA[<b>%1$s</b> supporte les versions récentes de aMiNo, mais demande l\'accès à l\'ancien aMiNo. C\'est peut être parce que aMiNo n\'est pas en cours de fonctionnement, merci de vérifier dans l\'appli aMiNo.<p>L\'ancien aMiNo est obsolète depuis mars 2019.]]></string>
     <string name="dialog_requesting_legacy_button_open_shizuku">Ouvrir aMiNo</string>
     <string name="wadb_notification_attempt_now">Tentez maintenant</string>
+    <!-- aMiNo r1372 -->
+    <string name="start_failed">Échec du démarrage</string>
+    <string name="notification_channel_status">État de la connexion aMiNo</string>
+    <string name="notification_paired_title">aMiNo : appareil associé</string>
+    <string name="notification_paired_text">Association réussie. Démarrez le service, puis la session Shell pourra se connecter. (Android n\'affiche aucune notification système pour l\'association.)</string>
+    <string name="notification_shell_connected_title">aMiNo : session Shell connectée</string>
+    <string name="notification_shell_connected_text">Session Shell active sur %1$s</string>
+    <string name="notification_disconnected_title">aMiNo : connexion perdue</string>
+    <string name="notification_disconnected_text">La session Shell est déconnectée. Reconnectez-vous depuis l\'écran aMiNo Shell.</string>
+    <string name="connection_states_title">États de connexion (3 états distincts)</string>
+    <string name="connection_state_paired">Appareil associé (clé ADB enregistrée)</string>
+    <string name="connection_state_wadb">Débogage sans fil activé (réglage système)</string>
+    <string name="connection_state_shell">Session Shell connectée (en direct)</string>
+    <string name="connection_state_on">OUI</string>
+    <string name="connection_state_off">NON</string>
+    <string name="perm_section_auto">Accordées automatiquement à l\'installation (jamais redemandées)</string>
+    <string name="perm_section_special">Accès système spéciaux (pages système officielles uniquement)</string>
+    <string name="perm_section_unused">aMiNo ne les utilise PAS (jamais demandées)</string>
+    <string name="perm_network_title">Réseau / réseau local</string>
+    <string name="perm_network_desc">Accès Internet et réseau local pour la découverte mDNS du port de débogage sans fil et la connexion ADB sur l\'appareil. Accordé à l\'installation, sans fenêtre.</string>
+    <string name="perm_unused_title">Appareil photo, micro, photos, contacts, position, Bluetooth, téléphone</string>
+    <string name="perm_unused_desc">aMiNo n\'en utilise aucune. Elles ne figurent pas dans le manifest et ne sont jamais demandées. Si une future fonctionnalité de l\'agent en a besoin, elle apparaîtra d\'abord ici avec une vraie demande.</string>
+    <string name="perm_state_not_used">Non utilisée</string>
+
 </resources>

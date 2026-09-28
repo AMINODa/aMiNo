@@ -1,9 +1,7 @@
 package moe.shizuku.manager.home
 
-import android.Manifest.permission.WRITE_SECURE_SETTINGS
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import android.text.method.LinkMovementMethod
@@ -57,13 +55,12 @@ class StartWirelessAdbViewHolder(binding: HomeStartWirelessAdbBinding, root: Vie
 
             context.sendBroadcast(Intent(context, NotifCancelReceiver::class.java))
 
-            val cr = context.contentResolver
-            if (context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED) {
-                Settings.Global.putInt(cr, Settings.Global.ADB_ENABLED, 1)
-                Settings.Global.putLong(cr, "adb_allowed_connection_time", 0L)
-            }
-        
-            val adbEnabled = Settings.Global.getInt(cr, Settings.Global.ADB_ENABLED, 0)
+            // aMiNo r1372: the app no longer force-writes system settings
+            // (previously: ADB_ENABLED=1 + adb_allowed_connection_time=0 when
+            // WRITE_SECURE_SETTINGS was held). aMiNo only READS the current ADB
+            // state and guides the user to the official toggle when it is off.
+
+            val adbEnabled = Settings.Global.getInt(context.contentResolver, Settings.Global.ADB_ENABLED, 0)
             if (adbEnabled == 0) {
                 WadbEnableUsbDebuggingDialogFragment().show(context.asActivity<FragmentActivity>().supportFragmentManager)
                 return

@@ -35,7 +35,7 @@ import moe.shizuku.manager.utils.SettingsPage
  */
 class PermissionsActivity : AppBarActivity() {
 
-    private enum class State { GRANTED, NOT_GRANTED, ACTIVE, OFF, EXEMPTED, BLOCKED }
+    private enum class State { GRANTED, NOT_GRANTED, ACTIVE, OFF, EXEMPTED, BLOCKED, NOT_USED }
 
     private enum class Action { NONE, REQUEST, APP_SETTINGS, ACCESSIBILITY, BATTERY, ALL_FILES, NOTIFICATIONS, INSTALL }
 
@@ -92,15 +92,6 @@ class PermissionsActivity : AppBarActivity() {
             if (Build.VERSION.SDK_INT >= 33 && !notifGranted) listOf(Manifest.permission.POST_NOTIFICATIONS) else emptyList()
         )
 
-        // camera
-        rows += cameraRow()
-
-        // microphone
-        rows += micRow()
-
-        // media
-        rows += mediaRow()
-
         // nearby devices (33+ runtime)
         if (Build.VERSION.SDK_INT >= 33) {
             val ok = granted(Manifest.permission.NEARBY_WIFI_DEVICES)
@@ -121,49 +112,36 @@ class PermissionsActivity : AppBarActivity() {
         return rows
     }
 
-    private fun cameraRow(): Row {
-        val ok = granted(Manifest.permission.CAMERA)
-        return Row(
-            R.string.perm_camera_title, R.string.perm_camera_desc,
-            if (ok) State.GRANTED else State.NOT_GRANTED,
-            if (ok) R.string.perm_state_granted else R.string.perm_state_not_granted,
-            Action.REQUEST,
-            if (!ok) listOf(Manifest.permission.CAMERA) else emptyList()
+    /**
+     * aMiNo r1372 - honest audit of install-time (normal) permissions that are
+     * granted automatically and never produce a popup.
+     */
+    private fun autoGrantedRows(): List<Row> {
+        val rows = mutableListOf<Row>()
+
+        val internet = granted(Manifest.permission.INTERNET)
+        rows += Row(
+            R.string.perm_network_title, R.string.perm_network_desc,
+            if (internet) State.GRANTED else State.NOT_GRANTED,
+            R.string.perm_state_granted, Action.NONE
         )
+
+        return rows
     }
 
-    private fun micRow(): Row {
-        val ok = granted(Manifest.permission.RECORD_AUDIO)
-        return Row(
-            R.string.perm_microphone_title, R.string.perm_microphone_desc,
-            if (ok) State.GRANTED else State.NOT_GRANTED,
-            if (ok) R.string.perm_state_granted else R.string.perm_state_not_granted,
-            Action.REQUEST,
-            if (!ok) listOf(Manifest.permission.RECORD_AUDIO) else emptyList()
+    /**
+     * aMiNo r1372 - features aMiNo does NOT use at all. These permissions are
+     * NOT in the manifest and are NEVER requested (that was the r1371 bug:
+     * requesting undeclared permissions - Android silently denies them and no
+     * dialog ever appears). Listed for full transparency.
+     */
+    private fun unusedRows(): List<Row> {
+        return listOf(
+            Row(
+                R.string.perm_unused_title, R.string.perm_unused_desc,
+                State.NOT_USED, R.string.perm_state_not_used, Action.NONE
+            )
         )
-    }
-
-    private fun mediaRow(): Row {
-        return if (Build.VERSION.SDK_INT >= 33) {
-            val perms = listOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
-            val ok = perms.all { granted(it) }
-            Row(
-                R.string.perm_media_title, R.string.perm_media_desc,
-                if (ok) State.GRANTED else State.NOT_GRANTED,
-                if (ok) R.string.perm_state_granted else R.string.perm_state_not_granted,
-                Action.REQUEST,
-                if (!ok) perms else emptyList()
-            )
-        } else {
-            val ok = granted(Manifest.permission.READ_EXTERNAL_STORAGE)
-            Row(
-                R.string.perm_media_title, R.string.perm_media_desc,
-                if (ok) State.GRANTED else State.NOT_GRANTED,
-                if (ok) R.string.perm_state_granted else R.string.perm_state_not_granted,
-                Action.REQUEST,
-                if (!ok) listOf(Manifest.permission.READ_EXTERNAL_STORAGE) else emptyList()
-            )
-        }
     }
 
     private fun systemRows(): List<Row> {
@@ -227,18 +205,29 @@ class PermissionsActivity : AppBarActivity() {
     private fun refresh() {
         binding.list.removeAllViews()
 
+        // 1) runtime approvals - real official dialogs (declared in the manifest)
         runtimeRows().forEach { addRow(it) }
 
-        addSectionTitle()
+        // 2) auto-granted at install (no popup, still audited here)
+        addSectionTitle(R.string.perm_section_auto)
+        autoGrantedRows().forEach { addRow(it) }
+
+        // 3) special system accesses - only from official system pages
+        addSectionTitle(R.string.perm_section_special)
         systemRows().forEach { addRow(it) }
 
-        addSectionTitle()
+        // 4) features aMiNo does not use - never requested
+        addSectionTitle(R.string.perm_section_unused)
+        unusedRows().forEach { addRow(it) }
+
+        // 5) what Android blocks for every normal app
+        addSectionTitle(R.string.perm_section_blocked)
         blockedRows().forEach { addRow(it) }
     }
 
-    private fun addSectionTitle() {
+    private fun addSectionTitle(textRes: Int) {
         val tv = TextView(this)
-        tv.text = getString(R.string.perm_section_blocked)
+        tv.text = getString(textRes)
         tv.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleSmall)
         tv.setPadding(0, dp(18), 0, dp(4))
         binding.list.addView(tv)
@@ -257,6 +246,7 @@ class PermissionsActivity : AppBarActivity() {
         when (row.state) {
             State.GRANTED, State.ACTIVE, State.EXEMPTED -> state.setTextColor(0xFF69F0AE.toInt())
             State.NOT_GRANTED, State.OFF -> state.setTextColor(0xFF9E9E9E.toInt())
+            State.NOT_USED -> state.setTextColor(0xFF9E9E9E.toInt())
             State.BLOCKED -> state.setTextColor(0xFFFF8A80.toInt())
         }
 

@@ -312,7 +312,7 @@
     <string name="starter_stays_open">الخدمة تعمل — تبقى هذه النافذة مفتوحة الآن. اضغط SHELL لفتح الطرفية المباشرة.</string>
     <string name="shell_continue_start">متابعة: تشغيل الخدمة</string>
     <string name="dialog_adb_pairing_success_title">تم الاقتران بنجاح</string>
-    <string name="dialog_adb_pairing_success_text">تم إقران الجهاز بنجاح. شغّل خدمة aMiNo الآن، ثم افتح طرفية Shell — سيبقى الاتصال مفتوحًا.</string>
+    <string name="dialog_adb_pairing_success_text">تم إقران الجهاز بنجاح. شغّل خدمة aMiNo الآن، ثم افتح طرفية Shell — سيبقى الاتصال مفتوحًا. ملاحظة: لا يُصدر Android إشعارًا نظاميًا عن الاقتران؛ يعرض aMiNo إشعاره الخاص بحالة الاتصال (إذا كانت الإشعارات مسموحة).</string>
 
     <!-- Accessibility home card -->
     <string name="home_accessibility_title">إمكانية الوصول</string>
@@ -361,5 +361,30 @@
     <string name="perm_blocked_secure_desc">صلاحيات التوقيع لا يمكن منحها لأي تطبيق عادي. موجودة في المانيفست فقط لمسار خدمة aMiNo عبر adb؛ الواجهة لا تزوّرها أبدًا. البديل الرسمي: تنفيذ الأمر المحدد عبر خدمة aMiNo (قناة shell).</string>
     <string name="perm_blocked_root_title">Root</string>
     <string name="perm_blocked_root_desc">Root غير مطلوب في aMiNo. كل شيء يعمل عبر الاقتران اللاسلكي الرسمي وخدمة aMiNo على الجهاز.</string>
+
+    <!-- aMiNo r1372 -->
+    <string name="start_failed">فشل التشغيل</string>
+    <string name="notification_channel_status">حالة اتصال aMiNo</string>
+    <string name="notification_paired_title">aMiNo: الجهاز مقترن</string>
+    <string name="notification_paired_text">تم الاقتران بنجاح. شغّل الخدمة ثم يمكن لجلسة Shell الاتصال. (لا يُصدر Android إشعارًا نظاميًا عن الاقتران.)</string>
+    <string name="notification_shell_connected_title">aMiNo: جلسة Shell متصلة</string>
+    <string name="notification_shell_connected_text">جلسة Shell نشطة على %1$s</string>
+    <string name="notification_disconnected_title">aMiNo: الاتصال منقطع</string>
+    <string name="notification_disconnected_text">جلسة Shell منقطعة. أعد الاتصال من شاشة aMiNo Shell.</string>
+    <string name="connection_states_title">حالات الاتصال (3 حالات منفصلة)</string>
+    <string name="connection_state_paired">الجهاز مقترن (مفتاح ADB محفوظ)</string>
+    <string name="connection_state_wadb">التصحيح اللاسلكي مفعّل (إعداد النظام)</string>
+    <string name="connection_state_shell">جلسة Shell متصلة (حية)</string>
+    <string name="connection_state_on">نعم</string>
+    <string name="connection_state_off">لا</string>
+    <string name="accessibility_state_pending">بانتظار التفعيل…</string>
+    <string name="perm_section_auto">ممنوحة تلقائيًا عند التثبيت (لا تُطلب مجددًا)</string>
+    <string name="perm_section_special">صلاحيات نظام خاصة (من صفحات النظام الرسمية فقط)</string>
+    <string name="perm_section_unused">لا يستخدمها aMiNo (لا تُطلب أبدًا)</string>
+    <string name="perm_network_title">الشبكة / الشبكة المحلية</string>
+    <string name="perm_network_desc">الوصول إلى الإنترنت والشبكة المحلية لاكتشاف منفذ التصحيح اللاسلكي عبر mDNS واتصال ADB على الجهاز. تُمنح عند التثبيت دون نافذة طلب.</string>
+    <string name="perm_unused_title">الكاميرا، المايكروفون، الصور، جهات الاتصال، الموقع، البلوتوث، الهاتف</string>
+    <string name="perm_unused_desc">aMiNo لا يستخدم أيًا منها. ليست موجودة في المانيفست ولا تُطلب أبدًا. إذا احتاجت ميزة الوكيل الذكي لاحقًا أي صلاحية، ستُدرج هنا أولًا مع طلب حقيقي.</string>
+    <string name="perm_state_not_used">غير مستخدمة</string>
 
 </resources>

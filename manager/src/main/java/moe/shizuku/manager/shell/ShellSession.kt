@@ -69,6 +69,15 @@ object ShellSession {
     private var userDisconnected = false
     private var reconnectAttempts = 0
 
+    // aMiNo r1372: kept so state transitions can be mirrored into a REAL
+    // Android status-bar notification (see AminoStatusNotifier).
+    private var appContext: Context? = null
+
+    private fun publish(state: ConnectionState) {
+        _state.value = state
+        appContext?.let { AminoStatusNotifier.onShellStateChanged(it, state) }
+    }
+
     val isConnected: Boolean get() = _state.value is ConnectionState.Connected && shell?.isOpen == true
 
     /** Live system/status line - shown once in the console, never replayed. */
@@ -104,9 +113,10 @@ object ShellSession {
     private fun connectInternal(context: Context) {
         if (connecting || isConnected) return
         connecting = true
-        _state.value = ConnectionState.Connecting
+        publish(ConnectionState.Connecting)
 
         val appContext = context.applicationContext
+        this.appContext = appContext
         scope.launch {
             val savedPort = ShizukuSettings.getShellPort()
             var port = savedPort
@@ -116,7 +126,7 @@ object ShellSession {
             }
             if (port <= 0) {
                 appendLocal("[aMiNo] no wireless debugging port found.\n")
-                _state.value = ConnectionState.Failed("port not found")
+                publish(ConnectionState.Failed("port not found"))
                 connecting = false
                 return@launch
             }
@@ -136,7 +146,7 @@ object ShellSession {
                     onClosed = { err ->
                         Log.w(TAG, "shell closed", err)
                         shell = null
-                        _state.value = ConnectionState.Disconnected
+                        publish(ConnectionState.Disconnected)
                         if (err != null && !userDisconnected) {
                             appendLocal("\n[aMiNo] connection lost (${err.message}) - reconnecting...\n")
                             scheduleReconnect(appContext)
@@ -149,11 +159,11 @@ object ShellSession {
                 ShizukuSettings.setShellPort(port)
                 reconnectAttempts = 0
                 appendLocal("[aMiNo] shell ready - the session stays open. Type 'help' for help.\n")
-                _state.value = ConnectionState.Connected(port)
+                publish(ConnectionState.Connected(port))
             } catch (e: Throwable) {
                 Log.e(TAG, "connect failed", e)
                 appendLocal("[aMiNo] connect failed: ${e.message}\n")
-                _state.value = ConnectionState.Failed(e.message ?: e.javaClass.simpleName)
+                publish(ConnectionState.Failed(e.message ?: e.javaClass.simpleName))
                 runCatching { shell?.close() }
                 shell = null
             } finally {
@@ -167,7 +177,7 @@ object ShellSession {
         if (userDisconnected) return
         if (reconnectAttempts >= 5) {
             appendLocal("[aMiNo] auto-reconnect gave up after 5 attempts - tap Reconnect.\n")
-            _state.value = ConnectionState.Failed("reconnect attempts exhausted")
+            publish(ConnectionState.Failed("reconnect attempts exhausted"))
             return
         }
         val attempt = ++reconnectAttempts
@@ -252,7 +262,7 @@ object ShellSession {
         reconnectAttempts = 0
         runCatching { shell?.close() }
         shell = null
-        _state.value = ConnectionState.Disconnected
+        publish(ConnectionState.Disconnected)
     }
 
     private suspend fun discoverPort(context: Context): Int? {

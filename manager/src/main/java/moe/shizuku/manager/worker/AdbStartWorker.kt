@@ -50,8 +50,11 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
 
             val cr = applicationContext.contentResolver
 
-            Settings.Global.putInt(cr, Settings.Global.ADB_ENABLED, 1)
-            Settings.Global.putLong(cr, "adb_allowed_connection_time", 0L)
+            // aMiNo r1372: no more forced system-settings writes here (previously
+            // ADB_ENABLED=1 + adb_allowed_connection_time=0 + adb_wifi_enabled=1).
+            // aMiNo only OBSERVES the real wireless-debugging state; if the user
+            // has it off, discovery times out and the error notification guides
+            // them to the official toggle - no fake connection states.
 
             val tcpPort = EnvironmentUtils.getAdbTcpPort()
             if (tcpPort > 0 && !ShizukuSettings.getTcpMode()) {
@@ -95,7 +98,7 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
                                 if (intent.action == Intent.ACTION_USER_PRESENT) {
                                     context.unregisterReceiver(this)
                                     unlockReceiver = null
-                                    Settings.Global.putInt(cr, "adb_wifi_enabled", 1)
+                                    // aMiNo r1372: no forced adb_wifi_enabled=1 here anymore
                                 }
                             }
                         }
@@ -116,7 +119,9 @@ class AdbStartWorker(context: Context, params: WorkerParameters) : CoroutineWork
                     }
                 }
 
-                Settings.Global.putInt(cr, "adb_wifi_enabled", 1)
+                // aMiNo r1372: discovery starts directly if wireless debugging is
+                // already enabled (read-only). If it is off, the 15s timeout fires
+                // and the error notification guides the user to enable it.
                 cr.registerContentObserver(Settings.Global.getUriFor("adb_wifi_enabled"), false, observer)
                 startDiscoveryWithTimeout()
 

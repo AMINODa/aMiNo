@@ -1,9 +1,6 @@
 package moe.shizuku.manager.adb
 
-import android.Manifest.permission.WRITE_SECURE_SETTINGS
-import android.content.pm.PackageManager
 import android.content.Context
-import android.provider.Settings
 import android.widget.Toast
 import java.io.EOFException
 import java.net.SocketException
@@ -27,8 +24,11 @@ object AdbStarter {
             command(cmd) { log?.invoke(String(it)) }
         }
 
-        try {
-            ShizukuStateMachine.set(ShizukuStateMachine.State.STARTING)
+        // aMiNo r1372: the old try/finally wrapper is gone - its finally wrote
+        // adb_wifi_enabled=0, switching Wireless debugging OFF right after every
+        // start. aMiNo never changes system settings; Android (and only the
+        // user) controls that toggle.
+        ShizukuStateMachine.set(ShizukuStateMachine.State.STARTING)
             log?.invoke("Starting with wireless adb...\n")
         
             withContext(Dispatchers.IO) {
@@ -67,22 +67,13 @@ object AdbStarter {
                     client.runCommand("shell:${Starter.internalCommand}")
                 }
             }
-        } finally {
-            if (context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
-                Settings.Global.putInt(context.contentResolver, "adb_wifi_enabled", 0)
-        }
     }
 
     suspend fun stopTcp(context: Context, port: Int) {
         runCatching {
-            val cr = context.contentResolver
-            if (context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED) {
-                Settings.Global.putInt(cr, Settings.Global.ADB_ENABLED, 1)
-                Settings.Global.putLong(cr, "adb_allowed_connection_time", 0L)
-            }
-        
-            val adbEnabled = Settings.Global.getInt(cr, Settings.Global.ADB_ENABLED, 0)
-            if (adbEnabled == 0) throw IllegalStateException("ADB is not enabled")
+            // aMiNo r1372: no more forced system-settings writes here
+            // (ADB_ENABLED / adb_allowed_connection_time removed - the user
+            // controls ADB state, aMiNo only reads it).
 
             ShizukuStateMachine.set(ShizukuStateMachine.State.STOPPING)
             val key = AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "amino")

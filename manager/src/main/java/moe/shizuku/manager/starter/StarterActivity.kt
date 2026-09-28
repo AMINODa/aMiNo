@@ -56,6 +56,12 @@ class StarterActivity : AppBarActivity() {
                 // aMiNo: keep this window open, offer the live Shell terminal
                 binding.starterStaysOpen.isVisible = true
                 binding.openShell.isVisible = true
+                // aMiNo r1372: connection success now OPENS the Shell automatically
+                // (user requirement: pressing Démarrer after pairing must land in the
+                // Shell screen and the session state/results must be kept). This window
+                // stays in the back stack; the Shell session itself is a singleton, so
+                // navigating away and back never destroys it.
+                openShellOnce()
             } else if (it.status == Status.ERROR) {
                 var message = 0
                 when (it.error) {
@@ -76,9 +82,17 @@ class StarterActivity : AppBarActivity() {
                     }
                 }
 
+                // aMiNo r1372: never fail silently - unknown errors also get a
+                // visible dialog with the actual reason.
                 if (message != 0) {
                     MaterialAlertDialogBuilder(this)
                         .setMessage(message)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .show()
+                } else if (it.error != null) {
+                    MaterialAlertDialogBuilder(this)
+                        .setTitle(R.string.start_failed)
+                        .setMessage(it.error?.message ?: it.error?.javaClass?.simpleName)
                         .setPositiveButton(android.R.string.ok, null)
                         .show()
                 }
@@ -88,6 +102,13 @@ class StarterActivity : AppBarActivity() {
     }
 
     private var hasStarted = false
+    private var shellAutoOpened = false
+
+    private fun openShellOnce() {
+        if (shellAutoOpened) return
+        shellAutoOpened = true
+        openShell()
+    }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)

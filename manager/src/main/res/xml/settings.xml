@@ -31,10 +31,9 @@
             android:title="@string/settings_tcp_port"
             android:inputType="number" />
 
-        <SwitchPreferenceCompat
-            android:key="auto_disable_usb_debugging"
-            android:title="@string/settings_auto_disable_usb_debugging"
-            android:summary="@string/settings_auto_disable_usb_debugging_summary" />
+        <!-- aMiNo r1372: the "auto disable USB debugging" toggle was removed.
+             aMiNo never turns debugging off anymore - Android and the user
+             control that setting. -->
 
     </PreferenceCategory>
 

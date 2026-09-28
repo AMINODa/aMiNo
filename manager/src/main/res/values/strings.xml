@@ -335,7 +335,7 @@
     <string name="starter_stays_open">The service is running - this window stays open now. Tap SHELL to open the live terminal.</string>
     <string name="shell_continue_start">Continue: start the service</string>
     <string name="dialog_adb_pairing_success_title">Paired successfully</string>
-    <string name="dialog_adb_pairing_success_text">The device is now paired. Start the aMiNo service, then open the Shell terminal - the connection will stay open.</string>
+    <string name="dialog_adb_pairing_success_text">The device is now paired. Start the aMiNo service, then open the Shell terminal - the connection will stay open. Note: Android itself does NOT show any system notification for pairing; aMiNo posts its own status notification (if notifications are allowed).</string>
 
     <!-- Accessibility home card -->
     <string name="home_accessibility_title">Accessibility</string>
@@ -384,5 +384,30 @@
     <string name="perm_blocked_secure_desc">Signature-level permissions cannot be granted to any normal app. They exist in the manifest only for the adb-granted server path; the UI never fakes them. Official alternative: run the specific command through the aMiNo server (shell channel).</string>
     <string name="perm_blocked_root_title">Root</string>
     <string name="perm_blocked_root_desc">Root is NOT required for aMiNo. Everything runs through the official wireless-debugging pairing and the on-device server.</string>
+
+    <!-- aMiNo r1372 -->
+    <string name="start_failed">Start failed</string>
+    <string name="notification_channel_status">aMiNo connection status</string>
+    <string name="notification_paired_title">aMiNo: device paired</string>
+    <string name="notification_paired_text">Paired successfully. Start the service, then the Shell session can connect. (Android itself shows no system notification for pairing.)</string>
+    <string name="notification_shell_connected_title">aMiNo: Shell session connected</string>
+    <string name="notification_shell_connected_text">Live shell session at %1$s</string>
+    <string name="notification_disconnected_title">aMiNo: connection lost</string>
+    <string name="notification_disconnected_text">The shell session is disconnected. Reconnect from the aMiNo Shell screen.</string>
+    <string name="connection_states_title">Connection states (3 separate states)</string>
+    <string name="connection_state_paired">Device paired (ADB key saved)</string>
+    <string name="connection_state_wadb">Wireless debugging enabled (system setting)</string>
+    <string name="connection_state_shell">Shell session connected (live)</string>
+    <string name="connection_state_on">YES</string>
+    <string name="connection_state_off">NO</string>
+    <string name="accessibility_state_pending">Waiting for enablement…</string>
+    <string name="perm_section_auto">Granted automatically at install (never asked again)</string>
+    <string name="perm_section_special">Special system accesses (official system pages only)</string>
+    <string name="perm_section_unused">aMiNo does NOT use these (never requested)</string>
+    <string name="perm_network_title">Network / local network</string>
+    <string name="perm_network_desc">Internet and local-network access used for mDNS discovery and the on-device ADB connection. Granted at install, no popup.</string>
+    <string name="perm_unused_title">Camera, microphone, photos, contacts, location, Bluetooth, phone</string>
+    <string name="perm_unused_desc">aMiNo does not use any of these. They are NOT in the manifest and are never requested. If a future agent feature ever needs one, it will be listed here first with a real request.</string>
+    <string name="perm_state_not_used">Not used</string>
 
 </resources>

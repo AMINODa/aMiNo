@@ -55,6 +55,14 @@ class AccessibilityViewHolder(private val binding: HomeAccessibilityBinding, roo
                 it.equals(self, ignoreCase = false) || it.endsWith(self.substringAfter('/'))
             }
         }
+
+        /**
+         * aMiNo r1372: set ONLY while the user is on the official settings page.
+         * Never used as proof of enablement - the chip always renders the REAL
+         * system state on every bind (blue iff the system says enabled).
+         */
+        @Volatile
+        var pendingEnablement: Boolean = false
     }
 
     private val stateButton: MaterialButton = binding.accessibilityState
@@ -62,10 +70,12 @@ class AccessibilityViewHolder(private val binding: HomeAccessibilityBinding, roo
     init {
         binding.button1.setOnClickListener { v ->
             // official system page only - never programmatic enabling
+            pendingEnablement = true
             SettingsPage.Accessibility.launch(v.context)
         }
         stateButton.setOnClickListener { v ->
             // tapping the state chip also opens the official settings page
+            pendingEnablement = true
             SettingsPage.Accessibility.launch(v.context)
         }
     }
@@ -75,14 +85,22 @@ class AccessibilityViewHolder(private val binding: HomeAccessibilityBinding, roo
         val context = stateButton.context
         val enabled = isServiceEnabled(context)
 
+        // ONLY two real states, straight from the system, per the r1372 contract:
+        //   BLUE  = service really enabled (read from Settings.Secure NOW)
+        //   GRAY  = service not enabled
+        // Nothing in between: opening the settings page never colors anything,
+        // and no in-app flag is ever treated as proof.
         if (enabled) {
             stateButton.text = context.getString(R.string.accessibility_state_active)
-            stateButton.setTextColor(0xFF69F0AE.toInt())
-            stateButton.backgroundTintList = ColorStateList.valueOf(0xFF122614.toInt())
+            stateButton.setTextColor(0xFF448AFF.toInt())
+            stateButton.backgroundTintList = ColorStateList.valueOf(0xFF0D1B33.toInt())
         } else {
             stateButton.text = context.getString(R.string.accessibility_state_disabled)
             stateButton.setTextColor(0xFF9E9E9E.toInt())
             stateButton.backgroundTintList = ColorStateList.valueOf(0xFF232323.toInt())
         }
+
+        // one real-state render consumed the "waiting" marker
+        pendingEnablement = false
     }
 }

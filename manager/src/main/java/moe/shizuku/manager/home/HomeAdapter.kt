@@ -31,6 +31,7 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
         private const val ID_STEALTH = 9L
         private const val ID_SHELL = 10L
         private const val ID_ACCESSIBILITY = 11L
+        private const val ID_CONNECTION = 12L
     }
 
     override fun onCreateCreatorPool(): IndexCreatorPool {
@@ -38,7 +39,12 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
     }
 
     fun updateData() {
-        val status = homeModel.serviceStatus.value?.data ?: return
+        // aMiNo r1372: fall back to a default status instead of returning early.
+        // The old early-return meant that when the service was NOT running the
+        // adapter was never refreshed - live system state cards (accessibility,
+        // connection states) stayed frozen on their old values even after the
+        // user changed something in the system settings and came back.
+        val status = homeModel.serviceStatus.value?.data ?: moe.shizuku.manager.model.ServiceStatus()
         val grantedCount = appsModel.grantedCount.value?.data ?: 0
         val adbPermission = status.permission
         val running = status.isRunning
@@ -46,6 +52,7 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
 
         clear()
         addItem(ServerStatusViewHolder.CREATOR, status, ID_STATUS)
+        addItem(ConnectionStateViewHolder.CREATOR, null, ID_CONNECTION)
         addItem(ShellViewHolder.CREATOR, status, ID_SHELL)
 
         if (adbPermission) {

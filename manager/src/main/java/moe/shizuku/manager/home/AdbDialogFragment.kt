@@ -1,6 +1,5 @@
 package moe.shizuku.manager.home
 
-import android.Manifest.permission.WRITE_SECURE_SETTINGS
 import android.app.Dialog
 import android.content.ActivityNotFoundException
 import android.content.DialogInterface
@@ -56,8 +55,9 @@ class AdbDialogFragment : DialogFragment() {
     private fun onDialogShow(dialog: AlertDialog) {
         adbMdns.start()
         val context = dialog.context
-        if (context.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED)
-            Settings.Global.putInt(context.contentResolver, "adb_wifi_enabled", 1)
+        // aMiNo r1372: the app no longer force-writes adb_wifi_enabled=1 here.
+        // Wireless debugging is a system setting - aMiNo only discovers the
+        // already-running service via mDNS and guides the user if it is off.
 
         dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
             SettingsPage.Developer.HighlightWirelessDebugging.launch(context)
