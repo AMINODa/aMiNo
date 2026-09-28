@@ -275,10 +275,7 @@
     <!-- Misc -->
     <string name="dialog_cannot_open_browser_title">لا يمكن بدء المتصفح</string>
     <string name="toast_copied_to_clipboard">تم نسخها إلى الحافظة</string>
-    <string name="accessibility_service_description">يوفر دعمًا للاقتران للأجهزة (مثل أجهزة
-        التلفزيون التي تعمل بنظام أندرويد 14+) التي لا يمكن فيها استخدام الإشعارات أو تقسيم
-        الشاشة.\n\nيُمكّن aMiNo من استخراج رمز الاقتران من شاشة اقتران تصحيح أخطاء الشبكة
-        اللاسلكية. سيُعطّل تلقائيًا بمجرد العثور على رمز الاقتران.</string>
+    <string name="accessibility_service_description">تتيح لـ aMiNo التقاط رمز الاقتران تلقائيًا من شاشة الاقتران الرسمية لتصحيح أخطاء الشبكة اللاسلكية في إعدادات Android — على الهواتف وأجهزة التلفزيون معًا، كلما كان إدخال الرمز يدويًا غير عملي. أثناء التفعيل تقرأ نوافذ تطبيق إعدادات Android فقط، ولا تعطّل نفسها أبدًا، ويمكنك تعطيلها متى شئت من إعدادات النظام.</string>
     <!-- Messages for legacy -->
     <string name="dialog_legacy_not_support_title">%1$s لا يدعم النسخة الحديثة من aMiNo</string>
     <string name="dialog_legacy_not_support_message"><![CDATA[تم إهمال Legacy aMiNo منذ آذار (مارس) 2019. أيضًا ، لا يعمل aMiNo القديم على أنظمة Android الأحدث. <p> يُرجى مطالبة مطور <b> %1$s </b> بالتحديث.]]></string>
@@ -316,7 +313,7 @@
 
     <!-- Accessibility home card -->
     <string name="home_accessibility_title">إمكانية الوصول</string>
-    <string name="home_accessibility_description">الحالة الحقيقية من نظام Android لخدمة إمكانية الوصول في aMiNo (تُستخدم لالتقاط رمز الاقتران اللاسلكي تلقائيًا على أجهزة التلفاز). الحالة هنا تُقرأ مباشرة من النظام — وليست قيمة محفوظة داخل التطبيق. لا يقوم aMiNo بتفعيلها صامتًا أبدًا.</string>
+    <string name="home_accessibility_description">الحالة الحقيقية من نظام Android لخدمة إمكانية الوصول في aMiNo (تُستخدم لالتقاط رمز الاقتران اللاسلكي تلقائيًا على الهواتف وأجهزة التلفاز معًا). الحالة هنا تُقرأ مباشرة من النظام — وليست قيمة محفوظة داخل التطبيق. لا يقوم aMiNo بتفعيلها صامتًا أبدًا، وهي لا تعطّل نفسها أبدًا.</string>
     <string name="home_accessibility_button_open_settings">إعدادات النظام</string>
     <string name="accessibility_state_active">مفعّلة</string>
     <string name="accessibility_state_disabled">معطّلة</string>
@@ -345,11 +342,15 @@
     <string name="perm_microphone_title">الميكروفون</string>
     <string name="perm_microphone_desc">فقط إذا احتاجت مهمة الوكيل المستقبلية لتسجيل صوتي. لا شيء يعمل بدونها.</string>
     <string name="perm_media_title">الصور والفيديوهات</string>
-    <string name="perm_media_desc">وصول انتقائي للوسائط التي يشاركها المستخدم مع aMiNo. صلاحيات الوسائط التفصيلية في Android 13+.</string>
+    <string name="perm_media_desc">لقراءة الصور والفيديوهات التي تمسّها أوامر aMiNo أو مهام الوكيل. نافذة النظام الرسمية في Android 13+ («الصور والفيديوهات»).</string>
+    <string name="perm_audio_title">الصوت والموسيقى</string>
+    <string name="perm_audio_desc">لقراءة ملفات الصوت التي تمسّها أوامر aMiNo أو مهام الوكيل. نافذة النظام الرسمية («الصوت والموسيقى») — لا تُقرأ أي ملفات دون موافقتك.</string>
+    <string name="perm_files_title">الملفات (الوسائط)</string>
+    <string name="perm_files_desc">لقراءة ملفات الوسائط التي تمسّها أوامر aMiNo. صلاحية تخزين Android 12 فما دون، تُمنح عبر نافذة النظام الرسمية.</string>
     <string name="perm_nearby_title">الأجهزة القريبة (اكتشاف Wi-Fi)</string>
     <string name="perm_nearby_desc">مطلوبة في Android 13+ لاكتشاف منفذ التصحيح اللاسلكي عبر mDNS في الشبكة المحلية.</string>
     <string name="perm_accessibility_title">خدمة إمكانية الوصول</string>
-    <string name="perm_accessibility_desc">اختيارية. تُستخدم فقط لالتقاط رمز الاقتران تلقائيًا على أجهزة التلفاز. تُفعّل يدويًا من إعدادات النظام.</string>
+    <string name="perm_accessibility_desc">اختيارية. تلتقط رمز الاقتران تلقائيًا من شاشة الاقتران الرسمية (الهواتف والتلفاز معًا). تُفعّل يدويًا من إعدادات النظام ولا تعطّل نفسها أبدًا.</string>
     <string name="perm_battery_title">تحسين البطارية</string>
     <string name="perm_battery_desc">يُبقي خدمة aMiNo حية عبر الأحداث. يُطلب الإعفاء عبر مربع النظام الرسمي.</string>
     <string name="perm_all_files_title">الوصول لجميع الملفات</string>
@@ -383,7 +384,7 @@
     <string name="perm_section_unused">لا يستخدمها aMiNo (لا تُطلب أبدًا)</string>
     <string name="perm_network_title">الشبكة / الشبكة المحلية</string>
     <string name="perm_network_desc">الوصول إلى الإنترنت والشبكة المحلية لاكتشاف منفذ التصحيح اللاسلكي عبر mDNS واتصال ADB على الجهاز. تُمنح عند التثبيت دون نافذة طلب.</string>
-    <string name="perm_unused_title">الكاميرا، المايكروفون، الصور، جهات الاتصال، الموقع، البلوتوث، الهاتف</string>
+    <string name="perm_unused_title">الكاميرا، المايكروفون، جهات الاتصال، الموقع، البلوتوث، الهاتف</string>
     <string name="perm_unused_desc">aMiNo لا يستخدم أيًا منها. ليست موجودة في المانيفست ولا تُطلب أبدًا. إذا احتاجت ميزة الوكيل الذكي لاحقًا أي صلاحية، ستُدرج هنا أولًا مع طلب حقيقي.</string>
     <string name="perm_state_not_used">غير مستخدمة</string>
 

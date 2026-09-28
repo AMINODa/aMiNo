@@ -19,6 +19,18 @@
     <!-- Needed to receive mDNS multicast for wireless ADB service discovery. -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- aMiNo r1373: media file access via the official runtime dialogs
+         ("Music and audio" / "Photos and videos" on Android 13+,
+         READ_EXTERNAL_STORAGE on Android 12 and below). Used by the shell and
+         the future agent to read media files the user's commands touch.
+         Declared here so the system permission dialogs actually appear -
+         requesting undeclared permissions is silently denied by Android. -->
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />

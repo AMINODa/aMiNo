@@ -38,6 +38,15 @@ class ShellActivity : AppBarActivity() {
 
     private val prompt = "amino@device:~$ "
 
+    // aMiNo r1373: registered ONCE at init (the safe pattern - same as
+    // PermissionsActivity). Asks for the official Android 13+ notifications
+    // permission the moment it is actually needed; if denied, aMiNo simply
+    // does not post status notifications (no fake claims).
+    private val notifPermissionLauncher =
+        registerForActivityResult(
+            androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+        ) { }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -47,17 +56,11 @@ class ShellActivity : AppBarActivity() {
 
         binding = ActivityShellBinding.inflate(layoutInflater, rootView, true)
 
-        // aMiNo r1372: the status notification needs the official Android 13+
-        // POST_NOTIFICATIONS runtime permission. Asked here (at the moment it is
-        // actually needed) with the standard system dialog - never pre-granted
-        // or assumed. If denied, aMiNo simply does not post (no fake claims).
         if (android.os.Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
             android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
-            registerForActivityResult(
-                androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-            ) {}.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
         }
 
         appendLine(getString(R.string.shell_welcome))

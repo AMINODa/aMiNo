@@ -291,11 +291,7 @@
     <!-- Misc -->
     <string name="dialog_cannot_open_browser_title">Impossible de lancer le navigateur</string>
     <string name="toast_copied_to_clipboard">Copié dans le presse-papiers</string>
-    <string name="accessibility_service_description">Offre un support de l’appairage pour les
-        appareils (par exemple, les téléviseurs sous Android 14+) où les notifications ou l’écran
-        partagé ne peuvent pas être utilisés.\n\nPermet à aMiNo d’extraire le code d’appairage de
-        l’écran de débogage sans fil. Il se désactivera lui-même une fois le code d’appariement
-        trouvé.</string>
+    <string name="accessibility_service_description">Permet à aMiNo de capturer automatiquement le code d’appairage depuis l’écran d’appairage officiel du débogage sans fil dans les paramètres Android - sur les téléphones ET les téléviseurs, chaque fois que la saisie manuelle du code est peu pratique. Tant qu’elle est activée, elle ne lit QUE les fenêtres des paramètres Android, elle ne se désactive jamais elle-même, et vous pouvez la désactiver à tout moment dans les paramètres système.</string>
     <!-- Messages for legacy -->
     <string name="dialog_legacy_not_support_title">%1$s ne supporte pas les versions plus récentes
         de aMiNo</string>
@@ -323,8 +319,14 @@
     <string name="perm_section_special">Accès système spéciaux (pages système officielles uniquement)</string>
     <string name="perm_section_unused">aMiNo ne les utilise PAS (jamais demandées)</string>
     <string name="perm_network_title">Réseau / réseau local</string>
-    <string name="perm_network_desc">Accès Internet et réseau local pour la découverte mDNS du port de débogage sans fil et la connexion ADB sur l\'appareil. Accordé à l\'installation, sans fenêtre.</string>
-    <string name="perm_unused_title">Appareil photo, micro, photos, contacts, position, Bluetooth, téléphone</string>
+    <string name="perm_network_desc">Accès Internet et réseau local pour la découverte mDNS du port de débogage sans fil et la connexion ADB sur l\'appareil. Accordée à l\'installation, sans fenêtre.</string>
+    <string name="perm_media_title">Photos et vidéos</string>
+    <string name="perm_media_desc">Lit les photos et vidéos utilisées par vos commandes aMiNo ou les tâches de l\'agent. Boîte de dialogue système officielle sur Android 13+ (« Photos et vidéos »).</string>
+    <string name="perm_audio_title">Musique et audio</string>
+    <string name="perm_audio_desc">Lit les fichiers audio utilisés par vos commandes aMiNo ou les tâches de l\'agent. Boîte de dialogue système officielle (« Musique et audio ») - rien n\'est lu sans votre accord.</string>
+    <string name="perm_files_title">Fichiers (médias)</string>
+    <string name="perm_files_desc">Lit les fichiers multimédias utilisés par vos commandes aMiNo. Permission de stockage Android 12 et antérieur, accordée via la boîte de dialogue officielle.</string>
+    <string name="perm_unused_title">Appareil photo, micro, contacts, position, Bluetooth, téléphone</string>
     <string name="perm_unused_desc">aMiNo n\'en utilise aucune. Elles ne figurent pas dans le manifest et ne sont jamais demandées. Si une future fonctionnalité de l\'agent en a besoin, elle apparaîtra d\'abord ici avec une vraie demande.</string>
     <string name="perm_state_not_used">Non utilisée</string>
 

@@ -300,7 +300,7 @@
     <string name="choose_folder">Choose folder</string>
     <string name="dialog_cannot_open_browser_title">Can\'t start browser</string>
     <string name="toast_copied_to_clipboard">Copied to clipboard</string>
-    <string name="accessibility_service_description">Provides pairing support for devices (e.g., TVs running Android 14+) where notifications or split screen cannot be used.\n\nEnables aMiNo to extract the pairing code from the wireless debugging pairing screen. It will disable itself once the pairing code is found.</string>
+    <string name="accessibility_service_description">Lets aMiNo capture the pairing code automatically from the official wireless-debugging pairing screen in Android settings - on phones AND TVs, whenever typing the code is inconvenient. While enabled it reads ONLY the Android settings windows, it never turns itself off, and you can disable it anytime in system settings.</string>
 
     <!-- Messages for legacy -->
     <string name="dialog_legacy_not_support_title">%1$s does not support modern aMiNo</string>
@@ -339,7 +339,7 @@
 
     <!-- Accessibility home card -->
     <string name="home_accessibility_title">Accessibility</string>
-    <string name="home_accessibility_description">Real system state of the aMiNo accessibility service (used to capture the wireless-debugging pairing code automatically on TV devices). The state below is read live from Android - never from a saved flag. aMiNo never enables it silently.</string>
+    <string name="home_accessibility_description">Real system state of the aMiNo accessibility service (used to capture the wireless-debugging pairing code automatically on phones and TVs). The state below is read live from Android - never from a saved flag. aMiNo never enables it silently, and the service never disables itself.</string>
     <string name="home_accessibility_button_open_settings">System settings</string>
     <string name="accessibility_state_active">Active</string>
     <string name="accessibility_state_disabled">Disabled</string>
@@ -368,11 +368,15 @@
     <string name="perm_microphone_title">Microphone</string>
     <string name="perm_microphone_desc">Only if a future agent task needs audio recording. Nothing runs without it.</string>
     <string name="perm_media_title">Photos &amp; videos</string>
-    <string name="perm_media_desc">Selective access to media the user shares with aMiNo. Android 13+ granular media permissions.</string>
+    <string name="perm_media_desc">Reads photos and videos your aMiNo commands or agent tasks touch. Official runtime dialog on Android 13+ ("Photos and videos").</string>
+    <string name="perm_audio_title">Music and audio</string>
+    <string name="perm_audio_desc">Reads audio files your aMiNo commands or agent tasks touch. Official runtime dialog ("Music and audio") - nothing is read without your approval.</string>
+    <string name="perm_files_title">Files (media)</string>
+    <string name="perm_files_desc">Reads media files your aMiNo commands touch. Android 12-and-below storage permission, granted through the official dialog.</string>
     <string name="perm_nearby_title">Nearby devices (Wi-Fi discovery)</string>
     <string name="perm_nearby_desc">Required on Android 13+ to discover the wireless-debugging port via mDNS on the local network.</string>
     <string name="perm_accessibility_title">Accessibility service</string>
-    <string name="perm_accessibility_desc">Optional. Used only to auto-capture the pairing code on TV devices. Enabled manually in system settings.</string>
+    <string name="perm_accessibility_desc">Optional. Auto-captures the pairing code from the official wireless-debugging pairing screen (phones and TVs). Enabled manually in system settings; it never disables itself.</string>
     <string name="perm_battery_title">Battery optimization</string>
     <string name="perm_battery_desc">Keeps the aMiNo server alive across events. Exemption is requested through the official dialog.</string>
     <string name="perm_all_files_title">All files access</string>
@@ -406,7 +410,7 @@
     <string name="perm_section_unused">aMiNo does NOT use these (never requested)</string>
     <string name="perm_network_title">Network / local network</string>
     <string name="perm_network_desc">Internet and local-network access used for mDNS discovery and the on-device ADB connection. Granted at install, no popup.</string>
-    <string name="perm_unused_title">Camera, microphone, photos, contacts, location, Bluetooth, phone</string>
+    <string name="perm_unused_title">Camera, microphone, contacts, location, Bluetooth, phone</string>
     <string name="perm_unused_desc">aMiNo does not use any of these. They are NOT in the manifest and are never requested. If a future agent feature ever needs one, it will be listed here first with a real request.</string>
     <string name="perm_state_not_used">Not used</string>
 

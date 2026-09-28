@@ -3,11 +3,7 @@ package moe.shizuku.manager.adb
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
 import android.content.Intent
-import android.os.Handler
-import android.os.Looper
 import android.widget.Toast
-import android.provider.Settings
-import android.content.ActivityNotFoundException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -18,40 +14,36 @@ import moe.shizuku.manager.ShizukuSettings
 import moe.shizuku.manager.adb.PreferenceAdbKeyStore
 import moe.shizuku.manager.adb.AdbKey
 import moe.shizuku.manager.adb.AdbPairingClient
-import moe.shizuku.manager.home.HomeActivity
-import moe.shizuku.manager.utils.EnvironmentUtils
 import java.net.ConnectException
 
+/**
+ * aMiNo r1373 - the pairing-capture accessibility service now works on EVERY
+ * device (phones AND TVs).
+ *
+ * aMiNo r1372 and earlier copied Shizuku's TV-only gate: on a phone the
+ * service showed "only supported on TV devices" and immediately called
+ * disableSelf() - so enabling it from system settings looked broken, and the
+ * state chip went gray again by itself. That gate, the 60-second timeout and
+ * every disableSelf() are REMOVED: the service stays exactly as enabled or
+ * disabled by the user in the official system settings - it never turns
+ * itself off, and the home chip always mirrors that real state.
+ *
+ * While enabled it listens ONLY to the Android settings app windows
+ * (com.android.settings, com.android.tv.settings - see
+ * accessibility_service_config.xml) and, when the wireless-debugging pairing
+ * screen shows an IP:port plus a 6-digit code, it captures both and pairs -
+ * ready to be reused for every new pairing code (state is reset after each
+ * attempt). No other window content is ever read.
+ */
 class AdbPairingAccessibilityService : AccessibilityService() {
 
-    var port: Int? = null
-    var password: String? = null
-
-    private val handler = Handler(Looper.getMainLooper())
+    private var port: Int? = null
+    private var password: String? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        
-        if (!(EnvironmentUtils.isTelevision() && EnvironmentUtils.isTlsSupported())) {
-            Toast.makeText(this, getString(R.string.toast_accessibility_tv_only), Toast.LENGTH_SHORT).show()
-            disableSelf()
-            return
-        }
-
-        val intent = Intent(this, MainActivity::class.java).apply {
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or 
-                Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                Intent.FLAG_ACTIVITY_SINGLE_TOP
-            )
-            putExtra(HomeActivity.EXTRA_SHOW_PAIRING_DIALOG, true)
-        }
-        startActivity(intent)
-
-        handler.postDelayed({
-            Toast.makeText(this, getString(R.string.toast_pairing_timeout), Toast.LENGTH_LONG).show()
-            disableSelf()
-        }, 60_000)
+        // aMiNo r1373: no TV-only gate, no toast, no disableSelf(), no timeout.
+        // The user enabled the service - it stays enabled until THEY disable it.
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -108,17 +100,16 @@ class AdbPairingAccessibilityService : AccessibilityService() {
                 }
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@AdbPairingAccessibilityService, toastMsg, Toast.LENGTH_LONG).show()
+                    // aMiNo r1373: reset so the NEXT pairing code is captured too.
+                    // The service itself stays enabled - only the user may turn it
+                    // off (no disableSelf() anywhere anymore).
+                    this@AdbPairingAccessibilityService.port = null
+                    this@AdbPairingAccessibilityService.password = null
                 }
-                disableSelf()
             }
         }
     }
 
     override fun onInterrupt() {}
-
-    override fun onUnbind(intent: Intent?): Boolean {
-        handler.removeCallbacksAndMessages(null)
-        return super.onUnbind(intent)
-    }
 
 }

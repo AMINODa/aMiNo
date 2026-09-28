@@ -55,6 +55,9 @@ class PermissionsActivity : AppBarActivity() {
             refresh()
         }
 
+    // aMiNo r1373: fire the combined official request ONCE per page visit
+    private var autoRequested = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -65,6 +68,18 @@ class PermissionsActivity : AppBarActivity() {
 
         binding.requestAll.setOnClickListener { requestGrantable() }
         refresh()
+
+        // aMiNo r1373: the user asked to actually SEE the official permission
+        // dialogs (notifications / music and audio / photos and videos).
+        // Opening this page now fires ONE combined official request for every
+        // declared-but-ungranted runtime permission. Denying changes nothing:
+        // every row always re-reads the REAL system state on resume.
+        binding.list.post {
+            if (!autoRequested) {
+                autoRequested = true
+                launchGrantableRequest()
+            }
+        }
     }
 
     override fun onResume() {
@@ -91,6 +106,43 @@ class PermissionsActivity : AppBarActivity() {
             Action.NOTIFICATIONS,
             if (Build.VERSION.SDK_INT >= 33 && !notifGranted) listOf(Manifest.permission.POST_NOTIFICATIONS) else emptyList()
         )
+
+        // aMiNo r1373 - music and audio: declared in the manifest, so the
+        // OFFICIAL system dialog really appears (the r1371 bug was requesting
+        // UNDECLARED permissions - Android denies those silently, no dialog).
+        if (Build.VERSION.SDK_INT >= 33) {
+            val audio = granted(Manifest.permission.READ_MEDIA_AUDIO)
+            rows += Row(
+                R.string.perm_audio_title, R.string.perm_audio_desc,
+                if (audio) State.GRANTED else State.NOT_GRANTED,
+                if (audio) R.string.perm_state_granted else R.string.perm_state_not_granted,
+                Action.REQUEST,
+                if (!audio) listOf(Manifest.permission.READ_MEDIA_AUDIO) else emptyList()
+            )
+
+            val media = granted(Manifest.permission.READ_MEDIA_IMAGES) &&
+                    granted(Manifest.permission.READ_MEDIA_VIDEO)
+            rows += Row(
+                R.string.perm_media_title, R.string.perm_media_desc,
+                if (media) State.GRANTED else State.NOT_GRANTED,
+                if (media) R.string.perm_state_granted else R.string.perm_state_not_granted,
+                Action.REQUEST,
+                if (!media) listOf(
+                    Manifest.permission.READ_MEDIA_IMAGES,
+                    Manifest.permission.READ_MEDIA_VIDEO
+                ) else emptyList()
+            )
+        } else {
+            // Android 12 and below: one storage permission covers audio+files
+            val storage = granted(Manifest.permission.READ_EXTERNAL_STORAGE)
+            rows += Row(
+                R.string.perm_files_title, R.string.perm_files_desc,
+                if (storage) State.GRANTED else State.NOT_GRANTED,
+                if (storage) R.string.perm_state_granted else R.string.perm_state_not_granted,
+                Action.REQUEST,
+                if (!storage) listOf(Manifest.permission.READ_EXTERNAL_STORAGE) else emptyList()
+            )
+        }
 
         // nearby devices (33+ runtime)
         if (Build.VERSION.SDK_INT >= 33) {
@@ -312,13 +364,28 @@ class PermissionsActivity : AppBarActivity() {
     }
 
     private fun requestGrantable() {
-        val perms = linkedSetOf<String>()
-        runtimeRows().forEach { r -> if (r.action == Action.REQUEST) perms.addAll(r.permissions) }
+        val perms = grantablePerms()
         if (perms.isEmpty()) {
             openAppDetails()
             return
         }
         requestLauncher.launch(perms.toTypedArray())
+    }
+
+    /** Every declared runtime permission that is not granted yet. */
+    private fun grantablePerms(): Set<String> {
+        val perms = linkedSetOf<String>()
+        runtimeRows().forEach { r ->
+            if (r.action == Action.REQUEST || r.action == Action.NOTIFICATIONS) {
+                perms.addAll(r.permissions)
+            }
+        }
+        return perms
+    }
+
+    private fun launchGrantableRequest() {
+        val perms = grantablePerms()
+        if (perms.isNotEmpty()) requestLauncher.launch(perms.toTypedArray())
     }
 
     private fun openAllFiles() {
