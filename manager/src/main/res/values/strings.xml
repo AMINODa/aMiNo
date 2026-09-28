@@ -337,4 +337,52 @@
     <string name="dialog_adb_pairing_success_title">Paired successfully</string>
     <string name="dialog_adb_pairing_success_text">The device is now paired. Start the aMiNo service, then open the Shell terminal - the connection will stay open.</string>
 
+    <!-- Accessibility home card -->
+    <string name="home_accessibility_title">Accessibility</string>
+    <string name="home_accessibility_description">Real system state of the aMiNo accessibility service (used to capture the wireless-debugging pairing code automatically on TV devices). The state below is read live from Android - never from a saved flag. aMiNo never enables it silently.</string>
+    <string name="home_accessibility_button_open_settings">System settings</string>
+    <string name="accessibility_state_active">Active</string>
+    <string name="accessibility_state_disabled">Disabled</string>
+
+    <!-- Permissions screen -->
+    <string name="permissions_title">Permissions</string>
+    <string name="permissions_intro">Real status of every permission aMiNo can use - read live from Android. aMiNo never claims a permission the system did not grant, and root is never required.</string>
+    <string name="permissions_request_all">Request grantable permissions</string>
+    <string name="perm_state_granted">Granted</string>
+    <string name="perm_state_not_granted">Not granted</string>
+    <string name="perm_state_active">Active</string>
+    <string name="perm_state_off">Off</string>
+    <string name="perm_state_exempted">Exempted</string>
+    <string name="perm_state_blocked">Blocked by Android for normal apps</string>
+    <string name="perm_action_grant">Grant</string>
+    <string name="perm_action_open_app_settings">Open app settings</string>
+    <string name="perm_action_open_accessibility">Open accessibility settings</string>
+    <string name="perm_action_open_battery">Disable optimization</string>
+    <string name="perm_action_open_all_files">Manage all-files access</string>
+    <string name="perm_action_open_notifications">Open notification settings</string>
+    <string name="perm_action_open_install">Allow from this source</string>
+    <string name="perm_notifications_title">Notifications</string>
+    <string name="perm_notifications_desc">Shows pairing progress and connection status. Android 13+ asks for explicit approval.</string>
+    <string name="perm_camera_title">Camera</string>
+    <string name="perm_camera_desc">Only if a future agent task needs a photo. Nothing runs without it.</string>
+    <string name="perm_microphone_title">Microphone</string>
+    <string name="perm_microphone_desc">Only if a future agent task needs audio recording. Nothing runs without it.</string>
+    <string name="perm_media_title">Photos &amp; videos</string>
+    <string name="perm_media_desc">Selective access to media the user shares with aMiNo. Android 13+ granular media permissions.</string>
+    <string name="perm_nearby_title">Nearby devices (Wi-Fi discovery)</string>
+    <string name="perm_nearby_desc">Required on Android 13+ to discover the wireless-debugging port via mDNS on the local network.</string>
+    <string name="perm_accessibility_title">Accessibility service</string>
+    <string name="perm_accessibility_desc">Optional. Used only to auto-capture the pairing code on TV devices. Enabled manually in system settings.</string>
+    <string name="perm_battery_title">Battery optimization</string>
+    <string name="perm_battery_desc">Keeps the aMiNo server alive across events. Exemption is requested through the official dialog.</string>
+    <string name="perm_all_files_title">All files access</string>
+    <string name="perm_all_files_desc">Usually NOT needed: aMiNo works with the system file picker and shared storage. Special permission, granted only from system settings.</string>
+    <string name="perm_install_title">Install related packages</string>
+    <string name="perm_install_desc">Allows the in-app update flow to install aMiNo updates. Special permission, granted from system settings.</string>
+    <string name="perm_section_blocked">Not available for normal apps (Android security design)</string>
+    <string name="perm_blocked_secure_title">WRITE_SECURE_SETTINGS / system-level permissions</string>
+    <string name="perm_blocked_secure_desc">Signature-level permissions cannot be granted to any normal app. They exist in the manifest only for the adb-granted server path; the UI never fakes them. Official alternative: run the specific command through the aMiNo server (shell channel).</string>
+    <string name="perm_blocked_root_title">Root</string>
+    <string name="perm_blocked_root_desc">Root is NOT required for aMiNo. Everything runs through the official wireless-debugging pairing and the on-device server.</string>
+
 </resources>

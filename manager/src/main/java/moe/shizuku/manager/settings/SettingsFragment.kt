@@ -73,7 +73,10 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
     private lateinit var translationContributorsPreference: Preference
     private lateinit var nightModePreference: IntegerSimpleMenuPreference
     private lateinit var blackNightThemePreference: TwoStatePreference
-    private lateinit var useSystemColorPreference: TwoStatePreference
+    // use_system_color was intentionally removed from settings.xml (aMiNo forces its
+    // black/red identity) - keep the reference nullable so the settings screen can
+    // never crash if the preference is absent from the XML.
+    private var useSystemColorPreference: TwoStatePreference? = null
     private lateinit var updateModePreference: IntegerSimpleMenuPreference
     private lateinit var helpPreference: Preference
     private lateinit var reportBugPreference: Preference
@@ -107,7 +110,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
         translationContributorsPreference = findPreference(KEY_TRANSLATION_CONTRIBUTORS)!!
         nightModePreference = findPreference(KEY_NIGHT_MODE)!!
         blackNightThemePreference = findPreference(KEY_BLACK_NIGHT_THEME)!!
-        useSystemColorPreference = findPreference(KEY_USE_SYSTEM_COLOR)!!
+        useSystemColorPreference = findPreference(KEY_USE_SYSTEM_COLOR)
         updateModePreference = findPreference(KEY_UPDATE_MODE)!!
         helpPreference = findPreference(KEY_HELP)!!
         reportBugPreference = findPreference(KEY_REPORT_BUG)!!
@@ -276,7 +279,7 @@ class SettingsFragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedP
             } else isVisible = false
         }
 
-        useSystemColorPreference.apply {
+        useSystemColorPreference?.apply {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 isChecked = ThemeHelper.isUsingSystemColor()
                 setOnPreferenceChangeListener { _, value ->

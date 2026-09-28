@@ -249,6 +249,10 @@ abstract class HomeActivity : AppBarActivity() {
                 startActivity(Intent(this, SettingsActivity::class.java))
                 true
             }
+            R.id.action_permissions -> {
+                startActivity(Intent(this, moe.shizuku.manager.permissions.PermissionsActivity::class.java))
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }

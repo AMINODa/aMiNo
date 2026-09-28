@@ -1,6 +1,8 @@
 package moe.shizuku.manager.shell
 
 import android.os.Bundle
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
 import android.view.View
 import android.view.animation.LinearInterpolator
 import android.widget.Toast
@@ -64,6 +66,9 @@ class ShellActivity : AppBarActivity() {
                         )
                     }
                     "clear" -> {
+                        // real clear: wipe the console AND drop the session's replay
+                        // cache so the old log cannot re-appear when re-entering
+                        ShellSession.clearLog()
                         binding.console.text = ""
                         appendLine(getString(R.string.shell_welcome))
                     }
@@ -80,6 +85,7 @@ class ShellActivity : AppBarActivity() {
         }
 
         binding.clear.setOnClickListener {
+            ShellSession.clearLog()
             binding.console.text = ""
             appendLine(getString(R.string.shell_welcome))
         }
@@ -102,6 +108,11 @@ class ShellActivity : AppBarActivity() {
                 }
                 launch {
                     ShellSession.output.collect { appendRaw(it) }
+                }
+                launch {
+                    // connection/system status lines - rendered separately (dim),
+                    // live only, never re-loaded from history
+                    ShellSession.system.collect { appendSystem(it) }
                 }
             }
         }
@@ -163,6 +174,19 @@ class ShellActivity : AppBarActivity() {
 
     private fun appendRaw(text: String) {
         binding.console.append(text)
+        binding.consoleScroll.post {
+            binding.consoleScroll.fullScroll(View.FOCUS_DOWN)
+        }
+    }
+
+    private fun appendSystem(text: String) {
+        val span = SpannableString(text)
+        span.setSpan(
+            ForegroundColorSpan(0xFF9E9E9E.toInt()),
+            0, span.length,
+            SpannableString.SPAN_EXCLUSIVE_EXCLUSIVE
+        )
+        binding.console.append(span)
         binding.consoleScroll.post {
             binding.consoleScroll.fullScroll(View.FOCUS_DOWN)
         }

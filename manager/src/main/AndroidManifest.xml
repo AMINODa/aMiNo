@@ -130,6 +130,10 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".permissions.PermissionsActivity"
+            android:exported="false"
+            android:label="@string/permissions_title" />
+        <activity
             android:name=".starter.StarterActivity"
             android:label="@string/starter" />
         <activity

@@ -8,6 +8,11 @@
         android:showAsAction="ifRoom"/>
 
     <item
+        android:id="@+id/action_permissions"
+        android:title="@string/permissions_title"
+        android:showAsAction="never"/>
+
+    <item
         android:id="@+id/action_stop"
         android:title="@string/action_stop"
         android:showAsAction="never"/>

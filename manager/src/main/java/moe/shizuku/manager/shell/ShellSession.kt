@@ -52,9 +52,17 @@ object ShellSession {
     private val _state = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     val state: StateFlow<ConnectionState> = _state.asStateFlow()
 
-    // replay keeps recent output so reopening the screen shows history
+    // Command/PTY log: replayed so reopening the screen shows the recent command history.
+    // Cleared for real by [clearLog] (resetReplayCache) - after Clear, re-entering the
+    // screen shows NOTHING old; only genuine events that happen after the clear.
     private val _output = MutableSharedFlow<String>(replay = 400, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
     val output: SharedFlow<String> = _output.asSharedFlow()
+
+    // Connection/system status messages are kept on a SEPARATE stream with NO replay:
+    // they are rendered live once, never re-appear as "new results" when navigating
+    // between screens, and are never mixed into the command log.
+    private val _system = MutableSharedFlow<String>(replay = 0, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    val system: SharedFlow<String> = _system.asSharedFlow()
 
     private var shell: AdbInteractiveShell? = null
     private var connecting = false
@@ -63,8 +71,22 @@ object ShellSession {
 
     val isConnected: Boolean get() = _state.value is ConnectionState.Connected && shell?.isOpen == true
 
+    /** Live system/status line - shown once in the console, never replayed. */
     fun appendLocal(line: String) {
+        scope.launch { _system.emit(line) }
+    }
+
+    /** Command-log line (echo, output, verdict) - part of the replayable command history. */
+    fun appendLog(line: String) {
         scope.launch { _output.emit(line) }
+    }
+
+    /**
+     * Clear the shell log for real (not just hide it): drops the replay cache so the
+     * old log cannot re-appear when the screen is re-opened.
+     */
+    fun clearLog() {
+        _output.resetReplayCache()
     }
 
     /**
@@ -181,7 +203,7 @@ object ShellSession {
      * Used by the experimental check buttons — and later by the AI agent.
      */
     fun runCheck(cmd: String) {
-        appendLocal("amino@device:~$ $cmd\n")
+        appendLog("amino@device:~$ $cmd\n")
         scope.launch {
             val st = _state.value
             if (st !is ConnectionState.Connected) {
@@ -204,7 +226,7 @@ object ShellSession {
                         else out.append(line).append('\n')
                     }
                     val clean = out.toString().trimEnd('\n')
-                    if (clean.isNotEmpty()) appendLocal("$clean\n")
+                    if (clean.isNotEmpty()) appendLog("$clean\n")
 
                     val verdict = when {
                         rc == null -> "[aMiNo] ⚠ exit code unknown"
@@ -216,7 +238,7 @@ object ShellSession {
                         rc == 0 && clean.contains("libamino") -> " - aMiNo service is running ✓"
                         else -> ""
                     }
-                    appendLocal(">>> $verdict$extra\n")
+                    appendLog(">>> $verdict$extra\n")
                 }
             } catch (e: Throwable) {
                 Log.e(TAG, "runCheck failed", e)
