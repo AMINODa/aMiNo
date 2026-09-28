@@ -50,9 +50,9 @@ class ShellActivity : AppBarActivity() {
         binding.send.setOnClickListener {
             val text = binding.input.text?.toString()?.trim() ?: ""
             if (text.isNotEmpty()) {
-                appendLine("$prompt$text")
                 when (text.lowercase()) {
                     "help" -> {
+                        appendLine("$prompt$text")
                         appendLine(
                             "aMiNo Shell - experimental checks:\n" +
                             "  echo AMINO_PING          -> verify pairing + connection\n" +
@@ -67,6 +67,7 @@ class ShellActivity : AppBarActivity() {
                         binding.console.text = ""
                         appendLine(getString(R.string.shell_welcome))
                     }
+                    // no local echo: the device PTY echoes the command itself (real terminal behavior)
                     else -> ShellSession.runCommand(text)
                 }
                 binding.input.setText("")
@@ -85,26 +86,13 @@ class ShellActivity : AppBarActivity() {
 
         binding.reconnect.setOnClickListener { ShellSession.connect(this) }
 
-        binding.cmdPing.setOnClickListener {
-            appendLine("$prompt echo AMINO_PING")
-            ShellSession.runCommand("echo AMINO_PING")
-        }
-        binding.cmdWhoami.setOnClickListener {
-            appendLine("$prompt whoami; id")
-            ShellSession.runCommand("whoami; id")
-        }
+        binding.cmdPing.setOnClickListener { ShellSession.runCheck("echo AMINO_PING") }
+        binding.cmdWhoami.setOnClickListener { ShellSession.runCheck("whoami; id") }
         binding.cmdDevice.setOnClickListener {
-            appendLine("$prompt getprop ro.product.model; getprop ro.build.version.release")
-            ShellSession.runCommand("getprop ro.product.model; getprop ro.build.version.release")
+            ShellSession.runCheck("getprop ro.product.model; getprop ro.build.version.release")
         }
-        binding.cmdService.setOnClickListener {
-            appendLine("$prompt ps -A | grep -i libamino")
-            ShellSession.runCommand("ps -A | grep -i libamino")
-        }
-        binding.cmdWadb.setOnClickListener {
-            appendLine("$prompt settings get global adb_wifi_enabled")
-            ShellSession.runCommand("settings get global adb_wifi_enabled")
-        }
+        binding.cmdService.setOnClickListener { ShellSession.runCheck("ps -A | grep -i libamino") }
+        binding.cmdWadb.setOnClickListener { ShellSession.runCheck("settings get global adb_wifi_enabled") }
 
         // live state
         lifecycleScope.launch {

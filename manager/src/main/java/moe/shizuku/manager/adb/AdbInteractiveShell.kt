@@ -29,6 +29,9 @@ import javax.net.ssl.SSLSocket
 
 private const val TAG = "AdbInteractiveShell"
 
+/** Hard upper bound for an incoming ADB payload (defensive; adbd never exceeds 256 KiB). */
+private const val MAX_PAYLOAD_LIMIT = 1048576
+
 /**
  * aMiNo Shell: a long-lived ADB connection holding an interactive `shell:` stream.
  *
@@ -94,19 +97,28 @@ class AdbInteractiveShell(private val host: String, private val port: Int, priva
             useTls = true
 
             message = read()
-        } else if (message.command == A_AUTH) {
-            if (message.command != A_AUTH && message.arg0 != ADB_AUTH_TOKEN) error("not A_AUTH ADB_AUTH_TOKEN")
-            write(A_AUTH, ADB_AUTH_SIGNATURE, 0, key.sign(message.data))
-
-            message = read()
-            if (message.command != A_CNXN) {
-                // not paired yet -> send public key, device may show the pairing/allow dialog
-                write(A_AUTH, ADB_AUTH_RSAPUBLICKEY, 0, key.adbPublicKey)
-                message = read()
+            // The key may not be authorized yet (revoked / fresh install) -> AUTH can arrive over TLS too
+            if (message.command == A_AUTH) {
+                message = completeAuth(message)
             }
+        } else if (message.command == A_AUTH) {
+            message = completeAuth(message)
         }
 
         if (message.command != A_CNXN) error("not A_CNXN")
+    }
+
+    /** Answer A_AUTH TOKEN: signature first; if not accepted, publish the public key. */
+    private fun completeAuth(token: AdbMessage): AdbMessage {
+        if (token.arg0 != ADB_AUTH_TOKEN) error("not A_AUTH ADB_AUTH_TOKEN")
+        write(A_AUTH, ADB_AUTH_SIGNATURE, 0, key.sign(token.data))
+
+        val second = read()
+        if (second.command == A_CNXN) return second
+
+        // not paired yet -> send public key, device may show the pairing/allow dialog
+        write(A_AUTH, ADB_AUTH_RSAPUBLICKEY, 0, key.adbPublicKey)
+        return read()
     }
 
     /**
@@ -175,7 +187,10 @@ class AdbInteractiveShell(private val host: String, private val port: Int, priva
         if (rid <= 0) throw AdbException("shell stream is not open")
         val data = text.toByteArray(Charsets.UTF_8)
         synchronized(writerLock) {
-            write(A_WRTE, rid, localId, data)
+            // ADB protocol: arg0 = sender's stream id (ours), arg1 = recipient's stream id (adbd's).
+            // adbd routes A_WRTE via find_local_socket(msg.arg1) — putting the ids the other way
+            // round makes adbd silently DROP the command (verified against AOSP adb.cpp).
+            write(A_WRTE, localId, rid, data)
         }
     }
 
@@ -205,7 +220,10 @@ class AdbInteractiveShell(private val host: String, private val port: Int, priva
         val checksum = buffer.int
         val magic = buffer.int
         val data: ByteArray?
-        if (dataLength >= 0) {
+        if (dataLength < 0 || dataLength > MAX_PAYLOAD_LIMIT) {
+            throw AdbException("bad ADB data_length $dataLength")
+        }
+        if (dataLength > 0) {
             data = ByteArray(dataLength)
             inputStream.readFully(data, 0, dataLength)
         } else {

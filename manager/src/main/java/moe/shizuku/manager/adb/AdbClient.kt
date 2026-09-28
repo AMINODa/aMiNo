@@ -70,18 +70,27 @@ class AdbClient(private val host: String, private val port: Int, private val key
             useTls = true
 
             message = read()
-        } else if (message.command == A_AUTH) {
-            if (message.command != A_AUTH && message.arg0 != ADB_AUTH_TOKEN) error("not A_AUTH ADB_AUTH_TOKEN")
-            write(A_AUTH, ADB_AUTH_SIGNATURE, 0, key.sign(message.data))
-
-            message = read()
-            if (message.command != A_CNXN) {
-                write(A_AUTH, ADB_AUTH_RSAPUBLICKEY, 0, key.adbPublicKey)
-                message = read()
+            // The key may not be authorized yet -> AUTH can arrive over TLS too
+            if (message.command == A_AUTH) {
+                message = completeAuth(message)
             }
+        } else if (message.command == A_AUTH) {
+            message = completeAuth(message)
         }
 
         if (message.command != A_CNXN) error("not A_CNXN")
+    }
+
+    /** Answer A_AUTH TOKEN: signature first; if not accepted, publish the public key. */
+    private fun completeAuth(token: AdbMessage): AdbMessage {
+        if (token.arg0 != ADB_AUTH_TOKEN) error("not A_AUTH ADB_AUTH_TOKEN")
+        write(A_AUTH, ADB_AUTH_SIGNATURE, 0, key.sign(token.data))
+
+        val second = read()
+        if (second.command == A_CNXN) return second
+
+        write(A_AUTH, ADB_AUTH_RSAPUBLICKEY, 0, key.adbPublicKey)
+        return read()
     }
 
     fun command(cmd: String, listener: ((ByteArray) -> Unit)? = null) {
