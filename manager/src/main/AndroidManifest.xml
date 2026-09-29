@@ -129,6 +129,20 @@
             android:exported="false"
             android:label="@string/shell_title"
             android:windowSoftInputMode="adjustResize" />
+        <!-- aMiNo Agent (r1376) -->
+        <activity
+            android:name=".keys.KeysActivity"
+            android:exported="false"
+            android:label="@string/keys_title"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".memory.MemoryActivity"
+            android:exported="false"
+            android:label="@string/memory_title" />
+        <activity
+            android:name=".tools.ToolsActivity"
+            android:exported="false"
+            android:label="@string/tools_title" />
         <activity
             android:name=".stealth.StealthTutorialActivity"
             android:label="@string/home_stealth_title"

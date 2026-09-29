@@ -126,4 +126,28 @@
         <item name="layout">@layout/preference_empty</item>
     </style>
 
+
+<!-- aMiNo Agent (r1376): bottom nav item (emoji + label, RTL-friendly) -->
+<style name="AminoNavItem">
+    <item name="android:layout_width">0dp</item>
+    <item name="android:layout_height">match_parent</item>
+    <item name="android:layout_weight">1</item>
+    <item name="android:gravity">center</item>
+    <item name="android:orientation">vertical</item>
+    <item name="android:background">?attr/selectableItemBackground</item>
+    <item name="android:textSize">12sp</item>
+    <item name="android:maxLines">1</item>
+    <item name="android:paddingTop">6dp</item>
+    <item name="android:paddingBottom">6dp</item>
+</style>
+
+<style name="AminoFieldLabel">
+    <item name="android:layout_width">match_parent</item>
+    <item name="android:layout_height">wrap_content</item>
+    <item name="android:paddingTop">14dp</item>
+    <item name="android:paddingBottom">4dp</item>
+    <item name="android:textSize">13sp</item>
+    <item name="android:textStyle">bold</item>
+    <item name="android:textColor">?attr/colorPrimary</item>
+</style>
 </resources>
