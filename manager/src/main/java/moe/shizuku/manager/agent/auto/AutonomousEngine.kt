@@ -20,6 +20,7 @@ import moe.shizuku.manager.agent.LlmDecision
 import moe.shizuku.manager.agent.LlmMessage
 import moe.shizuku.manager.agent.LlmProvider
 import moe.shizuku.manager.agent.OpenAiCompatProvider
+import moe.shizuku.manager.agent.OpenRouterProvider
 import moe.shizuku.manager.keys.ApiKeysStore
 import moe.shizuku.manager.keys.SecureStore
 import moe.shizuku.manager.memory.MemoryRepository
@@ -299,6 +300,7 @@ object AutonomousEngine {
     private fun resolveLlm(ctx: Context): Llm? {
         val provider: LlmProvider = when (ApiKeysStore.provider(ctx)) {
             ApiKeysStore.PROVIDER_CLOUDFLARE -> CloudflareProvider
+            ApiKeysStore.PROVIDER_OPENROUTER -> OpenRouterProvider
             ApiKeysStore.PROVIDER_OPENAI_COMPAT -> OpenAiCompatProvider
             else -> GeminiProvider
         }

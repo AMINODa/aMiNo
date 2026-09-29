@@ -20,6 +20,7 @@ import moe.shizuku.manager.agent.CloudflareProvider
 import moe.shizuku.manager.agent.GeminiProvider
 import moe.shizuku.manager.agent.LlmDecision
 import moe.shizuku.manager.agent.OpenAiCompatProvider
+import moe.shizuku.manager.agent.OpenRouterProvider
 import moe.shizuku.manager.app.AppActivity
 
 /**
@@ -110,6 +111,11 @@ class KeysActivity : AppActivity() {
                 binding.helpText.text = getString(R.string.keys_help_cloudflare)
                 modelEdit.hint = "@cf/meta/llama-3.1-8b-instruct | @cf/meta/llama-3.3-70b-instruct-fp8-fast | @cf/qwen/qwen2.5-32b-instruct"
             }
+            ApiKeysStore.PROVIDER_OPENROUTER -> {
+                binding.helpText.visibility = View.VISIBLE
+                binding.helpText.text = getString(R.string.keys_help_openrouter)
+                modelEdit.hint = "meta-llama/llama-3.3-70b-instruct | qwen/qwen3.8-27b:free | nvidia/nemotron-3.5-lightning:free"
+            }
             ApiKeysStore.PROVIDER_GEMINI -> {
                 binding.helpText.visibility = View.VISIBLE
                 binding.helpText.text = getString(R.string.keys_help_gemini)
@@ -168,6 +174,7 @@ class KeysActivity : AppActivity() {
         scope.launch {
             val impl = when (provider) {
                 ApiKeysStore.PROVIDER_CLOUDFLARE -> CloudflareProvider
+                ApiKeysStore.PROVIDER_OPENROUTER -> OpenRouterProvider
                 ApiKeysStore.PROVIDER_OPENAI_COMPAT -> OpenAiCompatProvider
                 else -> GeminiProvider
             }

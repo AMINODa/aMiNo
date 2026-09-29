@@ -399,6 +399,7 @@
     <string name="home_agent_title">Agent AMINO</string>
     <string name="home_agent_description">Assistant de discussion sur Cloudflare Workers AI. Appairage, clés et mémoire restent dans l’application.</string>
     <string name="keys_help_gemini">Google Gemini exige une clé d\'un pays pris en charge ; si votre région est bloquée (ex. Algérie), la requête échouera avec « User location is not supported » — utilisez plutôt Cloudflare Workers AI.</string>
+    <string name="keys_help_openrouter">OpenRouter — une seule clé pour des centaines de modèles (fonctionne partout, modèles gratuits disponibles) : 1) openrouter.ai → Connexion → Keys → Create key (commence par sk-or-v1-) et collez-la comme clé API. 2) Choisissez un id de modèle sur openrouter.ai/models, ex. meta-llama/llama-3.3-70b-instruct, qwen/qwen3.8-27b:free (gratuit, bon arabe) ou nvidia/nemotron-3.5-lightning:free. Les modèles finissant par :free sont gratuits.</string>
     <string name="memory_title">Mémoire</string>
     <string name="memory_tab_conversations">Conversations</string>
     <string name="memory_tab_user">Mémoire utilisateur</string>
