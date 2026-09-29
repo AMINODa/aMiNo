@@ -29,6 +29,7 @@ import moe.shizuku.manager.ktx.toHtml
 import moe.shizuku.manager.management.AppsViewModel
 import moe.shizuku.manager.settings.SettingsActivity
 import moe.shizuku.manager.utils.AppIconCache
+import moe.shizuku.manager.utils.AminoCrashGuard
 import moe.shizuku.manager.utils.CustomTabsHelper
 import moe.shizuku.manager.utils.EnvironmentUtils
 import moe.shizuku.manager.utils.SettingsHelper
@@ -136,6 +137,16 @@ abstract class HomeActivity : AppBarActivity() {
         recyclerView.addEdgeSpacing(top = edgeSpacingV, bottom = edgeSpacingV, left = edgeSpacingH, right = edgeSpacingH)
 
         ShizukuStateMachine.addListener(stateListener)
+
+        // aMiNo r1374: if the app crashed since the last launch, show the persisted
+        // report once (then it is deleted) so users can send us the real stack trace.
+        AminoCrashGuard.takeLastCrash(this)?.let { trace ->
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.crash_report_title)
+                .setMessage(trace.takeLast(2000))
+                .setPositiveButton(android.R.string.ok, null)
+                .show()
+        }
     }
 
     override fun onNewIntent(intent: Intent?) {

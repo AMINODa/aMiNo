@@ -289,6 +289,7 @@
     <!-- Watchdog -->
     <string name="watchdog_running">Watchdog is running</string>
     <string name="watchdog_turn_off">Turn Off</string>
+    <string name="crash_report_title">aMiNo stopped unexpectedly last time</string>
     <string name="watchdog_shizuku_crashed_title">aMiNo crashed recently</string>
     <string name="watchdog_shizuku_crashed_text">Watchdog restarted the service. Tap to learn about potential fixes to prevent future crashes.</string>
     <string name="watchdog_shizuku_crashed_action_turn_off_alerts">Turn Off Alerts</string>

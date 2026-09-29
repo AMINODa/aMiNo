@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import com.topjohnwu.superuser.Shell
 import moe.shizuku.manager.ktx.logd
 import moe.shizuku.manager.service.WatchdogService
+import moe.shizuku.manager.utils.AminoCrashGuard
 import moe.shizuku.manager.utils.ShizukuStateMachine
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 import rikka.core.util.BuildUtils.atLeast30
@@ -47,6 +48,9 @@ class ShizukuApplication : Application() {
     }
 
     override fun onCreate() {
+        // aMiNo r1374: install the crash guard FIRST so even crashes during app
+        // startup are persisted and can be reported on the next launch.
+        AminoCrashGuard.install(this)
         super.onCreate()
         application = this
         appContext = applicationContext

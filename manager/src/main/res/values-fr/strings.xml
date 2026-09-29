@@ -284,6 +284,7 @@
     <!-- Watchdog -->
     <string name="watchdog_running">Le chien de garde est en fuite</string>
     <string name="watchdog_turn_off">Éteindre</string>
+    <string name="crash_report_title">aMiNo s’est arrêté brusquement la dernière fois</string>
     <string name="watchdog_shizuku_crashed_title">aMiNo s’est récemment écrasée</string>
     <string name="watchdog_shizuku_crashed_text">Watchdog a relancé le service. Appuyez pour
         connaître les solutions potentielles afin d’éviter de futurs plantages.</string>
