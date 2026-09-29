@@ -18,19 +18,15 @@ object OpenAiCompatProvider : LlmProvider {
 
     override val id = ApiKeysStore.PROVIDER_OPENAI_COMPAT
 
-    private val JSON = "application/json; charset=utf-8".toMediaType()
-    private val client: OkHttpClient = OkHttpClient.Builder()
+    internal val JSON = "application/json; charset=utf-8".toMediaType()
+    internal val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    override fun testConnection(apiKey: CharArray, model: String, baseUrl: String?): LlmDecision =
-        chat("You are a connection test. Answer with exactly: OK", emptyList(), emptyList(), apiKey, model, baseUrl)
-
-    override fun chat(systemPrompt: String, history: List<LlmMessage>, tools: List<ToolSpec>,
-                      apiKey: CharArray, model: String, baseUrl: String?): LlmDecision {
-        val base = (baseUrl ?: "https://api.openai.com/v1").trimEnd('/')
+    /** Shared message builder (also used by CloudflareProvider). */
+    internal fun buildMessages(systemPrompt: String, history: List<LlmMessage>): JSONArray {
         val messages = JSONArray()
         messages.put(JSONObject().put("role", "system").put("content", systemPrompt))
         for (m in history) {
@@ -57,7 +53,11 @@ object OpenAiCompatProvider : LlmProvider {
                     .put("content", m.text))
             }
         }
+        return messages
+    }
 
+    /** Shared request-body builder (also used by CloudflareProvider). */
+    internal fun buildBody(model: String, messages: JSONArray, tools: List<ToolSpec>): JSONObject {
         val body = JSONObject().put("model", model).put("messages", messages).put("temperature", 0.3)
         if (tools.isNotEmpty()) {
             val arr = JSONArray()
@@ -65,23 +65,38 @@ object OpenAiCompatProvider : LlmProvider {
                 JSONObject().put("name", t.name).put("description", t.description).put("parameters", t.parametersJson)))
             body.put("tools", arr)
         }
+        return body
+    }
 
+    /** Executes a prepared body against {base}/chat/completions with a Bearer token. */
+    internal fun execute(base: String, apiKey: CharArray, body: JSONObject): Pair<Int, String> {
         val request = Request.Builder()
-            .url("$base/chat/completions")
+            .url("${base.trimEnd('/')}/chat/completions")
             .header("Authorization", "Bearer ${String(apiKey)}")
             .post(body.toString().toRequestBody(JSON))
             .build()
-
         client.newCall(request).execute().use { resp ->
-            val text = resp.body?.string().orEmpty()
-            if (!resp.isSuccessful) {
-                val msg = runCatching {
-                    JSONObject(text).getJSONObject("error").getString("message")
-                }.getOrDefault("HTTP ${resp.code}: ${text.take(300)}")
-                return LlmDecision.Error(msg, resp.code)
-            }
-            return parse(text)
+            return Pair(resp.code, resp.body?.string().orEmpty())
         }
+    }
+
+    override fun testConnection(apiKey: CharArray, model: String, baseUrl: String?): LlmDecision =
+        chat("You are a connection test. Answer with exactly: OK", emptyList(), emptyList(), apiKey, model, baseUrl)
+
+    override fun chat(systemPrompt: String, history: List<LlmMessage>, tools: List<ToolSpec>,
+                      apiKey: CharArray, model: String, baseUrl: String?): LlmDecision {
+        val base = (baseUrl ?: "https://api.openai.com/v1").trimEnd('/')
+        val messages = buildMessages(systemPrompt, history)
+        val body = buildBody(model, messages, tools)
+
+        val (code, text) = execute(base, apiKey, body)
+        if (code !in 200..299) {
+            val msg = runCatching {
+                JSONObject(text).getJSONObject("error").getString("message")
+            }.getOrDefault("HTTP $code: ${text.take(300)}")
+            return LlmDecision.Error(msg, code)
+        }
+        return parse(text)
     }
 
     internal fun parse(raw: String): LlmDecision {

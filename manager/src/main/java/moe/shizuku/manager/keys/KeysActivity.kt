@@ -16,6 +16,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import moe.shizuku.manager.R
+import moe.shizuku.manager.agent.CloudflareProvider
 import moe.shizuku.manager.agent.GeminiProvider
 import moe.shizuku.manager.agent.LlmDecision
 import moe.shizuku.manager.agent.OpenAiCompatProvider
@@ -29,6 +30,7 @@ import moe.shizuku.manager.app.AppActivity
  */
 class KeysActivity : AppActivity() {
 
+    private lateinit var binding: moe.shizuku.manager.databinding.ActivityKeysBinding
     private lateinit var providerSpinner: android.widget.Spinner
     private lateinit var modelEdit: android.widget.EditText
     private lateinit var baseUrlEdit: android.widget.EditText
@@ -39,19 +41,20 @@ class KeysActivity : AppActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val binding = moe.shizuku.manager.databinding.ActivityKeysBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        val b = moe.shizuku.manager.databinding.ActivityKeysBinding.inflate(layoutInflater)
+        binding = b
+        setContentView(b.root)
 
-        providerSpinner = binding.providerSpinner
-        modelEdit = binding.modelEdit
-        baseUrlEdit = binding.baseUrlEdit
-        keyEdit = binding.keyEdit
-        statusText = binding.statusText
-        val eyeBtn = binding.eyeBtn
-        val saveBtn = binding.saveBtn
-        val testBtn = binding.testBtn
-        val deleteBtn = binding.deleteBtn
-        val toolbar = binding.toolbar
+        providerSpinner = b.providerSpinner
+        modelEdit = b.modelEdit
+        baseUrlEdit = b.baseUrlEdit
+        keyEdit = b.keyEdit
+        statusText = b.statusText
+        val eyeBtn = b.eyeBtn
+        val saveBtn = b.saveBtn
+        val testBtn = b.testBtn
+        val deleteBtn = b.deleteBtn
+        val toolbar = b.toolbar
 
         toolbar.setNavigationOnClickListener { finish() }
 
@@ -100,6 +103,23 @@ class KeysActivity : AppActivity() {
         baseUrlEdit.setText(ApiKeysStore.baseUrl(this) ?: "")
         baseUrlEdit.visibility = View.VISIBLE
         keyEdit.setText("")
+        // per-provider setup help + model hint (r1377)
+        when (info.id) {
+            ApiKeysStore.PROVIDER_CLOUDFLARE -> {
+                binding.helpText.visibility = View.VISIBLE
+                binding.helpText.text = getString(R.string.keys_help_cloudflare)
+                modelEdit.hint = "@cf/meta/llama-3.1-8b-instruct | @cf/meta/llama-3.3-70b-instruct-fp8-fast | @cf/qwen/qwen2.5-32b-instruct"
+            }
+            ApiKeysStore.PROVIDER_GEMINI -> {
+                binding.helpText.visibility = View.VISIBLE
+                binding.helpText.text = getString(R.string.keys_help_gemini)
+                modelEdit.hint = "gemini-flash-latest"
+            }
+            else -> {
+                binding.helpText.visibility = View.GONE
+                modelEdit.hint = info.defaultModel
+            }
+        }
         val masked = ApiKeysStore.maskedKey(this)
         keyEdit.hint = if (masked != null) getString(R.string.keys_saved_hint, masked)
         else getString(R.string.keys_api_key_hint)
@@ -146,7 +166,11 @@ class KeysActivity : AppActivity() {
         val baseUrl = baseUrlEdit.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }
         setTestBusy(true)
         scope.launch {
-            val impl = if (provider == ApiKeysStore.PROVIDER_OPENAI_COMPAT) OpenAiCompatProvider else GeminiProvider
+            val impl = when (provider) {
+                ApiKeysStore.PROVIDER_CLOUDFLARE -> CloudflareProvider
+                ApiKeysStore.PROVIDER_OPENAI_COMPAT -> OpenAiCompatProvider
+                else -> GeminiProvider
+            }
             val decision = runCatching { impl.testConnection(key, model, baseUrl) }
                 .getOrElse { LlmDecision.Error(it.message ?: it.javaClass.simpleName, 0) }
             withContext(Dispatchers.Main) {

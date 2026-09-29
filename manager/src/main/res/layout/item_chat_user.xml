@@ -16,7 +16,7 @@
         android:paddingEnd="14dp"
         android:paddingTop="9dp"
         android:paddingBottom="9dp"
-        android:textColor="?attr/colorOnPrimary"
+        android:textColor="#FFFFFF"
         android:textSize="15sp"
         android:autoLink="web" />
 </FrameLayout>

@@ -391,6 +391,7 @@
 
 
     <!-- AMINO Agent (r1376) -->
+    <string name="nav_home">الاقتران</string>
     <string name="nav_chat">الدردشة</string>
     <string name="nav_keys">المفاتيح</string>
     <string name="nav_memory">الذاكرة</string>
@@ -434,6 +435,8 @@
     <string name="keys_saved">حُفظ محلياً ومشفَّراً عبر Android Keystore</string>
     <string name="keys_save_failed_keystore">تعذر التشفير (خطأ Keystore) — لم يُحفظ شيء</string>
     <string name="keys_privacy_note">يُخزَّن المفتاح على هذا الهاتف فقط، مشفَّراً بعتاد Android Keystore. يُرسل حصراً لمزود النموذج الذي اخترته ضمن رأس المصادقة، ولا يظهر أبداً في السجلات أو الرسائل النظامية أو تقارير الأعطال.</string>
+    <string name="keys_help_cloudflare">Cloudflare Workers AI (الموصى به — يعمل في كل البلدان): 1) من dash.cloudflare.com → Workers &amp; Pages انسخ Account ID والصقه في الرابط بدل ACCOUNT_ID. 2) أنشئ API Token (My Profile → API Tokens أو من صفحة Workers AI → Use REST API) والصقه كمفتاح API. 3) اختر نموذجاً، مثال: @cf/meta/llama-3.1-8b-instruct أو @cf/qwen/qwen2.5-32b-instruct (قوي في العربية).</string>
+    <string name="keys_help_gemini">Google Gemini يتطلب مفتاحاً من بلد مدعوم؛ إذا كانت منطقتك محجوبة (مثل الجزائر) سيفشل الطلب بخطأ "User location is not supported" — استخدم Cloudflare Workers AI بدلاً منه.</string>
     <string name="memory_title">الذاكرة</string>
     <string name="memory_tab_conversations">المحادثات</string>
     <string name="memory_tab_user">ذاكرة المستخدم</string>

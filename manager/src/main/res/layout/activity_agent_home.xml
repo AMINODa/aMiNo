@@ -12,6 +12,7 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         app:title="@string/app_name"
+        app:titleTextColor="#FF867C"
         app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
 
     <HorizontalScrollView
@@ -91,6 +92,7 @@
         android:background="?attr/colorSurface"
         android:baselineAligned="false">
 
+        <TextView android:id="@+id/navHome" style="@style/AminoNavItem" android:text="@string/nav_home" />
         <TextView android:id="@+id/navChat" style="@style/AminoNavItem" android:text="@string/nav_chat" />
         <TextView android:id="@+id/navKeys" style="@style/AminoNavItem" android:text="@string/nav_keys" />
         <TextView android:id="@+id/navMemory" style="@style/AminoNavItem" android:text="@string/nav_memory" />

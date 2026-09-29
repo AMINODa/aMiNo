@@ -417,6 +417,7 @@
 
 
     <!-- AMINO Agent (r1376) -->
+    <string name="nav_home">Pairing</string>
     <string name="nav_chat">Chat</string>
     <string name="nav_keys">Keys</string>
     <string name="nav_memory">Memory</string>
@@ -460,6 +461,8 @@
     <string name="keys_saved">Saved locally, encrypted with Android Keystore</string>
     <string name="keys_save_failed_keystore">Could not encrypt (Keystore error) — nothing was saved</string>
     <string name="keys_privacy_note">The key is stored ONLY on this phone, encrypted with the hardware Android Keystore. It is sent exclusively to your chosen model provider as the request authentication header. It never appears in logs, prompts, or crash reports.</string>
+    <string name="keys_help_cloudflare">Cloudflare Workers AI (recommended — works in every country): 1) dash.cloudflare.com → Workers &amp; Pages → copy the Account ID and paste it in the Base URL replacing ACCOUNT_ID. 2) Create an API Token (My Profile → API Tokens, or Workers AI page → Use REST API) and paste it as the API key. 3) Pick a model, e.g. @cf/meta/llama-3.1-8b-instruct or @cf/qwen/qwen2.5-32b-instruct (strong Arabic).</string>
+    <string name="keys_help_gemini">Google Gemini requires a key from a supported country; if your region is blocked (e.g. Algeria) the request will fail with "User location is not supported" — use Cloudflare Workers AI instead.</string>
     <string name="memory_title">Memory</string>
     <string name="memory_tab_conversations">Conversations</string>
     <string name="memory_tab_user">User memory</string>

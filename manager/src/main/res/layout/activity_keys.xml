@@ -12,7 +12,8 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         app:navigationIcon="?attr/homeAsUpIndicator"
-        app:title="@string/keys_title" />
+        app:title="@string/keys_title"
+        app:titleTextColor="#FF867C" />
 
     <ScrollView
         android:layout_width="match_parent"
@@ -31,6 +32,15 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:padding="8dp" />
+
+            <TextView
+                android:id="@+id/helpText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="6dp"
+                android:textSize="12sp"
+                android:textColor="#FF867C"
+                android:visibility="gone" />
 
             <TextView style="@style/AminoFieldLabel" android:text="@string/keys_model" />
             <EditText

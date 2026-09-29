@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatDelegate
 import com.topjohnwu.superuser.Shell
 import moe.shizuku.manager.ktx.logd
+import moe.shizuku.manager.keys.ApiKeysStore
 import moe.shizuku.manager.service.WatchdogService
 import moe.shizuku.manager.utils.AminoCrashGuard
 import moe.shizuku.manager.utils.ShizukuStateMachine
@@ -55,6 +56,8 @@ class ShizukuApplication : Application() {
         application = this
         appContext = applicationContext
         init(this)
+        // aMiNo r1377: Cloudflare Workers AI is the new default LLM provider
+        ApiKeysStore.migrateToCloudflareDefault(this)
     }
 
 }

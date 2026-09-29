@@ -333,6 +333,7 @@
 
 
     <!-- AMINO Agent (r1376) -->
+    <string name="nav_home">Appairage</string>
     <string name="nav_chat">Discussion</string>
     <string name="nav_keys">Clés</string>
     <string name="nav_memory">Mémoire</string>
@@ -376,6 +377,8 @@
     <string name="keys_saved">Enregistrée localement, chiffrée via Android Keystore</string>
     <string name="keys_save_failed_keystore">Chiffrement impossible (erreur Keystore) — rien n\'a été enregistré</string>
     <string name="keys_privacy_note">La clé est stockée UNIQUEMENT sur ce téléphone, chiffrée par le Keystore matériel d\'Android. Elle n\'est envoyée qu\'au fournisseur de modèle choisi, en en-tête d\'authentification. Elle n\'apparaît jamais dans les journaux, les prompts ni les rapports de plantage.</string>
+    <string name="keys_help_cloudflare">Cloudflare Workers AI (recommandé — fonctionne dans tous les pays) : 1) dash.cloudflare.com → Workers &amp; Pages → copiez l\'Account ID et collez-le dans l\'URL de base à la place de ACCOUNT_ID. 2) Créez un jeton API (My Profile → API Tokens, ou page Workers AI → Use REST API) et collez-le comme clé API. 3) Choisissez un modèle, ex. @cf/meta/llama-3.1-8b-instruct ou @cf/qwen/qwen2.5-32b-instruct.</string>
+    <string name="keys_help_gemini">Google Gemini exige une clé d\'un pays pris en charge ; si votre région est bloquée (ex. Algérie), la requête échouera avec « User location is not supported » — utilisez plutôt Cloudflare Workers AI.</string>
     <string name="memory_title">Mémoire</string>
     <string name="memory_tab_conversations">Conversations</string>
     <string name="memory_tab_user">Mémoire utilisateur</string>

@@ -139,6 +139,7 @@ object AgentOrchestrator {
 
     private suspend fun runLoop(context: Context, convId: Long, userText: String) {
         val provider: LlmProvider = when (ApiKeysStore.provider(context)) {
+            ApiKeysStore.PROVIDER_CLOUDFLARE -> CloudflareProvider
             ApiKeysStore.PROVIDER_OPENAI_COMPAT -> OpenAiCompatProvider
             else -> GeminiProvider
         }

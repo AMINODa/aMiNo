@@ -64,11 +64,16 @@ open class AgentHomeActivity : AppActivity() {
             }
         }
 
+        binding.navHome.setOnClickListener { startActivity(Intent(this, HomeActivity::class.java)) }
         binding.navChat.setOnClickListener { binding.chatList.smoothScrollToPosition(adapter.itemCount - 1) }
         binding.navKeys.setOnClickListener { startActivity(Intent(this, moe.shizuku.manager.keys.KeysActivity::class.java)) }
         binding.navMemory.setOnClickListener { startActivity(Intent(this, moe.shizuku.manager.memory.MemoryActivity::class.java)) }
         binding.navTools.setOnClickListener { startActivity(Intent(this, moe.shizuku.manager.tools.ToolsActivity::class.java)) }
         binding.navShell.setOnClickListener { startActivity(Intent(this, ShellActivity::class.java)) }
+
+        // aMiNo red/black identity: the active nav item glows red
+        binding.navChat.setTextColor(0xFFFF5252.toInt())
+        binding.navChat.setTypeface(null, android.graphics.Typeface.BOLD)
 
         // open a specific conversation when coming from the Memory page
         val convId = intent.getLongExtra(EXTRA_CONVERSATION_ID, -1)

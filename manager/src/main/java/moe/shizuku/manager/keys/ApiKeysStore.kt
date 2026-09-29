@@ -9,10 +9,12 @@ import android.content.Context
  */
 object ApiKeysStore {
 
+    const val PROVIDER_CLOUDFLARE = "cloudflare"
     const val PROVIDER_GEMINI = "gemini"
     const val PROVIDER_OPENAI_COMPAT = "openai_compat"
 
     val PROVIDERS = listOf(
+        ProviderInfo(PROVIDER_CLOUDFLARE, "Cloudflare Workers AI", "@cf/meta/llama-3.1-8b-instruct", "https://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID/ai/v1"),
         ProviderInfo(PROVIDER_GEMINI, "Google Gemini", "gemini-flash-latest", "https://generativelanguage.googleapis.com/v1beta"),
         ProviderInfo(PROVIDER_OPENAI_COMPAT, "OpenAI-compatible", "gpt-4o-mini", "https://api.openai.com/v1")
     )
@@ -33,7 +35,27 @@ object ApiKeysStore {
     private fun prefs(context: Context) =
         context.getSharedPreferences("amino_agent_settings", Context.MODE_PRIVATE)
 
-    fun provider(context: Context): String = prefs(context).getString(K_PROVIDER, PROVIDER_GEMINI) ?: PROVIDER_GEMINI
+    fun provider(context: Context): String = prefs(context).getString(K_PROVIDER, PROVIDER_CLOUDFLARE) ?: PROVIDER_CLOUDFLARE
+
+    /**
+     * r1377 one-time migration: Cloudflare Workers AI is the new default provider.
+     * Fresh installs and anyone left on Gemini WITHOUT a saved key (Gemini is
+     * geo-blocked in many countries, e.g. Algeria) are moved to Cloudflare.
+     * Users with a real saved Gemini key or an explicit OpenAI-compatible choice
+     * are NOT touched.
+     */
+    fun migrateToCloudflareDefault(context: Context) {
+        val p = prefs(context)
+        if (p.getBoolean(MIGRATION_R1377_DONE, false)) return
+        val stored = p.getString(K_PROVIDER, null)
+        val geminiHasRealKey = SecureStore.has(context, K_KEY_PREFIX + PROVIDER_GEMINI)
+        if (stored == null || (stored == PROVIDER_GEMINI && !geminiHasRealKey)) {
+            p.edit().putString(K_PROVIDER, PROVIDER_CLOUDFLARE).apply()
+        }
+        p.edit().putBoolean(MIGRATION_R1377_DONE, true).apply()
+    }
+
+    private const val MIGRATION_R1377_DONE = "migration_r1377_cloudflare_done"
 
     fun setProvider(context: Context, id: String) {
         prefs(context).edit().putString(K_PROVIDER, id).apply()
