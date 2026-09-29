@@ -2,6 +2,7 @@ package moe.shizuku.manager.shell
 
 import android.content.Context
 import android.util.Log
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -47,7 +48,18 @@ object ShellSession {
         data class Failed(val message: String) : ConnectionState()
     }
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // r1374: last-resort guard - ANY uncaught exception inside session coroutines is
+    // converted into a visible Failed state + a console line instead of killing the
+    // whole process through the default uncaught-exception handler.
+    private val crashGuard = CoroutineExceptionHandler { _, e ->
+        Log.e(TAG, "uncaught shell session error", e)
+        runCatching {
+            _state.value = ConnectionState.Failed(e.message ?: e.javaClass.simpleName)
+            appendLocal("[aMiNo] internal error: ${e.message}\n")
+        }
+    }
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO + crashGuard)
 
     private val _state = MutableStateFlow<ConnectionState>(ConnectionState.Disconnected)
     val state: StateFlow<ConnectionState> = _state.asStateFlow()
@@ -61,7 +73,13 @@ object ShellSession {
     // Connection/system status messages are kept on a SEPARATE stream with NO replay:
     // they are rendered live once, never re-appear as "new results" when navigating
     // between screens, and are never mixed into the command log.
-    private val _system = MutableSharedFlow<String>(replay = 0, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
+    // CRITICAL (r1375 fix): with a non-SUSPEND overflow strategy (DROP_OLDEST) the
+    // MutableSharedFlow constructor REQUIRES replay > 0 or extraBufferCapacity > 0.
+    // replay=0 + extra=0 + DROP_OLDEST throws IllegalArgumentException from the
+    // object's <clinit> -> ExceptionInInitializerError -> app crashed every time the
+    // Shell screen was opened ("aMiNo s'arrête systématiquement"). A 64-slot live
+    // buffer preserves the intended semantics exactly: no replay, live-once rendering.
+    private val _system = MutableSharedFlow<String>(replay = 0, extraBufferCapacity = 64, onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.DROP_OLDEST)
     val system: SharedFlow<String> = _system.asSharedFlow()
 
     private var shell: AdbInteractiveShell? = null
@@ -75,7 +93,7 @@ object ShellSession {
 
     private fun publish(state: ConnectionState) {
         _state.value = state
-        appContext?.let { AminoStatusNotifier.onShellStateChanged(it, state) }
+        appContext?.let { runCatching { AminoStatusNotifier.onShellStateChanged(it, state) } }
     }
 
     val isConnected: Boolean get() = _state.value is ConnectionState.Connected && shell?.isOpen == true
@@ -117,34 +135,52 @@ object ShellSession {
 
         val appContext = context.applicationContext
         this.appContext = appContext
+        // r1374: the whole pipeline is wrapped so NO exception (port lookup, mDNS
+        // discovery, ADB connect, key store) can ever escape the coroutine and kill the
+        // process. Errors become visible console lines + Failed state.
         scope.launch {
-            val savedPort = ShizukuSettings.getShellPort()
-            var port = savedPort
-            if (port <= 0) {
-                appendLocal("[aMiNo] searching for wireless debugging port (mDNS)...\n")
-                port = discoverPort(appContext) ?: -1
-            }
-            if (port <= 0) {
-                appendLocal("[aMiNo] no wireless debugging port found.\n")
-                publish(ConnectionState.Failed("port not found"))
-                connecting = false
-                return@launch
-            }
-
-            appendLocal("[aMiNo] connecting to 127.0.0.1:$port ...\n")
             try {
-                val key = AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "amino")
-                val s = AdbInteractiveShell("127.0.0.1", port, key)
-                s.connect()
-                appendLocal("[aMiNo] connected. opening shell stream...\n")
-                s.openShell(
-                    onOutput = { data ->
-                        // normalize PTY line endings (\r\n) for the console TextView
-                        val text = String(data).replace("\r\n", "\n").replace('\r', '\n')
-                        _output.tryEmit(text)
-                    },
-                    onClosed = { err ->
-                        Log.w(TAG, "shell closed", err)
+                connectPipeline(appContext)
+            } catch (e: Throwable) {
+                Log.e(TAG, "connect pipeline failed", e)
+                appendLocal("[aMiNo] connect failed: ${e.message}\n")
+                publish(ConnectionState.Failed(e.message ?: e.javaClass.simpleName))
+                runCatching { shell?.close() }
+                shell = null
+            } finally {
+                connecting = false
+            }
+        }
+    }
+
+    private suspend fun connectPipeline(appContext: Context) {
+        val savedPort = ShizukuSettings.getShellPort()
+        var port = savedPort
+        if (port <= 0) {
+            appendLocal("[aMiNo] searching for wireless debugging port (mDNS)...\n")
+            port = discoverPort(appContext) ?: -1
+        }
+        if (port <= 0) {
+            appendLocal("[aMiNo] no wireless debugging port found.\n")
+            publish(ConnectionState.Failed("port not found"))
+            return
+        }
+
+        appendLocal("[aMiNo] connecting to 127.0.0.1:$port ...\n")
+        try {
+            val key = AdbKey(PreferenceAdbKeyStore(ShizukuSettings.getPreferences()), "amino")
+            val s = AdbInteractiveShell("127.0.0.1", port, key)
+            s.connect()
+            appendLocal("[aMiNo] connected. opening shell stream...\n")
+            s.openShell(
+                onOutput = { data ->
+                    // normalize PTY line endings (\r\n) for the console TextView
+                    val text = String(data).replace("\r\n", "\n").replace('\r', '\n')
+                    _output.tryEmit(text)
+                },
+                onClosed = { err ->
+                    Log.w(TAG, "shell closed", err)
+                    runCatching {
                         shell = null
                         publish(ConnectionState.Disconnected)
                         if (err != null && !userDisconnected) {
@@ -153,22 +189,20 @@ object ShellSession {
                         } else {
                             appendLocal("\n[aMiNo] ${err?.message ?: "connection closed"}\n")
                         }
-                    }
-                )
-                shell = s
-                ShizukuSettings.setShellPort(port)
-                reconnectAttempts = 0
-                appendLocal("[aMiNo] shell ready - the session stays open. Type 'help' for help.\n")
-                publish(ConnectionState.Connected(port))
-            } catch (e: Throwable) {
-                Log.e(TAG, "connect failed", e)
-                appendLocal("[aMiNo] connect failed: ${e.message}\n")
-                publish(ConnectionState.Failed(e.message ?: e.javaClass.simpleName))
-                runCatching { shell?.close() }
-                shell = null
-            } finally {
-                connecting = false
-            }
+                    }.onFailure { Log.e(TAG, "onClosed handling failed", it) }
+                }
+            )
+            shell = s
+            ShizukuSettings.setShellPort(port)
+            reconnectAttempts = 0
+            appendLocal("[aMiNo] shell ready - the session stays open. Type 'help' for help.\n")
+            publish(ConnectionState.Connected(port))
+        } catch (e: Throwable) {
+            Log.e(TAG, "connect failed", e)
+            appendLocal("[aMiNo] connect failed: ${e.message}\n")
+            publish(ConnectionState.Failed(e.message ?: e.javaClass.simpleName))
+            runCatching { shell?.close() }
+            shell = null
         }
     }
 
