@@ -1,0 +1,161 @@
+# aMiNo Agent — Capability Audit (r1381)
+
+> The full inspection of everything the agent can **read** and **control** on the device,
+> done one domain at a time. This is the document the safety model is built on:
+> every command in the autonomous loop passes `CommandValidator` before execution,
+> and the tier below decides whether it runs silently, pauses for the user, or is rejected.
+
+Execution context: the agent runs commands as the **ADB `shell` user (uid 2000)**
+through the wireless-ADB session. No root. What `shell` can do on Android, the agent can do — no more, no less.
+
+## Tiers
+
+| Tier | Meaning |
+|------|---------|
+| **ALLOW** | Provably read-only inspection. Runs automatically, no dialog. |
+| **CONFIRM** | Mutates something / privacy-sensitive / unknown. The loop **pauses** and the user explicitly approves every single command (Allow / Deny dialog with the reason). |
+| **BLOCK** | Category-defining danger. Never executed, no dialog is even offered. Safe default for any unknown command = CONFIRM, never ALLOW. |
+
+## The capability matrix
+
+### 1. Location / GPS
+| | Commands |
+|---|---|
+| Read (ALLOW) | `dumpsys location`, `settings get secure location_mode`, `settings get secure location_providers_allowed`, `dumpsys activity service` location providers |
+| Control (CONFIRM) | `settings put secure location_mode 0/1/3`, `settings put secure location_providers_allowed +gps,-network`, `appops set <pkg> android:fine_location allow/ignore` |
+| Limits | Precise one-shot location fix needs an app (the agent can read the last known fix from `dumpsys location`). |
+
+### 2. Calls / Telecom
+| | Commands |
+|---|---|
+| Read (ALLOW) | `dumpsys telecom`, `dumpsys phone`, `content query --uri content://call_log/calls`, `dumpsys telephony.registry` |
+| Control (CONFIRM) | `am start -a android.intent.action.DIAL -d tel:…` (open dialer), `am start -a android.intent.action.CALL -d tel:…` (place the call), `input keyevent KEYCODE_ENDCALL / KEYCODE_CALL`, `cmd telecom …` |
+| Limits | No silent call recording (Android blocks it shell-wide). Answering a call via keyevent depends on the OEM phone app. |
+
+### 3. SMS / MMS
+| | Commands |
+|---|---|
+| Read (ALLOW) | `content query --uri content://sms` (inbox/sent…), `dumpsys telecom` messaging parts |
+| Control (CONFIRM) | `am start -a android.intent.action.SENDTO -d smsto:…` (open composer with recipient/body), `service call` is BLOCKED |
+| Limits | Silent SMS **sending** is intentionally not exposed (abuse vector); the agent opens the composer instead. |
+
+### 4. Contacts
+| | Commands |
+|---|---|
+| Read (ALLOW) | `content query --uri content://contacts/…`, `content query --uri content://com.android.contacts` |
+| Control (CONFIRM) | `content insert/update/delete --uri content://com.android.contacts/…` |
+
+### 5. Screen / Display
+| | Commands |
+|---|---|
+| Read (ALLOW) | `screencap -p /data/local/tmp/shot.png` + `cat`, `uiautomator dump` (screen structure), `dumpsys window`, `dumpsys display`, `wm size`, `wm density` (no args = read) |
+| Control (CONFIRM) | `settings put system screen_brightness N`, `settings put system screen_off_timeout N`, `settings put system user_rotation N`, `settings put system accelerometer_rotation 0/1`, `wm size/density N|reset`, `input keyevent KEYCODE_POWER` (screen off/on), `screenrecord --time-limit N` |
+| Limits | `screenrecord` is capped by the engine's 20 s per-command timeout; long recordings need several runs. The screenshot lands **on the device** (`/data/local/tmp` or `/sdcard/Download`) — file *pull* to the phone running aMiNo is a tool-level TODO, not a shell limit. |
+
+### 6. Camera / Torch
+| | Commands |
+|---|---|
+| Read (ALLOW) | `dumpsys media.camera` (cameras, params, torch state) |
+| Control (CONFIRM) | `am start -a android.media.action.STILL_IMAGE_CAMERA` (open camera app), `am start -a android.media.action.IMAGE_CAPTURE`, `cmd camera set-torch-mode <id> true/false` (OEM-dependent), `input keyevent KEYCODE_CAMERA` |
+| Limits | No silent photo/video capture without a user-visible app — by design (privacy law + shell restrictions). Torch via `cmd camera` works on modern Android; some OEMs need `settings put system flashlight` fallbacks. |
+
+### 7. Audio / Microphone / Volume / DND
+| | Commands |
+|---|---|
+| Read (ALLOW) | `dumpsys audio`, `dumpsys media.audio_flinger`, `dumpsys media_session`, `settings get system volume_*`, `getenforce`-style `dumpsys` audio policy |
+| Control (CONFIRM) | `media volume --stream N --set V`, `input keyevent KEYCODE_VOLUME_UP/DOWN/MUTE`, `cmd audio …`, `cmd notification set_dnd on/off/priority/alarms`, `settings put global zen_mode N` |
+| Limits | Mic streaming is not possible from shell — only reading which app holds the mic (`dumpsys audio` recorder sessions). |
+
+### 8. Notifications
+| | Commands |
+|---|---|
+| Read (ALLOW) | `dumpsys notification --noredact` (active + recent notifications) |
+| Control (CONFIRM) | `cmd notification post -S bigtext -t "title" tag "body"` (post a notification), `cmd notification set_dnd …`, `cmd notification allow_dnc/allow_listener` |
+
+### 9. Wi-Fi / Network / Airplane mode
+| | Commands |
+|---|---|
+| Read (ALLOW) | `dumpsys wifi`, `dumpsys connectivity`, `ip addr/route/rule/neigh`, `ifconfig`, `netstat`, `ss`, `ping -c`, `cmd wifi status` via dumpsys, `settings get global wifi_on`, `dumpsys netstats` |
+| Control (CONFIRM) | `svc wifi enable/disable`, `svc data enable/disable`, `cmd wifi set-wifi-enabled enabled/disabled`, `settings put global airplane_mode_on 0/1` + `am broadcast -a android.intent.action.AIRPLANE_MODE`, `cmd connectivity airplane-mode enable/disable`, `ifconfig wlan0 up/down`, `cmd wifi connect-network …` |
+| Limits | Joining a hidden/enterprise network may need UI; saved-network listing works via `cmd wifi list-networks` (CONFIRM — it can expose PSKs on old Android). |
+
+### 10. Bluetooth / NFC
+| | Commands |
+|---|---|
+| Read (ALLOW) | `dumpsys bluetooth_manager`, `dumpsys nfc` |
+| Control (CONFIRM) | `svc bluetooth enable/disable`, `cmd bluetooth_manager enable/disable`, `svc nfc enable/disable`, `cmd nfc enable/disable` |
+
+### 11. Battery / Power / Doze
+| | Commands |
+|---|---|
+| Read (ALLOW) | `dumpsys battery` (level, health, temp, voltage, charge counter), `dumpsys batterystats`, `dumpsys deviceidle` |
+| Control (CONFIRM) | `dumpsys deviceidle whitelist +<pkg>`, `cmd deviceidle …`, `dumpsys battery set/unplug/reset` (simulation — sandbox only), `svc power stayon …` |
+| BLOCK | `reboot`, `shutdown`, `poweroff` — never executed. |
+
+### 12. Apps / Packages / Permissions
+| | Commands |
+|---|---|
+| Read (ALLOW) | `pm list packages/features/users/…`, `pm path`, `pm dump`, `dumpsys package <pkg>`, `appops get <pkg>`, `cmd package list` |
+| Control (CONFIRM) | `pm install/uninstall/clear/enable/disable/disable-user/suspend/unsuspend/hide/unhide`, `pm grant/revoke <pkg> <permission>`, `pm reset-permissions`, `appops set`, `am force-stop`, `am kill`, `kill <pid>`, `monkey` (stress/input), `cmd package compile/dexopt` |
+| Notes | `pm grant/revoke` works for **runtime** permissions because `shell` holds `GRANT_RUNTIME_PERMISSIONS` — this is how the agent installs/repairs apps end-to-end. |
+
+### 13. Files / Storage
+| | Commands |
+|---|---|
+| Read (ALLOW) | `ls`, `cat`, `head/tail`, `du`, `df`, `stat`, `find`, `grep`, `md5sum/sha256sum`, `wc` |
+| Control (CONFIRM) | `mkdir`, `touch`, `cp`, `mv`, `rm` (non-recursive-root), `chmod/chown/chcon`, `ln`, `truncate` |
+| BLOCK | `mkfs/e2fsck/f2fs`, `dd of=/dev/block…`, `sm partition/forget`, `rm -rf /` or into system volumes |
+
+### 14. Processes / Memory / CPU
+| | Commands |
+|---|---|
+| Read (ALLOW) | `ps -A`, `top -n 1`, `free`, `nproc`, `vmstat`, `lsof`, `dumpsys meminfo/cpuinfo/procstats`, `uptime`, `uname` |
+| Control (CONFIRM) | `kill`, `killall`, `pkill`, `am force-stop/kill`, `renice` |
+
+### 15. Input automation (remote control)
+| | Commands |
+|---|---|
+| Read (ALLOW) | `uiautomator dump` (widget tree → coordinates), `dumpsys input_method` (focus), `getevent` stays CONFIRM (raw stream) |
+| Control (CONFIRM) | `input tap x y`, `input swipe x1 y1 x2 y2 ms`, `input text "…"`, `input keyevent <code>` — full remote control of any app, always behind approval |
+
+### 16. System properties / configuration
+| | Commands |
+|---|---|
+| Read (ALLOW) | `getprop`, `getenforce`, `settings get/list`, `content query --uri content://settings/…` |
+| Control (CONFIRM) | `device_config put/delete` |
+| BLOCK | `setprop` (system property mutation), `setenforce` (SELinux) |
+
+### 17. Users / Lock screen
+| | Commands |
+|---|---|
+| Read (ALLOW) | `pm list users`, `dumpsys user`, `locksettings get-disabled` |
+| Control (CONFIRM) | `locksettings …`, `am switch-user`, `pm install --user …` |
+| Notes | Changing lock credentials is gated by CONFIRM and needs the old credential — the agent cannot bypass it. |
+
+### 18. Clipboard
+| | Commands |
+|---|---|
+| Limits | Android 10+ **blocks clipboard access for background/shell processes** — honest limitation. Workaround used by the agent: `input text` (types content), or a focused field + `input keyevent PASTE`. |
+
+### 19. Data exfiltration guards
+| | Commands |
+|---|---|
+| CONFIRM (explicit reason) | `curl`, `wget`, `http(s)`, `nc/ncat/telnet/ftp/scp/rsync`, `am start` with external links |
+| BLOCK | `sendmail`, `service call` |
+
+## What the agent can NOT do (by design)
+- Root / privilege escalation: `su`, `sudo`, `magisk`, `setenforce` → BLOCK.
+- Boot/recovery/partition damage: `reboot`, `fastboot`, `flash*`, `dd` to block devices, `mkfs`, `sm partition` → BLOCK.
+- Kill the agent's own channel: `settings put global adb_enabled 0` → BLOCK.
+- Framework suicide: bare `stop` / `start` → BLOCK.
+- Raw binder attacks: `service call` → BLOCK.
+- Factory wipe: `wipe`, `factory_reset` → BLOCK.
+
+## The app's own permissions (AndroidManifest)
+The aMiNo app itself stays minimal; the heavy lifting is delegated to the ADB shell identity:
+`INTERNET`, `ACCESS_NETWORK_STATE`, `FOREGROUND_SERVICE(_SPECIAL_USE)`, `RECEIVE_BOOT_COMPLETED`,
+`POST_NOTIFICATIONS`, `WRITE_SECURE_SETTINGS`, `REQUEST_INSTALL/DELETE_PACKAGES`,
+`READ_MEDIA_*`, `NEARBY_WIFI_DEVICES`, `BIND_ACCESSIBILITY_SERVICE` (r1373 automation),
+`INTERACT_ACROSS_USERS_FULL` + `USE_LOOPBACK_INTERFACE` (Shizuku/starter mechanics).
+Nothing camera/location/mic is requested by the app itself — those capabilities flow through the
+shell user and are always gated by the tier table above.

@@ -370,6 +370,13 @@
     <string name="auto_err_report">Impossible de générer le rapport final.</string>
     <string name="auto_note_aborted">Exécution interrompue : trop d\'échecs ou commande requise non autorisée sur cet appareil.</string>
     <string name="auto_sys_json">Vous produisez UNIQUEMENT des objets JSON valides. Sans markdown, sans explications.</string>
+    <!-- r1381: ChatGPT-style empty state + suggestions -->
+    <string name="agent_empty_title">Comment puis-je aider ?</string>
+    <string name="agent_empty_sub">Posez une question sur votre téléphone, ou activez ⚡ Tâche pour des travaux autonomes multi-étapes.</string>
+    <string name="agent_suggest_1">📱 Trouver les applications qui prennent le plus de place</string>
+    <string name="agent_suggest_2">🔋 Rapport sur l\'état et l\'usage de la batterie</string>
+    <string name="agent_suggest_3">📶 Vérifier l\'état du Wi-Fi et du réseau</string>
+    <string name="agent_suggest_4">🖥️ Capturer l\'écran actuel</string>
     <string name="auto_sys_report">Vous êtes le rédacteur de rapports d\'AMINO. Honnête, concret, basé uniquement sur les résultats réels fournis.</string>
     <string name="keys_title">Clés</string>
     <string name="keys_provider">Fournisseur</string>

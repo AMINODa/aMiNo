@@ -431,6 +431,13 @@
     <string name="auto_err_report">تعذّر توليد التقرير النهائي.</string>
     <string name="auto_note_aborted">توقفت المهمة مبكراً: أخطاء متكررة أو أمر مطلوب غير مسموح على هذا الجهاز.</string>
     <string name="auto_sys_json">تُخرج كائنات JSON صالحة فقط. بدون Markdown وبدون شرح.</string>
+    <!-- r1381: ChatGPT-style empty state + suggestions -->
+    <string name="agent_empty_title">كيف أساعدك؟</string>
+    <string name="agent_empty_sub">اسأل أي شيء عن هاتفك، أو فعّل ⚡ مهمة لتنفيذ أعمال متعددة الخطوات تلقائياً.</string>
+    <string name="agent_suggest_1">📱 اعثر على التطبيقات التي تستهلك أكبر مساحة</string>
+    <string name="agent_suggest_2">🔋 تقرير عن حالة البطارية واستخدامها</string>
+    <string name="agent_suggest_3">📶 افحص حالة الواي فاي والشبكة</string>
+    <string name="agent_suggest_4">🖥️ التقط لقطة شاشة للشاشة الحالية</string>
     <string name="auto_sys_report">أنت كاتب تقارير AMINO. صادق ومحدد وتبني على النتائج الحقيقية المقدمة فقط.</string>
     <string name="keys_title">المفاتيح</string>
     <string name="keys_provider">المزود</string>

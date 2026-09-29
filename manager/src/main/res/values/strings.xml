@@ -457,6 +457,13 @@
     <string name="auto_err_report">Could not generate the final report.</string>
     <string name="auto_note_aborted">The run stopped early: too many failures or a required command is not allowed on this device.</string>
     <string name="auto_sys_json">You output ONLY valid JSON objects. No markdown, no explanations.</string>
+    <!-- r1381: ChatGPT-style empty state + suggestions -->
+    <string name="agent_empty_title">How can I help?</string>
+    <string name="agent_empty_sub">Ask anything about your phone, or flip ⚡ Task for multi-step autonomous jobs.</string>
+    <string name="agent_suggest_1">📱 Find apps that use the most storage</string>
+    <string name="agent_suggest_2">🔋 Report battery level and health</string>
+    <string name="agent_suggest_3">📶 Check Wi-Fi and network state</string>
+    <string name="agent_suggest_4">🖥️ Capture a screenshot of the current screen</string>
     <string name="auto_sys_report">You are AMINO\'s report writer. Honest, concrete, based only on provided real results.</string>
     <string name="keys_title">Keys</string>
     <string name="keys_provider">Provider</string>

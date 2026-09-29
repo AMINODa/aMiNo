@@ -1,22 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- r1381: assistant message — avatar + plain text on black (ChatGPT style, no bubble) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp">
+    android:orientation="horizontal"
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp">
+
+    <TextView
+        android:id="@+id/agentAvatar"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:layout_marginTop="2dp"
+        android:gravity="center"
+        android:text="A"
+        android:textColor="#FFFFFF"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:background="@drawable/bg_chat_agent_avatar" />
 
     <TextView
         android:id="@+id/text"
-        android:layout_width="wrap_content"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_gravity="start"
-        android:layout_marginEnd="64dp"
-        android:background="@drawable/bg_bubble_agent"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:paddingTop="9dp"
-        android:paddingBottom="9dp"
-        android:textColor="?attr/colorOnSurface"
+        android:layout_weight="1"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="8dp"
+        android:background="@null"
+        android:textColor="#ECECF1"
         android:textSize="15sp"
-        android:autoLink="web" />
-</FrameLayout>
+        android:lineSpacingExtra="3dp"
+        android:autoLink="web"
+        android:textIsSelectable="true" />
+</LinearLayout>

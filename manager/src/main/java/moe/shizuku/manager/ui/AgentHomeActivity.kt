@@ -71,10 +71,27 @@ open class AgentHomeActivity : AppActivity() {
         binding.autoBtn.setOnClickListener {
             autoMode = !autoMode
             binding.autoBtn.isChecked = autoMode
+            // r1381: ChatGPT-style pill — dark grey idle, aMiNo red active
             binding.autoBtn.setTextColor(if (autoMode) 0xFFFFFFFF.toInt() else 0xFFFF867C.toInt())
             binding.autoBtn.backgroundTintList =
-                android.content.res.ColorStateList.valueOf(if (autoMode) 0xFFD32F2F.toInt() else 0x33000000)
+                android.content.res.ColorStateList.valueOf(if (autoMode) 0xFFD32F2F.toInt() else 0xFF1A1A20.toInt())
             binding.inputEdit.hint = getString(if (autoMode) R.string.auto_hint else R.string.agent_hint)
+        }
+
+        // r1381: empty-state suggestion chips fill the composer
+        val suggestions = mapOf(
+            binding.suggest1 to R.string.agent_suggest_1,
+            binding.suggest2 to R.string.agent_suggest_2,
+            binding.suggest3 to R.string.agent_suggest_3,
+            binding.suggest4 to R.string.agent_suggest_4
+        )
+        for ((view, res) in suggestions) {
+            view.setOnClickListener {
+                if (binding.inputEdit.isEnabled) {
+                    binding.inputEdit.setText(getString(res))
+                    binding.inputEdit.requestFocus()
+                }
+            }
         }
         binding.statusChip.setOnClickListener {
             if (AgentOrchestrator.state.value.status is AgentStatus.NotConfigured || !ApiKeysStore.hasKey(this)) {
@@ -107,10 +124,14 @@ open class AgentHomeActivity : AppActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 AutonomousEngine.state.collect { auto ->
+                    val busy = s_busy || auto.busy
                     binding.stopBtn.visibility =
-                        if (s_busy || auto.busy) android.view.View.VISIBLE else android.view.View.GONE
-                    binding.sendBtn.isEnabled = !(s_busy || auto.busy)
-                    binding.inputEdit.isEnabled = !(s_busy || auto.busy)
+                        if (busy) android.view.View.VISIBLE else android.view.View.GONE
+                    // r1381: one circular slot — send swaps to stop while busy (ChatGPT style)
+                    binding.sendBtn.visibility =
+                        if (busy) android.view.View.GONE else android.view.View.VISIBLE
+                    binding.sendBtn.isEnabled = !busy
+                    binding.inputEdit.isEnabled = !busy
                     val pending = auto.awaiting
                     if (pending != null) showConfirmDialog(pending.command, pending.reason)
                     else confirmDialog?.dismiss()
@@ -139,6 +160,10 @@ open class AgentHomeActivity : AppActivity() {
             binding.chatList.scrollToPosition((s.items.size - 1).coerceAtLeast(0))
         }
 
+        // r1381: ChatGPT-like empty state (hidden once the conversation has rows or work is running)
+        binding.emptyState.visibility =
+            if (s.items.isEmpty() && !s.busy) android.view.View.VISIBLE else android.view.View.GONE
+
         binding.statusChip.text = when (val st = s.status) {
             is AgentStatus.Ready -> if (s.providerReady) getString(R.string.agent_status_ready)
             else getString(R.string.agent_status_not_configured)
@@ -154,9 +179,11 @@ open class AgentHomeActivity : AppActivity() {
                 ?: getString(R.string.agent_status_thinking)
         }
         val autoPending = moe.shizuku.manager.agent.auto.AutonomousEngine.state.value.awaiting != null
-        binding.stopBtn.visibility = if (s.busy || autoBusy) android.view.View.VISIBLE else android.view.View.GONE
-        binding.sendBtn.isEnabled = !(s.busy || autoBusy)
-        binding.inputEdit.isEnabled = !(s.busy || autoBusy)
+        val busyAll = s.busy || autoBusy
+        binding.stopBtn.visibility = if (busyAll) android.view.View.VISIBLE else android.view.View.GONE
+        binding.sendBtn.visibility = if (busyAll) android.view.View.GONE else android.view.View.VISIBLE
+        binding.sendBtn.isEnabled = !busyAll
+        binding.inputEdit.isEnabled = !busyAll
         if (autoPending) return
     }
 

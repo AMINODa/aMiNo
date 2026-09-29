@@ -35,7 +35,12 @@ object CommandValidator {
         Regex("""\brm\s+-[a-z]*r[a-z]*f[a-z]*\s+/(|\s|\*)""") to "recursive delete from filesystem root",
         Regex("""\brm\s+-[a-z]*r[a-z]*f[a-z]*\s+/(system|data|vendor|product|odm)\b""") to "recursive delete in a system volume",
         Regex("""\bsendmail\b|\bsendmail\b""") to "sends data off-device",
-        Regex("""\bservice\s+call\b""") to "raw binder service calls"
+        Regex("""\bservice\s+call\b""") to "raw binder service calls",
+        // r1381 capability-audit hardening: privilege/security category guards
+        Regex("""\bsetenforce\b""") to "disables SELinux enforcement",
+        Regex("""\bmagisk\b""") to "root / privilege-escalation installation",
+        Regex("""\bsm\s+(partition|forget|fumount|format)\b""") to "repartitions/formats storage",
+        Regex("""\bsettings\s+put\s+\w+\s+adb_enabled\b""") to "would disable the ADB channel the agent needs"
     )
 
     // ---------- CONFIRM: explicit user approval required ----------
@@ -59,7 +64,16 @@ object CommandValidator {
         Regex("""\b(curl|wget|http|https)\b""") to "may send data outside the phone",
         Regex("""\bam\s+start[^#\n]*(http|https)""") to "opens an external link (data may leave the phone)",
         Regex("""\bifconfig\s+\w+\s+(up|down)\b|\bip\s+link\s+set\b""") to "changes network interfaces",
-        Regex("""\bdumpsys\s+deviceidle\s+(whitelist|enable|disable)\b|\bcmd\s+deviceidle\b""") to "changes battery/doze policy"
+        Regex("""\bdumpsys\s+deviceidle\s+(whitelist|enable|disable)\b|\bcmd\s+deviceidle\b""") to "changes battery/doze policy",
+        // ---- r1381 capability audit: explicit ASK-FIRST tier for every device domain ----
+        Regex("""\bappops\s+set\b""") to "changes per-app behavior/permissions (appops)",
+        Regex("""\bmedia\s+volume\b""") to "changes audio volume",
+        Regex("""\bscreenrecord\b""") to "records the screen",
+        Regex("""\bmonkey\b""") to "injects random input events",
+        Regex("""\blocksettings\b""") to "changes lock-screen credentials/settings",
+        Regex("""\bdumpsys\s+battery\s+(set|unplug|reset|disable|enable)\b""") to "alters battery simulation",
+        Regex("""\bdevice_config\s+(put|delete|change)\b""") to "modifies device configuration",
+        Regex("""\bcmd\s+(notification|wifi|bluetooth_manager|connectivity|telecom|camera|audio|display|battery|vibrator_manager|location|uimode|overlay|nfc)\b""") to "changes a device service via cmd"
     )
 
     // ---------- ALLOW: provably read-only (first-word or first-two-words heads) ----------
@@ -68,7 +82,8 @@ object CommandValidator {
         "df", "ls", "stat", "du", "cat", "head", "tail", "wc", "grep", "egrep", "fgrep",
         "find", "getprop", "ps", "id", "whoami", "groups", "getenforce", "sestatus",
         "uptime", "uname", "date", "printenv", "env", "netstat", "ss", "nproc", "free",
-        "lsof", "md5sum", "sha1sum", "sha256sum", "vmstat", "iostat", "screencap"
+        "lsof", "md5sum", "sha1sum", "sha256sum", "vmstat", "iostat", "screencap",
+        "ifconfig" // r1381: read forms only — up/down mutations are caught by confirmRules first
     )
 
     private val allowTwoWord = setOf(
@@ -76,6 +91,10 @@ object CommandValidator {
         "settings get", "settings list",
         "cmd package list", "cmd activity get-recv-limits",
         "ip addr", "ip route", "ip rule", "ip link", "ip -s", "ip neigh",
+        // r1381 capability audit: broader read surface for the super agent
+        "content query", "content read",   // read content providers (sms/call_log/contacts/media)
+        "appops get",                        // per-app ops inspection
+        "service list",                      // binder services enumeration
         "dumpsys" // covered by head too, kept for clarity
     )
 
@@ -135,6 +154,8 @@ object CommandValidator {
         if (first == "logcat") {
             return cmd.contains(" -d") || cmd.contains(" -t") || cmd.startsWith("logcat -d") || cmd.startsWith("logcat -t")
         }
+        // r1381: uiautomator dump = read-only UI hierarchy snapshot (how the agent "sees" the screen)
+        if (first == "uiautomator") return cmd.contains("dump") && !cmd.contains("runtest")
         if (first == "top") return cmd.contains("-n")
         if (first == "ping") return cmd.contains("-c")
         if (first == "wm") return two == "wm size" && head.size == 2 || two == "wm density" && head.size == 2

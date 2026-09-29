@@ -20,6 +20,21 @@ object AutoPrompts {
                     "Otherwise plan only non-shell work and say so in the goal.")
         }
         appendLine("- The shell user is 'shell' (ADB): can read most system info, cannot get root.")
+        appendLine()
+        appendLine("READ (ALLOW tier — runs automatically, no approval): " +
+                "dumpsys <service> (battery, location, telecom, phone, wifi, audio, notification, media.camera, sensorservice, window, display, usagestats, meminfo, cpuinfo, diskstats, netstats, deviceidle), " +
+                "settings get/list, getprop, pm list/path/dump, content query --uri content://sms|content://call_log|content://media, " +
+                "appops get, service list, ps, top -n 1, logcat -d, ls/cat/head/tail/du/df/stat/find/grep, " +
+                "screencap -p /data/local/tmp/shot.png, uiautomator dump, ip addr/route, ifconfig, netstat, ss, ping -c N, free, nproc.")
+        appendLine("ASK-FIRST (CONFIRM tier — runs only after the user approves the dialog; plan them when the task needs them): " +
+                "settings put (location_mode, screen_brightness, screen_off_timeout, user_rotation, accelerometer_rotation, airplane_mode_on, zen_mode/dnd), " +
+                "svc wifi|data|bluetooth|nfc enable/disable, cmd wifi/bluetooth_manager/connectivity/telecom/camera/audio/display/notification, " +
+                "media volume --stream X --set N, cmd notification post/set_dnd, am start (open any app or intent, android.intent.action.DIAL/CALL tel:, android.media.action.IMAGE_CAPTURE), " +
+                "input tap/swipe/text/keyevent (KEYCODE_VOLUME_*, KEYCODE_POWER, KEYCODE_ENDCALL...), am force-stop, " +
+                "pm install/uninstall/clear/grant/revoke/enable/disable/suspend, appops set, wm size/density, " +
+                "rm/mv/cp/mkdir/touch/chmod, kill, screenrecord --time-limit N, locksettings, dumpsys deviceidle whitelist.")
+        appendLine("NEVER PLAN (BLOCK tier — rejected, cannot run): reboot/shutdown, fastboot/flash, su/sudo, setenforce, setprop, " +
+                "mkfs/dd to block devices, sm partition/forget, stop|start framework, service call, factory reset/wipe, settings put adb_enabled.")
     }
 
     fun plan(goal: String, caps: String): String = buildString {
@@ -30,8 +45,9 @@ object AutoPrompts {
         appendLine("HARD RULES:")
         appendLine("- Return ONLY a JSON object. No markdown, no code fences, no commentary.")
         appendLine("- Max 6 steps, max 3 commands per step, commands are Android 'toybox' shell commands WITHOUT 'adb shell' prefix.")
-        appendLine("- Prefer READ-ONLY commands (pm list/path/dump, dumpsys, df, ls, cat, getprop, ps, top -n 1, du, stat, settings get, logcat -d).")
-        appendLine("- NEVER plan destructive commands (rm, pm uninstall/clear, settings put, reboot, flash, su). They are blocked or require explicit human approval and will PAUSE the run. If the goal REQUIRES them, plan the inspection steps that prove what is needed instead.")
+        appendLine("- Prefer READ-ONLY commands (they run automatically, see READ list).")
+        appendLine("- Mutating commands from the ASK-FIRST list ARE allowed in the plan (location, brightness, rotation, wifi/bt, volume, calls via am start DIAL/CALL, camera, pm grant/revoke, input taps, screenshots...), but EACH one pauses the run for explicit user approval — use them only when the task needs them, never for pure inspection.")
+        appendLine("- NEVER plan BLOCK-tier commands (reboot, flash, su, setenforce, mkfs, sm partition, stop/start framework, service call, factory reset, adb_enabled). They are rejected outright and will abort the step.")
         appendLine("- Commands must be one-line, self-contained (no interactive prompts).")
         appendLine("- If the goal is a pure question answerable without the device, plan one step whose command is: echo no_shell_needed")
         appendLine()
@@ -56,10 +72,10 @@ object AutoPrompts {
         appendLine()
         appendLine("RULES:")
         appendLine("- retry: transient issue only (timeout, connection hiccup).")
-        appendLine("- replace: propose ONE alternative command that is read-only and works on this Android version (no prefix). Same for 'permission denied' (find what IS readable).")
+        appendLine("- replace: propose ONE alternative command that works on this Android version (no prefix). Same for 'permission denied' (find what IS readable). Mutating ASK-FIRST commands are acceptable (they will pause for approval); BLOCK-tier commands (reboot, flash, su, setenforce, mkfs...) are never acceptable.")
         appendLine("- skip: the step cannot be done but the goal may survive without it.")
         appendLine("- abort: the whole goal is impossible without blocked/dangerous commands.")
-        appendLine("- NEVER propose destructive commands (rm, pm uninstall/clear, settings put, reboot, flash, su, curl/wget). They will be blocked.")
+        appendLine("- NEVER propose BLOCK-tier commands (reboot, flash, su, setenforce, mkfs, sm partition, service call, factory reset). They will be rejected.")
     }
 
     fun report(goal: String, plan: AutoPlan, results: List<String>): String = buildString {

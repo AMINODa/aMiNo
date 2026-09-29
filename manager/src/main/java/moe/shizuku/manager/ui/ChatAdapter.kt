@@ -59,14 +59,18 @@ class ChatAdapter : RecyclerView.Adapter<ChatAdapter.VH>() {
                 if (item.role == "tool") {
                     val mark = when (item.toolOk) { true -> "✓"; false -> "✗"; else -> "•" }
                     title.text = "🔧 ${item.toolName} $mark"
+                    title.setTextColor(0xFFFF867C.toInt())
+                    title.typeface = android.graphics.Typeface.DEFAULT_BOLD
                 } else if (item.role == "auto") {
-                    // r1379: real executed command of the autonomous loop (red/black identity)
+                    // r1379/r1381: real executed command of the autonomous loop (red/black identity)
                     val cmd = item.text.lineSequence().firstOrNull()?.removePrefix("$ ") ?: ""
                     val mark = when (item.toolOk) { true -> "✓"; false -> "✗"; else -> "•" }
                     title.text = "💻 $cmd $mark"
-                    title.setTextColor(0xFFFF867C.toInt())
+                    title.setTextColor(0xFFFF5252.toInt())
+                    title.typeface = android.graphics.Typeface.MONOSPACE
                 } else {
                     title.text = "⚙️ ${item.toolName}"
+                    title.setTextColor(0xFFFF867C.toInt())
                 }
                 val body = item.text
                 val isOpen = expanded.contains(item.id) || item.role == "auto"

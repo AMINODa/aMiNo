@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- r1381: assistant avatar — red gradient circle -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <gradient
+        android:type="linear"
+        android:angle="315"
+        android:startColor="#F0434B"
+        android:endColor="#A31218" />
+</shape>
