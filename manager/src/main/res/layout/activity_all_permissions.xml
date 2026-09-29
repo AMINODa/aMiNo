@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- r1382: grant-all runtime permissions + ADB shell identity boost -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true"
+    android:background="#0B0B0E">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="#0B0B0E"
+        app:title="@string/menu_permissions"
+        app:titleTextColor="#E53935"
+        app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge"
+        app:navigationIcon="@drawable/ic_back_24"
+        app:navigationIconTint="#E53935" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:scrollbars="none"
+        android:clipToPadding="false"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="8dp">
+
+        <LinearLayout
+            android:id="@+id/permList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/permSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/perm_subtitle"
+                android:textColor="#8A8A94"
+                android:textSize="13sp"
+                android:paddingTop="4dp"
+                android:paddingBottom="10dp" />
+        </LinearLayout>
+    </ScrollView>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="14dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/boostBtn"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:text="@string/perm_boost"
+            android:textAllCaps="false"
+            android:textColor="#FF867C"
+            android:textSize="15sp"
+            app:backgroundTint="#1A1A20"
+            app:cornerRadius="16dp"
+            app:rippleColor="#33D32F2F" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/grantAllBtn"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="8dp"
+            android:text="@string/perm_grant_all"
+            android:textAllCaps="false"
+            android:textColor="#FFFFFF"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            app:backgroundTint="#D32F2F"
+            app:cornerRadius="16dp"
+            app:rippleColor="#55FFFFFF" />
+    </LinearLayout>
+</LinearLayout>

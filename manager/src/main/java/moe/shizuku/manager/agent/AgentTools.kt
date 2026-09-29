@@ -125,5 +125,153 @@ object AgentTools {
         }
     }
 
+    // ---------- r1382: permissions & user data ----------
+
+    /**
+     * Grant every runtime permission Android allows to the ADB shell identity
+     * (com.android.shell). THE fix for "Permission Denial" when content queries
+     * touch call log / SMS / contacts (the shell user must hold the matching
+     * runtime permission for the provider to answer). Each pm grant is a real
+     * command through the wireless ADB connection; results are reported honestly.
+     */
+    fun grantShellPermissions(context: Context): ToolResult {
+        val st = ShellSession.state.value
+        if (st !is ShellSession.ConnectionState.Connected) {
+            return ToolResult(false, "shell_not_connected: open the Shell page / pair first")
+        }
+        val perms = listOf(
+            "android.permission.READ_CALL_LOG",
+            "android.permission.READ_CONTACTS",
+            "android.permission.READ_SMS",
+            "android.permission.READ_PHONE_STATE",
+            "android.permission.CALL_PHONE",
+            "android.permission.ACCESS_FINE_LOCATION",
+            "android.permission.ACCESS_COARSE_LOCATION",
+            "android.permission.CAMERA",
+            "android.permission.RECORD_AUDIO",
+            "android.permission.READ_EXTERNAL_STORAGE",
+            "android.permission.WRITE_EXTERNAL_STORAGE"
+        )
+        val lines = ArrayList<String>()
+        var granted = 0
+        for (p in perms) {
+            val r = shellCommand(context, "pm grant com.android.shell $p")
+            if (r.ok) {
+                granted++
+                lines.add("granted: ${p.substringAfterLast('.')}")
+            } else {
+                lines.add("failed: ${p.substringAfterLast('.')} — ${r.output.take(120)}")
+            }
+        }
+        // real verification probes through the provider itself
+        val probe = StringBuilder()
+        for ((label, uri) in listOf(
+            "call_log" to "content://call_log/calls",
+            "contacts" to "content://com.android.contacts/contacts",
+            "sms" to "content://sms"
+        )) {
+            val r = shellCommand(context, "content query --uri $uri")
+            val head = r.output.lineSequence().take(2).joinToString(" | ").take(220)
+            probe.append("verify $label: ").append(if (r.ok) "OK $head" else "STILL DENIED — $head").append('\n')
+        }
+        val summary = "shell permission boost: $granted/${perms.size} granted\n" +
+                lines.joinToString("\n") + "\n" + probe
+        return ToolResult(granted > 0, summary.take(3500))
+    }
+
+    /**
+     * Read the user's own data through the APP identity (ContentResolver) instead
+     * of the shell — needs the matching runtime permission granted from the
+     * Permissions page. kinds: calls | sms | contacts.
+     */
+    fun userData(context: Context, kind: String, limit: Int): ToolResult {
+        val n = limit.coerceIn(1, 50)
+        fun need(perm: String): ToolResult? {
+            val has = androidx.core.content.ContextCompat.checkSelfPermission(context, perm) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+            return if (has) null else ToolResult(
+                false,
+                "permission_missing: $perm — open the side menu > Permissions, grant it, then retry"
+            )
+        }
+        return try {
+            val arr = JSONArray()
+            when (kind.lowercase().trim()) {
+                "calls", "call_log", "calllog" -> {
+                    need("android.permission.READ_CALL_LOG")?.let { return it }
+                    val cur = context.contentResolver.query(
+                        android.provider.CallLog.Calls.CONTENT_URI,
+                        arrayOf(
+                            android.provider.CallLog.Calls.NUMBER,
+                            android.provider.CallLog.Calls.CACHED_NAME,
+                            android.provider.CallLog.Calls.DATE,
+                            android.provider.CallLog.Calls.DURATION,
+                            android.provider.CallLog.Calls.TYPE
+                        ), null, null,
+                        android.provider.CallLog.Calls.DATE + " DESC"
+                    ) ?: return ToolResult(false, "call_log_query_null")
+                    cur.use { c ->
+                        while (c.moveToNext() && arr.length() < n) {
+                            val type = when (c.getInt(4)) {
+                                android.provider.CallLog.Calls.OUTGOING_TYPE -> "outgoing"
+                                android.provider.CallLog.Calls.INCOMING_TYPE -> "incoming"
+                                android.provider.CallLog.Calls.MISSED_TYPE -> "missed"
+                                else -> "other"
+                            }
+                            arr.put(JSONObject()
+                                .put("number", c.getString(0) ?: "")
+                                .put("name", c.getString(1) ?: "")
+                                .put("date_ms", c.getLong(2))
+                                .put("duration_s", c.getLong(3))
+                                .put("type", type))
+                        }
+                    }
+                    ToolResult(true, JSONObject().put("kind", "calls").put("count", arr.length())
+                        .put("entries", arr).toString(2))
+                }
+                "sms", "messages" -> {
+                    need("android.permission.READ_SMS")?.let { return it }
+                    val cur = context.contentResolver.query(
+                        android.net.Uri.parse("content://sms/inbox"),
+                        arrayOf("_id", "address", "body", "date"), null, null, "date DESC"
+                    ) ?: return ToolResult(false, "sms_query_null")
+                    cur.use { c ->
+                        while (c.moveToNext() && arr.length() < n) {
+                            arr.put(JSONObject()
+                                .put("from", c.getString(1) ?: "")
+                                .put("body", (c.getString(2) ?: "").take(160))
+                                .put("date_ms", c.getLong(3)))
+                        }
+                    }
+                    ToolResult(true, JSONObject().put("kind", "sms").put("count", arr.length())
+                        .put("entries", arr).toString(2))
+                }
+                "contacts", "contact" -> {
+                    need("android.permission.READ_CONTACTS")?.let { return it }
+                    val cur = context.contentResolver.query(
+                        android.provider.ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                        arrayOf(
+                            android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                            android.provider.ContactsContract.CommonDataKinds.Phone.NUMBER
+                        ), null, null,
+                        android.provider.ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
+                    ) ?: return ToolResult(false, "contacts_query_null")
+                    cur.use { c ->
+                        while (c.moveToNext() && arr.length() < n) {
+                            arr.put(JSONObject()
+                                .put("name", c.getString(0) ?: "")
+                                .put("number", c.getString(1) ?: ""))
+                        }
+                    }
+                    ToolResult(true, JSONObject().put("kind", "contacts").put("count", arr.length())
+                        .put("entries", arr).toString(2))
+                }
+                else -> ToolResult(false, "unknown kind '$kind' — use calls | sms | contacts")
+            }
+        } catch (e: Exception) {
+            ToolResult(false, "user_data_error: ${e.message ?: e.javaClass.simpleName}")
+        }
+    }
+
     data class ToolResult(val ok: Boolean, val output: String)
 }

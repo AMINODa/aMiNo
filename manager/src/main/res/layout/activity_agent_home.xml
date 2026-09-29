@@ -1,277 +1,361 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- r1381: ChatGPT-style agent chat, aMiNo black/red identity -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- r1381: ChatGPT-style agent chat, aMiNo black/red identity.
+     r1382: bottom nav bar replaced by a sliding side drawer (open/close on tap). -->
+<androidx.drawerlayout.widget.DrawerLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/drawerLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:fitsSystemWindows="true"
     android:background="#0B0B0E">
 
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
+    <!-- ================= chat content ================= -->
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="#0B0B0E"
-        app:title="@string/app_name"
-        app:titleTextColor="#E53935"
-        app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge" />
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="#0B0B0E">
 
-    <!-- status pill (Ready / Thinking / Executing / autonomous phase) -->
-    <HorizontalScrollView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:scrollbars="none"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="4dp">
-
-        <com.google.android.material.chip.Chip
-            android:id="@+id/statusChip"
-            style="@style/Widget.Material3.Chip.Assist"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/agent_status_ready"
-            android:textColor="#9EA0AA"
-            android:textSize="12sp"
-            android:checkable="false"
-            app:chipBackgroundColor="#131318"
-            app:chipStrokeColor="#2B2B33"
-            app:chipStrokeWidth="1dp"
-            app:chipIcon="@drawable/ic_outline_info_24"
-            app:chipIconTint="#FF5252"
-            app:rippleColor="#33D32F2F" />
-    </HorizontalScrollView>
-
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/chatList"
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:overScrollMode="never"
+            android:layout_height="?attr/actionBarSize"
+            android:background="#0B0B0E"
+            app:title="@string/app_name"
+            app:titleTextColor="#E53935"
+            app:titleTextAppearance="@style/TextAppearance.Material3.TitleLarge"
+            app:navigationIcon="@drawable/ic_hamburger_24"
+            app:navigationIconTint="#E53935" />
+
+        <!-- status pill (Ready / Thinking / Executing / autonomous phase) -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:scrollbars="none"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="4dp">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/statusChip"
+                style="@style/Widget.Material3.Chip.Assist"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/agent_status_ready"
+                android:textColor="#9EA0AA"
+                android:textSize="12sp"
+                android:checkable="false"
+                app:chipBackgroundColor="#131318"
+                app:chipStrokeColor="#2B2B33"
+                app:chipStrokeWidth="1dp"
+                app:chipIcon="@drawable/ic_outline_info_24"
+                app:chipIconTint="#FF5252"
+                app:rippleColor="#33D32F2F" />
+        </HorizontalScrollView>
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/chatList"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:overScrollMode="never"
+                android:scrollbars="none"
+                android:paddingTop="6dp"
+                android:paddingBottom="8dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp" />
+
+            <!-- ChatGPT-like empty state with suggestion chips -->
+            <LinearLayout
+                android:id="@+id/emptyState"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:paddingStart="28dp"
+                android:paddingEnd="28dp">
+
+                <TextView
+                    android:layout_width="76dp"
+                    android:layout_height="76dp"
+                    android:gravity="center"
+                    android:text="A"
+                    android:textColor="#FFFFFF"
+                    android:textSize="32sp"
+                    android:textStyle="bold"
+                    android:background="@drawable/bg_chat_agent_avatar" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:text="@string/agent_empty_title"
+                    android:textColor="#F2F2F5"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center"
+                    android:text="@string/agent_empty_sub"
+                    android:textColor="#8A8A94"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/suggest1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="28dp"
+                    android:background="@drawable/bg_chat_pill"
+                    android:paddingStart="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingTop="13dp"
+                    android:paddingBottom="13dp"
+                    android:text="@string/agent_suggest_1"
+                    android:textColor="#C9C9D2"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/suggest2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_chat_pill"
+                    android:paddingStart="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingTop="13dp"
+                    android:paddingBottom="13dp"
+                    android:text="@string/agent_suggest_2"
+                    android:textColor="#C9C9D2"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/suggest3"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_chat_pill"
+                    android:paddingStart="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingTop="13dp"
+                    android:paddingBottom="13dp"
+                    android:text="@string/agent_suggest_3"
+                    android:textColor="#C9C9D2"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/suggest4"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_chat_pill"
+                    android:paddingStart="18dp"
+                    android:paddingEnd="18dp"
+                    android:paddingTop="13dp"
+                    android:paddingBottom="13dp"
+                    android:text="@string/agent_suggest_4"
+                    android:textColor="#C9C9D2"
+                    android:textSize="14sp" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- floating composer — rounded field + circular red send -->
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
             android:paddingTop="6dp"
             android:paddingBottom="8dp"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp" />
+            android:background="#0B0B0E">
 
-        <!-- r1381: ChatGPT-like empty state with suggestion chips -->
-        <LinearLayout
-            android:id="@+id/emptyState"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:paddingStart="28dp"
-            android:paddingEnd="28dp">
-
-            <TextView
-                android:layout_width="76dp"
-                android:layout_height="76dp"
-                android:gravity="center"
-                android:text="A"
-                android:textColor="#FFFFFF"
-                android:textSize="32sp"
-                android:textStyle="bold"
-                android:background="@drawable/bg_chat_agent_avatar" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
-                android:text="@string/agent_empty_title"
-                android:textColor="#F2F2F5"
-                android:textSize="21sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:gravity="center"
-                android:text="@string/agent_empty_sub"
-                android:textColor="#8A8A94"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/suggest1"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="28dp"
-                android:background="@drawable/bg_chat_pill"
-                android:paddingStart="18dp"
-                android:paddingEnd="18dp"
-                android:paddingTop="13dp"
-                android:paddingBottom="13dp"
-                android:text="@string/agent_suggest_1"
-                android:textColor="#C9C9D2"
-                android:textSize="14sp" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/bg_chat_composer"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:paddingTop="5dp"
+                android:paddingBottom="5dp">
 
-            <TextView
-                android:id="@+id/suggest2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/bg_chat_pill"
-                android:paddingStart="18dp"
-                android:paddingEnd="18dp"
-                android:paddingTop="13dp"
-                android:paddingBottom="13dp"
-                android:text="@string/agent_suggest_2"
-                android:textColor="#C9C9D2"
-                android:textSize="14sp" />
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/autoBtn"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checkable="true"
+                    android:minWidth="0dp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:insetLeft="0dp"
+                    android:insetRight="0dp"
+                    android:text="@string/auto_toggle"
+                    android:textColor="#FF867C"
+                    android:textSize="13sp"
+                    android:contentDescription="@string/auto_toggle"
+                    app:rippleColor="#33D32F2F" />
 
-            <TextView
-                android:id="@+id/suggest3"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/bg_chat_pill"
-                android:paddingStart="18dp"
-                android:paddingEnd="18dp"
-                android:paddingTop="13dp"
-                android:paddingBottom="13dp"
-                android:text="@string/agent_suggest_3"
-                android:textColor="#C9C9D2"
-                android:textSize="14sp" />
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/inputEdit"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@null"
+                    android:hint="@string/agent_hint"
+                    android:textColorHint="#6E6E78"
+                    android:textColor="#F2F2F5"
+                    android:maxLines="5"
+                    android:minHeight="46dp"
+                    android:gravity="center_vertical"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:imeOptions="actionSend"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
+                    android:paddingTop="10dp"
+                    android:paddingBottom="10dp" />
 
-            <TextView
-                android:id="@+id/suggest4"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:background="@drawable/bg_chat_pill"
-                android:paddingStart="18dp"
-                android:paddingEnd="18dp"
-                android:paddingTop="13dp"
-                android:paddingBottom="13dp"
-                android:text="@string/agent_suggest_4"
-                android:textColor="#C9C9D2"
-                android:textSize="14sp" />
-        </LinearLayout>
-    </FrameLayout>
+                <FrameLayout
+                    android:layout_width="42dp"
+                    android:layout_height="42dp">
 
-    <!-- r1381: floating composer — rounded field + circular red send -->
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp"
-        android:paddingTop="6dp"
-        android:paddingBottom="8dp"
-        android:background="#0B0B0E">
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/sendBtn"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:insetLeft="0dp"
+                        android:insetRight="0dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:contentDescription="@string/agent_send"
+                        app:backgroundTint="#D32F2F"
+                        app:icon="@drawable/ic_outline_arrow_upward_24"
+                        app:iconTint="#FFFFFF"
+                        app:iconGravity="textStart"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full"
+                        app:rippleColor="#55FFFFFF" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/stopBtn"
+                        style="@style/Widget.Material3.Button.IconButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:visibility="gone"
+                        android:insetLeft="0dp"
+                        android:insetRight="0dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:contentDescription="@string/agent_stop"
+                        app:backgroundTint="#8E1216"
+                        app:icon="@drawable/ic_close_24"
+                        app:iconTint="#FFFFFF"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full"
+                        app:rippleColor="#55FFFFFF" />
+                </FrameLayout>
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- ================= side drawer (r1382) ================= -->
+    <LinearLayout
+        android:id="@+id/drawerPanel"
+        android:layout_width="300dp"
+        android:layout_height="match_parent"
+        android:layout_gravity="start"
+        android:orientation="vertical"
+        android:background="#0D0D11"
+        android:clickable="true"
+        android:focusable="true">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:background="@drawable/bg_chat_composer"
-            android:paddingStart="6dp"
-            android:paddingEnd="6dp"
-            android:paddingTop="5dp"
-            android:paddingBottom="5dp">
+            android:paddingStart="20dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="26dp"
+            android:paddingBottom="18dp">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/autoBtn"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:checkable="true"
-                android:minWidth="0dp"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                android:text="@string/auto_toggle"
-                android:textColor="#FF867C"
-                android:textSize="13sp"
-                android:contentDescription="@string/auto_toggle"
-                app:rippleColor="#33D32F2F" />
+            <TextView
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:gravity="center"
+                android:text="A"
+                android:textColor="#FFFFFF"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:background="@drawable/bg_chat_agent_avatar" />
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/inputEdit"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:background="@null"
-                android:hint="@string/agent_hint"
-                android:textColorHint="#6E6E78"
-                android:textColor="#F2F2F5"
-                android:maxLines="5"
-                android:minHeight="46dp"
-                android:gravity="center_vertical"
-                android:inputType="textMultiLine|textCapSentences"
-                android:imeOptions="actionSend"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp"
-                android:paddingTop="10dp"
-                android:paddingBottom="10dp" />
+                android:layout_marginStart="14dp"
+                android:orientation="vertical">
 
-            <FrameLayout
-                android:layout_width="42dp"
-                android:layout_height="42dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/app_name"
+                    android:textColor="#E53935"
+                    android:textSize="21sp"
+                    android:textStyle="bold" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/sendBtn"
-                    style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:insetLeft="0dp"
-                    android:insetRight="0dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:contentDescription="@string/agent_send"
-                    app:backgroundTint="#D32F2F"
-                    app:icon="@drawable/ic_outline_arrow_upward_24"
-                    app:iconTint="#FFFFFF"
-                    app:iconGravity="textStart"
-                    app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full"
-                    app:rippleColor="#55FFFFFF" />
-
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/stopBtn"
-                    style="@style/Widget.Material3.Button.IconButton"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:visibility="gone"
-                    android:insetLeft="0dp"
-                    android:insetRight="0dp"
-                    android:insetTop="0dp"
-                    android:insetBottom="0dp"
-                    android:contentDescription="@string/agent_stop"
-                    app:backgroundTint="#8E1216"
-                    app:icon="@drawable/ic_close_24"
-                    app:iconTint="#FFFFFF"
-                    app:shapeAppearanceOverlay="@style/ShapeAppearance.Material3.Corner.Full"
-                    app:rippleColor="#55FFFFFF" />
-            </FrameLayout>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/drawer_subtitle"
+                    android:textColor="#8A8A94"
+                    android:textSize="12sp" />
+            </LinearLayout>
         </LinearLayout>
-    </FrameLayout>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:background="#1E1E24" />
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="#1E1E24" />
 
-    <LinearLayout
-        android:id="@+id/navBar"
-        android:layout_width="match_parent"
-        android:layout_height="54dp"
-        android:orientation="horizontal"
-        android:background="#0D0D11"
-        android:baselineAligned="false">
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:scrollbars="none">
 
-        <TextView android:id="@+id/navHome" style="@style/AminoNavItem" android:text="@string/nav_home" />
-        <TextView android:id="@+id/navChat" style="@style/AminoNavItem" android:text="@string/nav_chat" />
-        <TextView android:id="@+id/navKeys" style="@style/AminoNavItem" android:text="@string/nav_keys" />
-        <TextView android:id="@+id/navMemory" style="@style/AminoNavItem" android:text="@string/nav_memory" />
-        <TextView android:id="@+id/navTools" style="@style/AminoNavItem" android:text="@string/nav_tools" />
-        <TextView android:id="@+id/navShell" style="@style/AminoNavItem" android:text="@string/nav_shell" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp">
+
+                <TextView android:id="@+id/dChat" style="@style/AminoDrawerItem" />
+                <TextView android:id="@+id/dHome" style="@style/AminoDrawerItem" />
+                <TextView android:id="@+id/dKeys" style="@style/AminoDrawerItem" />
+                <TextView android:id="@+id/dMemory" style="@style/AminoDrawerItem" />
+                <TextView android:id="@+id/dTools" style="@style/AminoDrawerItem" />
+                <TextView android:id="@+id/dShell" style="@style/AminoDrawerItem" />
+                <TextView android:id="@+id/dPermissions" style="@style/AminoDrawerItem" android:textColor="#FF867C" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="8dp"
+                    android:layout_marginBottom="8dp"
+                    android:background="#1E1E24" />
+
+                <TextView android:id="@+id/dStatus" style="@style/AminoDrawerItem" />
+                <TextView android:id="@+id/dSettings" style="@style/AminoDrawerItem" />
+            </LinearLayout>
+        </ScrollView>
     </LinearLayout>
-</LinearLayout>
+</androidx.drawerlayout.widget.DrawerLayout>

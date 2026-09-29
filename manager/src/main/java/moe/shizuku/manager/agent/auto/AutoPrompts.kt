@@ -26,6 +26,9 @@ object AutoPrompts {
                 "settings get/list, getprop, pm list/path/dump, content query --uri content://sms|content://call_log|content://media, " +
                 "appops get, service list, ps, top -n 1, logcat -d, ls/cat/head/tail/du/df/stat/find/grep, " +
                 "screencap -p /data/local/tmp/shot.png, uiautomator dump, ip addr/route, ifconfig, netstat, ss, ping -c N, free, nproc.")
+        appendLine("PERMISSION DENIAL self-heal: if a read (call log, SMS, contacts, location...) fails with Permission Denial, " +
+                "run 'pm grant com.android.shell android.permission.<PERM>' (ASK-FIRST approval dialog) for the missing permission " +
+                "(READ_CALL_LOG, READ_CONTACTS, READ_SMS, READ_PHONE_STATE, ACCESS_FINE_LOCATION, CAMERA, RECORD_AUDIO...), then retry the same read.")
         appendLine("ASK-FIRST (CONFIRM tier — runs only after the user approves the dialog; plan them when the task needs them): " +
                 "settings put (location_mode, screen_brightness, screen_off_timeout, user_rotation, accelerometer_rotation, airplane_mode_on, zen_mode/dnd), " +
                 "svc wifi|data|bluetooth|nfc enable/disable, cmd wifi/bluetooth_manager/connectivity/telecom/camera/audio/display/notification, " +

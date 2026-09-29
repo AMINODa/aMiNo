@@ -438,6 +438,25 @@
     <string name="agent_suggest_2">🔋 تقرير عن حالة البطارية واستخدامها</string>
     <string name="agent_suggest_3">📶 افحص حالة الواي فاي والشبكة</string>
     <string name="agent_suggest_4">🖥️ التقط لقطة شاشة للشاشة الحالية</string>
+    <!-- r1382: side drawer + grant-all permissions -->
+    <string name="menu_permissions">الأذونات</string>
+    <string name="drawer_subtitle">الوكيل الخارق الذكي</string>
+    <string name="perm_subtitle">امنح كل ما يحتاجه aMiNo وهوية ADB shell لقراءة الهاتف والتحكم به بالكامل. كل طلب يظهر في نافذة أندرويد الرسمية.</string>
+    <string name="perm_notifications">الإشعارات</string>
+    <string name="perm_photos">الصور والفيديو</string>
+    <string name="perm_videos">الفيديوهات</string>
+    <string name="perm_audio">الموسيقى والصوت</string>
+    <string name="perm_storage">الملفات والتخزين</string>
+    <string name="perm_call_log">سجل المكالمات</string>
+    <string name="perm_contacts">جهات الاتصال</string>
+    <string name="perm_sms">الرسائل النصية</string>
+    <string name="perm_phone_state">حالة الهاتف</string>
+    <string name="perm_status_granted">ممنوح</string>
+    <string name="perm_status_missing">غير ممنوح</string>
+    <string name="perm_grant_all">منح كل الأذونات</string>
+    <string name="perm_all_done">كل الأذونات ممنوحة بالفعل ✓</string>
+    <string name="perm_boost">تعزيز هوية ADB shell</string>
+    <string name="perm_boost_done">انتهى تعزيز أذونات الهوية</string>
     <string name="auto_sys_report">أنت كاتب تقارير AMINO. صادق ومحدد وتبني على النتائج الحقيقية المقدمة فقط.</string>
     <string name="keys_title">المفاتيح</string>
     <string name="keys_provider">المزود</string>

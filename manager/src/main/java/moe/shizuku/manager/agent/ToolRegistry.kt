@@ -72,6 +72,39 @@ object ToolRegistry {
             requiresShell = false
         ) { ctx, args ->
             AgentTools.openUrl(ctx, args.optString("url", ""))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "grant_permissions",
+                "Grant EVERY runtime permission Android allows to the ADB shell identity " +
+                    "(call log, SMS, contacts, phone state, location, camera, mic, storage) " +
+                    "and verify real access. Use when a content query or dump fails with " +
+                    "Permission Denial, or when the user asks to enable all permissions. Requires shell.",
+                JSONObject().put("type", "object").put("properties", JSONObject())
+            ),
+            requiresShell = true
+        ) { ctx, _ ->
+            AgentTools.grantShellPermissions(ctx)
+        },
+        RegisteredTool(
+            ToolSpec(
+                "user_data",
+                "Read the user's personal data through the app identity: kind = calls " +
+                    "(recent call log: number, name, date, duration, type), sms (recent inbox " +
+                    "messages), contacts (name + number). Needs the matching runtime permission " +
+                    "granted from the side menu > Permissions.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("kind", JSONObject()
+                        .put("type", "string")
+                        .put("description", "calls | sms | contacts"))
+                        .put("limit", JSONObject()
+                            .put("type", "integer")
+                            .put("description", "Max entries, 1-50, default 10")))
+                    .put("required", org.json.JSONArray().put("kind"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            AgentTools.userData(ctx, args.optString("kind", ""), args.optInt("limit", 10))
         }
     )
 

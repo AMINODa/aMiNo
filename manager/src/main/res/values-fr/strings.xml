@@ -377,6 +377,25 @@
     <string name="agent_suggest_2">🔋 Rapport sur l\'état et l\'usage de la batterie</string>
     <string name="agent_suggest_3">📶 Vérifier l\'état du Wi-Fi et du réseau</string>
     <string name="agent_suggest_4">🖥️ Capturer l\'écran actuel</string>
+    <!-- r1382: side drawer + grant-all permissions -->
+    <string name="menu_permissions">Autorisations</string>
+    <string name="drawer_subtitle">Super-agent IA</string>
+    <string name="perm_subtitle">Accordez tout ce dont aMiNo et l\'identité shell ADB ont besoin pour lire et contrôler tout le téléphone. Chaque demande affiche la boîte de dialogue officielle d\'Android.</string>
+    <string name="perm_notifications">Notifications</string>
+    <string name="perm_photos">Photos et vidéos</string>
+    <string name="perm_videos">Vidéos</string>
+    <string name="perm_audio">Musique et audio</string>
+    <string name="perm_storage">Fichiers et stockage</string>
+    <string name="perm_call_log">Journal d\'appels</string>
+    <string name="perm_contacts">Contacts</string>
+    <string name="perm_sms">Messages SMS</string>
+    <string name="perm_phone_state">État du téléphone</string>
+    <string name="perm_status_granted">accordée</string>
+    <string name="perm_status_missing">non accordée</string>
+    <string name="perm_grant_all">Tout accorder</string>
+    <string name="perm_all_done">Tout est déjà accordé ✓</string>
+    <string name="perm_boost">Renforcer l\'identité shell ADB</string>
+    <string name="perm_boost_done">Renforcement des autorisations terminé</string>
     <string name="auto_sys_report">Vous êtes le rédacteur de rapports d\'AMINO. Honnête, concret, basé uniquement sur les résultats réels fournis.</string>
     <string name="keys_title">Clés</string>
     <string name="keys_provider">Fournisseur</string>

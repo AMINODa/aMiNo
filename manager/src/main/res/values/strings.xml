@@ -464,6 +464,25 @@
     <string name="agent_suggest_2">🔋 Report battery level and health</string>
     <string name="agent_suggest_3">📶 Check Wi-Fi and network state</string>
     <string name="agent_suggest_4">🖥️ Capture a screenshot of the current screen</string>
+    <!-- r1382: side drawer + grant-all permissions -->
+    <string name="menu_permissions">Permissions</string>
+    <string name="drawer_subtitle">AI Super Agent</string>
+    <string name="perm_subtitle">Grant everything aMiNo and the ADB shell identity need to read and control the whole phone. Each tap shows the official Android dialog.</string>
+    <string name="perm_notifications">Notifications</string>
+    <string name="perm_photos">Photos and videos</string>
+    <string name="perm_videos">Videos</string>
+    <string name="perm_audio">Music and audio</string>
+    <string name="perm_storage">Files and storage</string>
+    <string name="perm_call_log">Call log</string>
+    <string name="perm_contacts">Contacts</string>
+    <string name="perm_sms">SMS messages</string>
+    <string name="perm_phone_state">Phone state</string>
+    <string name="perm_status_granted">granted</string>
+    <string name="perm_status_missing">not granted</string>
+    <string name="perm_grant_all">Grant all permissions</string>
+    <string name="perm_all_done">Everything is already granted ✓</string>
+    <string name="perm_boost">Boost ADB shell identity</string>
+    <string name="perm_boost_done">Shell permission boost finished</string>
     <string name="auto_sys_report">You are AMINO\'s report writer. Honest, concrete, based only on provided real results.</string>
     <string name="keys_title">Keys</string>
     <string name="keys_provider">Provider</string>

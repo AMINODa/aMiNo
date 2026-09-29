@@ -3,6 +3,8 @@ package moe.shizuku.manager.ui
 import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.View
+import android.widget.TextView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -99,16 +101,52 @@ open class AgentHomeActivity : AppActivity() {
             }
         }
 
-        binding.navHome.setOnClickListener { startActivity(Intent(this, HomeActivity::class.java)) }
-        binding.navChat.setOnClickListener { binding.chatList.smoothScrollToPosition(adapter.itemCount - 1) }
-        binding.navKeys.setOnClickListener { startActivity(Intent(this, moe.shizuku.manager.keys.KeysActivity::class.java)) }
-        binding.navMemory.setOnClickListener { startActivity(Intent(this, moe.shizuku.manager.memory.MemoryActivity::class.java)) }
-        binding.navTools.setOnClickListener { startActivity(Intent(this, moe.shizuku.manager.tools.ToolsActivity::class.java)) }
-        binding.navShell.setOnClickListener { startActivity(Intent(this, ShellActivity::class.java)) }
+        // r1382: side drawer navigation (replaces the bottom nav bar)
+        binding.toolbar.setNavigationOnClickListener {
+            binding.drawerLayout.openDrawer(androidx.core.view.GravityCompat.START)
+        }
+        fun drawerLabel(v: TextView, res: Int, emoji: String) {
+            v.text = "$emoji ${getString(res)}"
+        }
+        drawerLabel(binding.dChat, R.string.nav_chat, "💬")
+        drawerLabel(binding.dHome, R.string.nav_home, "📶")
+        drawerLabel(binding.dKeys, R.string.nav_keys, "🔑")
+        drawerLabel(binding.dMemory, R.string.nav_memory, "🧠")
+        drawerLabel(binding.dTools, R.string.nav_tools, "🧰")
+        drawerLabel(binding.dShell, R.string.nav_shell, "🖥️")
+        drawerLabel(binding.dPermissions, R.string.menu_permissions, "🔐")
+        drawerLabel(binding.dStatus, R.string.nav_service_status, "ℹ️")
+        drawerLabel(binding.dSettings, R.string.settings_title, "⚙️")
+        // the chat is the current page — glow red
+        binding.dChat.setTextColor(0xFFFF5252.toInt())
+        binding.dChat.setTypeface(null, android.graphics.Typeface.BOLD)
 
-        // aMiNo red/black identity: the active nav item glows red
-        binding.navChat.setTextColor(0xFFFF5252.toInt())
-        binding.navChat.setTypeface(null, android.graphics.Typeface.BOLD)
+        val open = { v: View, target: Class<*> ->
+            v.setOnClickListener {
+                binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START)
+                startActivity(Intent(this, target))
+            }
+        }
+        open(binding.dHome, HomeActivity::class.java)
+        open(binding.dKeys, moe.shizuku.manager.keys.KeysActivity::class.java)
+        open(binding.dMemory, moe.shizuku.manager.memory.MemoryActivity::class.java)
+        open(binding.dTools, moe.shizuku.manager.tools.ToolsActivity::class.java)
+        open(binding.dShell, ShellActivity::class.java)
+        open(binding.dPermissions, AllPermissionsActivity::class.java)
+        open(binding.dStatus, HomeActivity::class.java)
+        open(binding.dSettings, SettingsActivity::class.java)
+        binding.dChat.setOnClickListener { binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START) }
+        binding.dChat.post {
+            binding.chatList.smoothScrollToPosition(adapter.itemCount - 1)
+        }
+
+        // r1382: first launch — show ALL the permission dialogs once (user request)
+        val prefs = getSharedPreferences("amino_agent", MODE_PRIVATE)
+        if (!prefs.getBoolean("perm_flow_done", false)) {
+            prefs.edit().putBoolean("perm_flow_done", true).apply()
+            startActivity(Intent(this, AllPermissionsActivity::class.java))
+        }
+
 
         // open a specific conversation when coming from the Memory page
         val convId = intent.getLongExtra(EXTRA_CONVERSATION_ID, -1)

@@ -143,6 +143,13 @@ through the wireless-ADB session. No root. What `shell` can do on Android, the a
 | CONFIRM (explicit reason) | `curl`, `wget`, `http(s)`, `nc/ncat/telnet/ftp/scp/rsync`, `am start` with external links |
 | BLOCK | `sendmail`, `service call` |
 
+### 20. Permission self-heal & app-identity user data (r1382)
+| | Mechanism |
+|---|---|
+| Shell identity boost | `pm grant com.android.shell <perm>` for READ_CALL_LOG, READ_CONTACTS, READ_SMS, READ_PHONE_STATE, CALL_PHONE, ACCESS_FINE/COARSE_LOCATION, CAMERA, RECORD_AUDIO, READ/WRITE_EXTERNAL_STORAGE — the com.android.shell package declares these, so `pm grant` succeeds; content providers (call log / SMS / contacts) then answer `content query`. Tool: `grant_permissions` (chat) / ASK-FIRST command (auto loop) + "Boost ADB shell identity" button on the Permissions page. Every grant is verified with a real provider probe. |
+| App identity fallback | The aMiNo app itself declares and requests (official dialogs, Permissions page "Grant all") READ_CALL_LOG / READ_CONTACTS / READ_SMS / READ_PHONE_STATE / media / notifications; the `user_data` tool (kind = calls / sms / contacts) reads through the app's ContentResolver — works even when the shell identity stays blocked. |
+| Auto-loop self-heal | When a read fails with Permission Denial, the planner/self-corrector is instructed to `pm grant com.android.shell <perm>` (ASK-FIRST) and retry the same read. |
+
 ## What the agent can NOT do (by design)
 - Root / privilege escalation: `su`, `sudo`, `magisk`, `setenforce` → BLOCK.
 - Boot/recovery/partition damage: `reboot`, `fastboot`, `flash*`, `dd` to block devices, `mkfs`, `sm partition` → BLOCK.

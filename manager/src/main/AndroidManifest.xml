@@ -31,6 +31,14 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <!-- aMiNo r1382: user-data permissions — the app requests them through the
+         official runtime dialogs (AllPermissionsActivity, "grant all") and uses
+         them for the user_data agent tool (call log / SMS / contacts) so user-data
+         reads keep working even when the ADB shell identity is blocked. -->
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -135,6 +143,12 @@
             android:name=".ui.AgentHomeActivity"
             android:exported="false"
             android:label="@string/home_agent_title"
+            android:windowSoftInputMode="adjustResize" />
+        <!-- aMiNo r1382: grant-all runtime permissions + ADB shell identity boost -->
+        <activity
+            android:name=".ui.AllPermissionsActivity"
+            android:exported="false"
+            android:label="@string/menu_permissions"
             android:windowSoftInputMode="adjustResize" />
         <!-- aMiNo Agent (r1376) -->
         <activity

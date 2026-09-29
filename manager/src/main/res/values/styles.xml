@@ -142,6 +142,20 @@
     <item name="android:paddingBottom">6dp</item>
 </style>
 
+<!-- aMiNo r1382: side drawer item (emoji set in code, RTL-friendly) -->
+<style name="AminoDrawerItem">
+    <item name="android:layout_width">match_parent</item>
+    <item name="android:layout_height">52dp</item>
+    <item name="android:gravity">center_vertical</item>
+    <item name="android:orientation">horizontal</item>
+    <item name="android:background">?attr/selectableItemBackground</item>
+    <item name="android:textSize">15sp</item>
+    <item name="android:textColor">#C9C9D2</item>
+    <item name="android:maxLines">1</item>
+    <item name="android:paddingStart">20dp</item>
+    <item name="android:paddingEnd">16dp</item>
+</style>
+
 <style name="AminoFieldLabel">
     <item name="android:layout_width">match_parent</item>
     <item name="android:layout_height">wrap_content</item>
