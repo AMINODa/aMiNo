@@ -136,9 +136,10 @@ open class AgentHomeActivity : AppActivity() {
         open(binding.dStatus, HomeActivity::class.java)
         open(binding.dSettings, SettingsActivity::class.java)
         binding.dChat.setOnClickListener { binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START) }
-        binding.dChat.post {
-            binding.chatList.smoothScrollToPosition(adapter.itemCount - 1)
-        }
+        // r1383: was smoothScrollToPosition(itemCount - 1) — with an empty conversation this
+        // scrolled to position -1 and crashed the app on EVERY page open
+        // (IllegalArgumentException: Invalid target position). Now guarded.
+        binding.dChat.post { scrollChatToBottom() }
 
         // r1382: first launch — show ALL the permission dialogs once (user request)
         val prefs = getSharedPreferences("amino_agent", MODE_PRIVATE)
@@ -178,6 +179,20 @@ open class AgentHomeActivity : AppActivity() {
         }
     }
 
+    /**
+     * r1383 crash fix (user report: IllegalArgumentException "Invalid target position"
+     * on Android 13 when pressing the Agent button). RecyclerView's smooth scroller
+     * throws if the target position does not exist — e.g. position -1 on an empty
+     * conversation (fresh install, new chat, or history still loading). Every scroll
+     * of the chat list now goes through this guard: no items, no scroll.
+     */
+    private fun scrollChatToBottom(smooth: Boolean = true) {
+        val n = adapter.itemCount
+        if (n <= 0) return
+        if (smooth) binding.chatList.smoothScrollToPosition(n - 1)
+        else binding.chatList.scrollToPosition(n - 1)
+    }
+
     private fun showConfirmDialog(command: String, reason: String) {
         if (confirmDialog?.isShowing == true) return
         confirmDialog = androidx.appcompat.app.AlertDialog.Builder(this)
@@ -194,7 +209,9 @@ open class AgentHomeActivity : AppActivity() {
     private fun render(s: moe.shizuku.manager.agent.AgentUiState) {
         val had = adapter.itemCount
         adapter.submit(s.items)
-        if (s.items.size != had || s.busy) {
+        // r1383: only scroll when there is something to scroll to — an empty list has
+        // no valid position and scrolling it throws
+        if ((s.items.size != had || s.busy) && s.items.isNotEmpty()) {
             binding.chatList.scrollToPosition((s.items.size - 1).coerceAtLeast(0))
         }
 
