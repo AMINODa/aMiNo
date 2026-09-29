@@ -315,6 +315,9 @@
     <string name="shell_title">Shell</string>
     <string name="home_shell_title">Shell - aMiNo terminal</string>
     <string name="home_shell_description">Open a live terminal directly connected to the device after pairing. The connection stays open.</string>
+    <!-- aMiNo Agent (r1378) -->
+    <string name="home_agent_title">AMINO Agent</string>
+    <string name="home_agent_description">Chat assistant on Cloudflare Workers AI. Pairing, keys and memory stay in this app.</string>
     <string name="shell_status_connecting">Connecting…</string>
     <string name="shell_status_connected">Connected - session open</string>
     <string name="shell_status_disconnected">Not connected</string>

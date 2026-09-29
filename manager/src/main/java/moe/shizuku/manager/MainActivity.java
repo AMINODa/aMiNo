@@ -1,11 +1,11 @@
 package moe.shizuku.manager;
 
-import moe.shizuku.manager.ui.AgentHomeActivity;
+import moe.shizuku.manager.home.HomeActivity;
 
 /**
- * aMiNo r1376: the app launcher is now the AMINO Agent chat. The classic
- * HomeActivity (service status cards) is untouched and reachable from the
- * chat menu ("Service status").
+ * aMiNo r1378: the launcher is RESTORED to the classic aMiNo home (r1375 design:
+ * service status cards, pairing, start controls). The AMINO Agent is reachable
+ * from the "Agent" card right below the Shell card.
  */
-public class MainActivity extends AgentHomeActivity {
+public class MainActivity extends HomeActivity {
 }

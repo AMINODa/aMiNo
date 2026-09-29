@@ -32,6 +32,7 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
         private const val ID_SHELL = 10L
         private const val ID_ACCESSIBILITY = 11L
         private const val ID_CONNECTION = 12L
+        private const val ID_AGENT = 13L
     }
 
     override fun onCreateCreatorPool(): IndexCreatorPool {
@@ -54,6 +55,8 @@ class HomeAdapter(private val homeModel: HomeViewModel, private val appsModel: A
         addItem(ServerStatusViewHolder.CREATOR, status, ID_STATUS)
         addItem(ConnectionStateViewHolder.CREATOR, null, ID_CONNECTION)
         addItem(ShellViewHolder.CREATOR, status, ID_SHELL)
+        // aMiNo r1378: Agent card right below Shell (user-requested placement)
+        addItem(AgentViewHolder.CREATOR, null, ID_AGENT)
 
         if (adbPermission) {
             addItem(ManageAppsViewHolder.CREATOR, status to grantedCount, ID_APPS)

@@ -129,6 +129,13 @@
             android:exported="false"
             android:label="@string/shell_title"
             android:windowSoftInputMode="adjustResize" />
+        <!-- aMiNo Agent (r1378): registered as its own activity since MainActivity
+             is back to extending HomeActivity (classic home restored) -->
+        <activity
+            android:name=".ui.AgentHomeActivity"
+            android:exported="false"
+            android:label="@string/home_agent_title"
+            android:windowSoftInputMode="adjustResize" />
         <!-- aMiNo Agent (r1376) -->
         <activity
             android:name=".keys.KeysActivity"

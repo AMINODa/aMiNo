@@ -289,6 +289,9 @@
     <string name="shell_title">Shell</string>
     <string name="home_shell_title">Shell — طرفية aMiNo</string>
     <string name="home_shell_description">افتح طرفية مباشرة متصلة بالجهاز بعد الاقتران. يبقى الاتصال مفتوحًا.</string>
+    <!-- aMiNo Agent (r1378) -->
+    <string name="home_agent_title">وكيل AMINO</string>
+    <string name="home_agent_description">مساعد محادثة على Cloudflare Workers AI. الاقتران والمفاتيح والذاكرة تبقى داخل هذا التطبيق.</string>
     <string name="shell_status_connecting">جارٍ الاتصال…</string>
     <string name="shell_status_connected">متصل — الجلسة مفتوحة</string>
     <string name="shell_status_disconnected">غير متصل</string>
