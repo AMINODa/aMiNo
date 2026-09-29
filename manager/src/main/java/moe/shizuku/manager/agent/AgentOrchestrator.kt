@@ -95,6 +95,18 @@ object AgentOrchestrator {
         if (latest == null) newConversation(context) else openConversation(context, latest.id)
     }
 
+    /**
+     * r1379: lets the AutonomousEngine publish newly persisted plan/command/report
+     * rows into the same chat stream without touching the orchestrator's status.
+     */
+    fun refresh(context: Context) {
+        val convId = _state.value.conversationId
+        if (convId <= 0) return
+        val msgs = MemoryRepository.messages(context, convId)
+        _state.value = _state.value.copy(items = msgs.map { it.toItem() },
+            providerReady = providerReady(context))
+    }
+
     private fun providerReady(context: Context): Boolean = ApiKeysStore.hasKey(context)
 
     private fun reload(context: Context, conversationId: Long) {
@@ -212,10 +224,14 @@ object AgentOrchestrator {
      * DB rows -> neutral LLM history.
      * Assistant rows that carry a toolName are tool-call markers; their content IS the
      * arguments JSON (that is how args round-trip back to the provider).
+     * r1379: "auto" rows (autonomous-loop shell results) are flattened into plain
+     * assistant text so they NEVER desync the provider's tool_call/tool pairing.
      */
     private fun toLlmHistory(rows: List<ChatMessage>): List<LlmMessage> =
         rows.map { m ->
             when {
+                m.role == "auto" ->
+                    LlmMessage("assistant", "[shell] " + m.content)
                 m.role == "assistant" && m.toolName != null ->
                     LlmMessage("assistant", m.content.ifBlank { "{}" }, m.toolName, m.content.ifBlank { "{}" }, null)
                 else -> LlmMessage(m.role, m.content, m.toolName, null, m.toolOk)

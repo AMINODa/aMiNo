@@ -415,6 +415,23 @@
     <string name="agent_err_network">خطأ شبكة: %1$s</string>
     <string name="agent_err_internal">خطأ داخلي: %1$s</string>
     <string name="agent_cancelled_note">⏹ أُلغي التنفيذ بناءً على طلبك.</string>
+    <!-- r1379: حلقة التنفيذ الذاتي (المعمارية C) -->
+    <string name="auto_toggle">⚡ مهمة</string>
+    <string name="auto_hint">مهمة ذاتية — اكتب الهدف وسأخطط وأنفّذ وأصحح خطوة بخطوة…</string>
+    <string name="auto_status_planning">أخطّط المهمة…</string>
+    <string name="auto_status_step">الخطوة %1$d من %2$d…</string>
+    <string name="auto_status_confirm">في انتظار موافقتك…</string>
+    <string name="auto_status_correct">أصحّح الخطأ…</string>
+    <string name="auto_status_report">أكتب التقرير النهائي…</string>
+    <string name="auto_confirm_title">الموافقة على هذا الأمر؟</string>
+    <string name="auto_confirm_why">السبب: %1$s. لم يُنفَّذ بعد. هل تسمح به؟</string>
+    <string name="auto_confirm_allow">موافقة</string>
+    <string name="auto_confirm_deny">رفض</string>
+    <string name="auto_err_plan">لم أستطع بناء خطة صالحة من النموذج (JSON غير قابل للقراءة). جرّب إعادة صياغة الهدف.</string>
+    <string name="auto_err_report">تعذّر توليد التقرير النهائي.</string>
+    <string name="auto_note_aborted">توقفت المهمة مبكراً: أخطاء متكررة أو أمر مطلوب غير مسموح على هذا الجهاز.</string>
+    <string name="auto_sys_json">تُخرج كائنات JSON صالحة فقط. بدون Markdown وبدون شرح.</string>
+    <string name="auto_sys_report">أنت كاتب تقارير AMINO. صادق ومحدد وتبني على النتائج الحقيقية المقدمة فقط.</string>
     <string name="keys_title">المفاتيح</string>
     <string name="keys_provider">المزود</string>
     <string name="keys_model">النموذج</string>

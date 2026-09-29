@@ -63,6 +63,20 @@
             android:contentDescription="@string/agent_stop"
             app:icon="@drawable/ic_close_24" />
 
+        <!-- r1379: autonomous task mode toggle (architecture C loop) -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/autoBtn"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checkable="true"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:minWidth="0dp"
+            android:text="@string/auto_toggle"
+            android:textColor="#FF867C"
+            android:contentDescription="@string/auto_toggle" />
+
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/inputEdit"
             android:layout_width="0dp"

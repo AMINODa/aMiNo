@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import moe.shizuku.manager.R
 import moe.shizuku.manager.agent.AgentOrchestrator
 import moe.shizuku.manager.agent.AgentStatus
+import moe.shizuku.manager.agent.auto.AutonomousEngine
 import moe.shizuku.manager.app.AppActivity
 import moe.shizuku.manager.home.HomeActivity
 import moe.shizuku.manager.keys.ApiKeysStore
@@ -31,6 +32,10 @@ open class AgentHomeActivity : AppActivity() {
 
     protected lateinit var binding: ActivityAgentHomeBinding
     private val adapter = ChatAdapter()
+
+    // r1379: autonomous task mode (architecture C) — toggled by the ⚡ Auto button
+    private var autoMode = false
+    private var confirmDialog: androidx.appcompat.app.AlertDialog? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,10 +59,23 @@ open class AgentHomeActivity : AppActivity() {
 
         binding.sendBtn.setOnClickListener {
             val text = binding.inputEdit.text?.toString().orEmpty()
+            if (text.isBlank()) return@setOnClickListener
             binding.inputEdit.setText("")
-            AgentOrchestrator.send(this, text)
+            if (autoMode) AutonomousEngine.run(this, text)
+            else AgentOrchestrator.send(this, text)
         }
-        binding.stopBtn.setOnClickListener { AgentOrchestrator.cancel() }
+        binding.stopBtn.setOnClickListener {
+            AgentOrchestrator.cancel()
+            AutonomousEngine.cancel()
+        }
+        binding.autoBtn.setOnClickListener {
+            autoMode = !autoMode
+            binding.autoBtn.isChecked = autoMode
+            binding.autoBtn.setTextColor(if (autoMode) 0xFFFFFFFF.toInt() else 0xFFFF867C.toInt())
+            binding.autoBtn.backgroundTintList =
+                android.content.res.ColorStateList.valueOf(if (autoMode) 0xFFD32F2F.toInt() else 0x33000000)
+            binding.inputEdit.hint = getString(if (autoMode) R.string.auto_hint else R.string.agent_hint)
+        }
         binding.statusChip.setOnClickListener {
             if (AgentOrchestrator.state.value.status is AgentStatus.NotConfigured || !ApiKeysStore.hasKey(this)) {
                 startActivity(Intent(this, moe.shizuku.manager.keys.KeysActivity::class.java))
@@ -84,7 +102,35 @@ open class AgentHomeActivity : AppActivity() {
                 AgentOrchestrator.state.collect { render(it) }
             }
         }
+
+        // r1379: autonomous engine state -> chip phase + approval dialog
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                AutonomousEngine.state.collect { auto ->
+                    binding.stopBtn.visibility =
+                        if (s_busy || auto.busy) android.view.View.VISIBLE else android.view.View.GONE
+                    binding.sendBtn.isEnabled = !(s_busy || auto.busy)
+                    binding.inputEdit.isEnabled = !(s_busy || auto.busy)
+                    val pending = auto.awaiting
+                    if (pending != null) showConfirmDialog(pending.command, pending.reason)
+                    else confirmDialog?.dismiss()
+                }
+            }
+        }
     }
+
+    private fun showConfirmDialog(command: String, reason: String) {
+        if (confirmDialog?.isShowing == true) return
+        confirmDialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.auto_confirm_title))
+            .setMessage("$ ${command}\n\n${getString(R.string.auto_confirm_why, reason)}")
+            .setPositiveButton(getString(R.string.auto_confirm_allow)) { _, _ -> AutonomousEngine.approve(true) }
+            .setNegativeButton(getString(R.string.auto_confirm_deny)) { _, _ -> AutonomousEngine.approve(false) }
+            .setOnCancelListener { AutonomousEngine.approve(false) }
+            .show()
+    }
+
+    private val s_busy: Boolean get() = AgentOrchestrator.state.value.busy
 
     private fun render(s: moe.shizuku.manager.agent.AgentUiState) {
         val had = adapter.itemCount
@@ -101,9 +147,17 @@ open class AgentHomeActivity : AppActivity() {
             is AgentStatus.Verifying -> getString(R.string.agent_status_verify)
             is AgentStatus.NotConfigured -> getString(R.string.agent_status_not_configured)
         }
-        binding.stopBtn.visibility = if (s.busy) android.view.View.VISIBLE else android.view.View.GONE
-        binding.sendBtn.isEnabled = !s.busy
-        binding.inputEdit.isEnabled = !s.busy
+        // r1379: while the autonomous loop runs, the chip shows ITS phase instead
+        val autoBusy = moe.shizuku.manager.agent.auto.AutonomousEngine.state.value.busy
+        if (autoBusy) {
+            binding.statusChip.text = moe.shizuku.manager.agent.auto.AutonomousEngine.state.value.phase
+                ?: getString(R.string.agent_status_thinking)
+        }
+        val autoPending = moe.shizuku.manager.agent.auto.AutonomousEngine.state.value.awaiting != null
+        binding.stopBtn.visibility = if (s.busy || autoBusy) android.view.View.VISIBLE else android.view.View.GONE
+        binding.sendBtn.isEnabled = !(s.busy || autoBusy)
+        binding.inputEdit.isEnabled = !(s.busy || autoBusy)
+        if (autoPending) return
     }
 
     companion object {

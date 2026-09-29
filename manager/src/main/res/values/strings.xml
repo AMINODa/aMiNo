@@ -441,6 +441,23 @@
     <string name="agent_err_network">Network error: %1$s</string>
     <string name="agent_err_internal">Internal error: %1$s</string>
     <string name="agent_cancelled_note">⏹ Execution cancelled by the user.</string>
+    <!-- r1379: Autonomous Execution Loop (architecture C) -->
+    <string name="auto_toggle">⚡ Task</string>
+    <string name="auto_hint">Autonomous task — describe the goal; the agent plans, executes and self-corrects step by step…</string>
+    <string name="auto_status_planning">Planning the task…</string>
+    <string name="auto_status_step">Step %1$d/%2$d…</string>
+    <string name="auto_status_confirm">Waiting for your approval…</string>
+    <string name="auto_status_correct">Self-correcting…</string>
+    <string name="auto_status_report">Writing the final report…</string>
+    <string name="auto_confirm_title">Approve this command?</string>
+    <string name="auto_confirm_why">Why: %1$s. It was NOT executed yet. Allow it?</string>
+    <string name="auto_confirm_allow">Allow</string>
+    <string name="auto_confirm_deny">Deny</string>
+    <string name="auto_err_plan">Could not build a valid plan from the model (no parseable JSON). Try rephrasing the goal.</string>
+    <string name="auto_err_report">Could not generate the final report.</string>
+    <string name="auto_note_aborted">The run stopped early: too many failures or a required command is not allowed on this device.</string>
+    <string name="auto_sys_json">You output ONLY valid JSON objects. No markdown, no explanations.</string>
+    <string name="auto_sys_report">You are AMINO\'s report writer. Honest, concrete, based only on provided real results.</string>
     <string name="keys_title">Keys</string>
     <string name="keys_provider">Provider</string>
     <string name="keys_model">Model</string>

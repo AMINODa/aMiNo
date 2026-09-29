@@ -354,6 +354,23 @@
     <string name="agent_err_network">Erreur réseau : %1$s</string>
     <string name="agent_err_internal">Erreur interne : %1$s</string>
     <string name="agent_cancelled_note">⏹ Exécution annulée par l\'utilisateur.</string>
+    <!-- r1379 : Boucle d\'exécution autonome (architecture C) -->
+    <string name="auto_toggle">⚡ Tâche</string>
+    <string name="auto_hint">Tâche autonome — décrivez l\'objectif ; l\'agent planifie, exécute et se corrige étape par étape…</string>
+    <string name="auto_status_planning">Planification de la tâche…</string>
+    <string name="auto_status_step">Étape %1$d/%2$d…</string>
+    <string name="auto_status_confirm">En attente de votre approbation…</string>
+    <string name="auto_status_correct">Auto-correction…</string>
+    <string name="auto_status_report">Rédaction du rapport final…</string>
+    <string name="auto_confirm_title">Approuver cette commande ?</string>
+    <string name="auto_confirm_why">Motif : %1$s. Elle n\'a PAS encore été exécutée. Autoriser ?</string>
+    <string name="auto_confirm_allow">Autoriser</string>
+    <string name="auto_confirm_deny">Refuser</string>
+    <string name="auto_err_plan">Impossible de construire un plan valide à partir du modèle (JSON non analysable). Reformulez l\'objectif.</string>
+    <string name="auto_err_report">Impossible de générer le rapport final.</string>
+    <string name="auto_note_aborted">Exécution interrompue : trop d\'échecs ou commande requise non autorisée sur cet appareil.</string>
+    <string name="auto_sys_json">Vous produisez UNIQUEMENT des objets JSON valides. Sans markdown, sans explications.</string>
+    <string name="auto_sys_report">Vous êtes le rédacteur de rapports d\'AMINO. Honnête, concret, basé uniquement sur les résultats réels fournis.</string>
     <string name="keys_title">Clés</string>
     <string name="keys_provider">Fournisseur</string>
     <string name="keys_model">Modèle</string>

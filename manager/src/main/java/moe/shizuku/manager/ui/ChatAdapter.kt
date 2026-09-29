@@ -28,6 +28,7 @@ class ChatAdapter : RecyclerView.Adapter<ChatAdapter.VH>() {
     override fun getItemViewType(position: Int): Int = when {
         items[position].role == "user" -> TYPE_USER
         items[position].role == "tool" -> TYPE_TOOL
+        items[position].role == "auto" -> TYPE_TOOL // r1379: autonomous loop shell rows
         items[position].toolName != null -> TYPE_TOOL
         else -> TYPE_AGENT
     }
@@ -58,11 +59,17 @@ class ChatAdapter : RecyclerView.Adapter<ChatAdapter.VH>() {
                 if (item.role == "tool") {
                     val mark = when (item.toolOk) { true -> "✓"; false -> "✗"; else -> "•" }
                     title.text = "🔧 ${item.toolName} $mark"
+                } else if (item.role == "auto") {
+                    // r1379: real executed command of the autonomous loop (red/black identity)
+                    val cmd = item.text.lineSequence().firstOrNull()?.removePrefix("$ ") ?: ""
+                    val mark = when (item.toolOk) { true -> "✓"; false -> "✗"; else -> "•" }
+                    title.text = "💻 $cmd $mark"
+                    title.setTextColor(0xFFFF867C.toInt())
                 } else {
                     title.text = "⚙️ ${item.toolName}"
                 }
-                val body = if (item.role == "tool") item.text else item.text
-                val isOpen = expanded.contains(item.id)
+                val body = item.text
+                val isOpen = expanded.contains(item.id) || item.role == "auto"
                 output.text = body
                 output.visibility = if (isOpen && body.isNotBlank()) View.VISIBLE else View.GONE
                 holder.root.setOnClickListener {
