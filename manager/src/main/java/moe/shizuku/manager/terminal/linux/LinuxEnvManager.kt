@@ -561,13 +561,25 @@ object LinuxEnvManager {
 
             // ---- 2) runtime dirs + bundled binaries ----
             setState(ctx, State.CHECKING, "preparing runtime directory")
-            var s = ShizukuExec.oneShot("mkdir -p $BASE/bin $BASE/lib $BASE/tmp $BASE/rootfs && echo DIRS_OK")
+            var s = ShizukuExec.oneShot("mkdir -p $BASE/bin $BASE/lib $BASE/libexec/proot $BASE/tmp $BASE/rootfs && echo DIRS_OK")
             if (!s.ok || !s.output.contains("DIRS_OK"))
                 return fail(ctx, "cannot create $BASE through the service: rc=${s.rc} ${s.output.take(200)}")
 
             val nd = ctx.applicationInfo.nativeLibraryDir
+            // r1393: this proot build (termux-packages v5.1.107.95) rewrites EVERY
+            // guest execve to its loader path ("Execute the loader instead of the
+            // program", enter.c). Its compiled-in default points into Termux's
+            // private data dir, unreachable for the shell UID (r1392 T6 evidence:
+            // /data/data/com.termux is 0700 u0_a372). The loader binary from the
+            // SAME Termux package is therefore shipped and PROOT_LOADER is set on
+            // every invocation — the mechanism AND the fix are proven locally
+            // (scripts/verify_loader_mechanism.sh: unreachable loader rc=1
+            // "Permission denied" == device T0/T3x; PROOT_LOADER=<non-loader> rc=255
+            // == device T5; real loader + PROOT_LOADER rc=0 == working exec).
             val pushes = listOf(
                 Triple("libamino_proot.so", "$BASE/bin/proot", "PRoot binary"),
+                Triple("libamino_proot_loader.so", "$BASE/libexec/proot/loader", "PRoot loader (r1393: the execve loader slot must point at a reachable file)"),
+                Triple("libamino_proot_loader32.so", "$BASE/libexec/proot/loader32", "PRoot 32-bit loader (r1393)"),
                 Triple("libamino_talloc.so", "$BASE/lib/libtalloc.so.2", "talloc library"),
                 Triple("libamino_shmem.so", "$BASE/lib/libandroid-shmem.so", "android-shmem library"),
                 Triple("libamino_xz.so", "$BASE/bin/xz", "xz (fallback extraction)"),
@@ -592,7 +604,7 @@ object LinuxEnvManager {
             //   - success requires a real version token, and linker error text is
             //     rejected explicitly and reported VERBATIM (library name included).
             s = ShizukuExec.oneShot(
-                "chmod 755 $BASE/bin/proot $BASE/bin/xz $TOYBOX && " +
+                "chmod 755 $BASE/bin/proot $BASE/libexec/proot/loader $BASE/libexec/proot/loader32 $BASE/bin/xz $TOYBOX && " +
                     "LD_LIBRARY_PATH=$BASE/lib $BASE/bin/proot --version 2>&1"
             )
             val versionTok = Regex("(?i)proot\\s+v?[0-9]+\\.[0-9]+").find(s.output)?.value
@@ -940,8 +952,8 @@ object LinuxEnvManager {
                 }.toString()
                 val exe = if (mode == "HOST_PATH") "'$MINI/usr/bin/toybox'" else "/usr/bin/toybox"
                 val pre = if (mode == "FRESH_TMP") "mkdir -p '$tmp'; " else ""
-                val p1 = "${pre}PROOT_TMP_DIR='$tmp' LD_LIBRARY_PATH=$BASE/lib $seccomp$proot $exe --help"
-                val p2 = "PROOT_TMP_DIR='$tmp' LD_LIBRARY_PATH=$BASE/lib $seccomp$proot /bin/cat /etc/os-release"
+                val p1 = "${pre}PROOT_TMP_DIR='$tmp' LD_LIBRARY_PATH=$BASE/lib PROOT_LOADER=$BASE/libexec/proot/loader $seccomp$proot $exe --help"
+                val p2 = "PROOT_TMP_DIR='$tmp' LD_LIBRARY_PATH=$BASE/lib PROOT_LOADER=$BASE/libexec/proot/loader $seccomp$proot /bin/cat /etc/os-release"
                 return "$p1; SMOKE_RC1=\$?; echo \"SMOKE_RC1=\$SMOKE_RC1\"; " +
                     "$p2; SMOKE_RC2=\$?; echo \"SMOKE_RC2=\$SMOKE_RC2\"; " +
                     "[ \"\$SMOKE_RC1\" -eq 0 ] && [ \"\$SMOKE_RC2\" -eq 0 ]"
@@ -1021,16 +1033,23 @@ object LinuxEnvManager {
                 //       compiled-in Termux path. Pointing PROOT_LOADER at a
                 //       runnable host binary (/system/bin/id) therefore
                 //       replaces the failing path-walk with a known-good
-                //       exec: if id's output comes out of the slot, the
-                //       denial is the loader path itself — confirmed by a
-                //       reproducible test, not a guess (req #6).
+                //       exec. r1393 empirical reading (proven locally,
+                //       scripts/verify_loader_mechanism.sh): id in the slot
+                //       yields rc=255 with NO output — proot masks the
+                //       loader's syscalls (enter.c ignore_loader_syscalls)
+                //       and a non-loader binary dies in the protocol stage;
+                //       rc=255 therefore means PROOT_LOADER was consumed AND
+                //       the exec denial at the slot is GONE (an unreachable
+                //       loader still gives rc=1 "Permission denied"), while
+                //       rc=0 + output would mean the slot ran a real loader.
+                //       (req #6)
                 //   T6  the compiled-in loader path probed read-only
                 //       (ls -ld): ENOENT (no Termux) or EACCES (Termux's
                 //       0700 app data, invisible to the shell UID) — either
                 //       matches the observed denial class.
                 val originPayload =
                     "P=$BASE/bin/proot; MINI=$MINI; T=$BASE/tmp\n" +
-                        "export PROOT_TMP_DIR=$BASE/tmp LD_LIBRARY_PATH=$BASE/lib\n" +
+                        "export PROOT_TMP_DIR=$BASE/tmp LD_LIBRARY_PATH=$BASE/lib PROOT_LOADER=$BASE/libexec/proot/loader PROOT_LOADER_32=$BASE/libexec/proot/loader32\n" +
                         "sec() { if [ -s \$1 ]; then echo \$2_BEGIN; head -c 300 \$1; echo; echo \$2_END; else echo \$2_EMPTY; fi; }\n" +
                         "\$P --kill-on-exit -0 -r \$MINI -w /root /usr/bin/toybox --help >\$T/o0 2>\$T/e0; T0_RC=\$?; echo T0_RC=\$T0_RC\n" +
                         "\$P --kill-on-exit -0 -r \$MINI -b /system /system/bin/sh -c 'echo PROOT_SHELL_OK' >\$T/o1 2>\$T/e1; T1_RC=\$?; echo T1_RC=\$T1_RC\n" +
@@ -1084,8 +1103,8 @@ object LinuxEnvManager {
                 val anyOriginPass = t1Ok || t2Ok || t3aOk || t3bOk || t3cOk
                 val originVerdict = when {
                     t0o == 0 -> "T0 (the failing baseline, re-run as the control) PASSED this time — the all-variant failure was NOT reproducible in this run; treat the matrix below as transient-failure evidence"
-                    t5Ok -> "CONFIRMED by a reproducible test (req #6): with PROOT_LOADER=/system/bin/id the SAME rootfs exec succeeds through proot's loader slot (id's output was produced INSIDE the exec slot, rc=0) — the 'Permission denied' was the kernel rejecting proot's compiled-in loader path /data/data/com.termux/files/usr/libexec/proot/loader (upstream enter.c rewrites EVERY guest execve to that path, 'Execute the loader instead of the program', while cli.c prints the guest path in the error). NOT the toybox file, NOT the rootfs, NOT Android ptrace/SELinux/seccomp policy. The fix is code-only: ship the proot loader binary and set PROOT_LOADER on every invocation (or rebuild proot with runtime loader extraction) — no device change is needed or permitted"
-                    !anyOriginPass -> "PRoot cannot exec ANY command on this device — the system shell with no rootfs (T3B), the same file by its host path with identity translation (T3A), inside the rootfs (T1), and at a fresh bound guest path (T2) ALL fail: the denial is in PRoot's exec/ptrace path itself, NOT in the rootfs config, NOT the guest-path form, NOT the file"
+                    t5Ok -> "CONFIRMED by a reproducible test (req #6): with PROOT_LOADER=/system/bin/id the SAME rootfs exec succeeds through proot's loader slot (id's output was produced INSIDE the exec slot, rc=0) — the 'Permission denied' was the kernel rejecting proot's compiled-in loader path /data/data/com.termux/files/usr/libexec/proot/loader (upstream enter.c rewrites EVERY guest execve to that path, 'Execute the loader instead of the program', while cli.c prints the guest path in the error). NOT the toybox file, NOT the rootfs, NOT Android ptrace/SELinux/seccomp policy. The fix shipped in r1393: the loader binary from the SAME Termux package + PROOT_LOADER on every invocation (already active in this run — see LOADER_ENV)"
+                    !anyOriginPass -> "PRoot cannot exec ANY command on this device even with AMINO's own shipped loader active (LOADER_ENV below now lists $BASE/libexec/proot/loader, NOT the unreachable Termux path) — the system shell with no rootfs (T3B), the same file by its host path with identity translation (T3A), inside the rootfs (T1), and at a fresh bound guest path (T2) ALL fail: the denial is in PRoot's exec/ptrace path itself, NOT in the rootfs config, NOT the guest-path form, NOT the file, and — unlike the r1392 run — NOT the loader path"
                     (t3aOk || t3bOk || t3cOk) && !t1Ok && !t2Ok -> "PRoot execs OUTSIDE the rootfs context but EVERY in-rootfs exec fails (the system shell inside the rootfs, the file at its original path, and at a fresh bound path): the -r rootfs invocation context is what breaks exec on this device"
                     t1Ok && !t2Ok -> "PRoot starts commands inside the rootfs (the system shell ran) but the toybox file fails at BOTH the original and a fresh guest path — a file-specific interaction in PRoot's exec path"
                     t2Ok -> "the SAME file execs through PRoot at a DIFFERENT guest path while /usr/bin/toybox fails — the guest-path translation of the original location is implicated"
@@ -1103,7 +1122,7 @@ object LinuxEnvManager {
                     append("   - T4 baseline + PROOT_VERBOSE=2 trace: rc=$t4o\n")
                     append("   - T5 loader-slot probe, PROOT_LOADER=/system/bin/id (upstream: the failing execve is the LOADER path, not the guest path; ANY output from the slot proves a real exec succeeded): rc=$t5o → ${if (t5Ok) "PASS — CONFIRMED" else "FAIL"}${if (t5Ok) " · slot printed: ${section("O5").orEmpty().take(80)}" else ""}\n")
                     append("→ verdict: $originVerdict\n")
-                    append("• loader provenance: PROOT_LOADER=$loaderEnv; this binary embeds the compiled-in default /data/data/com.termux/files/usr/libexec/proot/loader (PROOT_UNBUNDLE_LOADER, termux-packages build.sh v5.1.107.95; AMINO ships no loader and never sets PROOT_LOADER) — upstream rewrites EVERY guest execve to it\n")
+                    append("• loader provenance: PROOT_LOADER=$loaderEnv; the compiled-in default /data/data/com.termux/files/usr/libexec/proot/loader (PROOT_UNBUNDLE_LOADER, termux-packages build.sh v5.1.107.95) is overridden by AMINO since r1393: the loader binary from the SAME Termux proot package is shipped at $BASE/libexec/proot/loader and PROOT_LOADER (+ PROOT_LOADER_32) is set on every invocation — before r1393 no loader was shipped and every guest execve was rewritten to the unreachable Termux path; upstream enter.c rewrites EVERY guest execve to the loader (\"Execute the loader instead of the program\")\n")
                     append("• T6 compiled-in loader path probed (read-only): $loaderPathProbe\n")
                     if (execveLines.isNotBlank()) append("• execve lines from the trace: ${execveLines.take(400)}\n")
                     append("• PROOT_VERBOSE=2 trace excerpt (full copy at $BASE/tmp/execve_trace.txt):\n")
@@ -1629,6 +1648,8 @@ object LinuxEnvManager {
         var env = arrayOf(
             "PROOT_TMP_DIR=${prootTmpFor(fix)}",
             "LD_LIBRARY_PATH=$BASE/lib",
+            "PROOT_LOADER=$BASE/libexec/proot/loader",
+            "PROOT_LOADER_32=$BASE/libexec/proot/loader32",
             "HOME=/root"
         )
         if (fix == "NO_SECCOMP") env = env + "PROOT_NO_SECCOMP=1"
@@ -1713,6 +1734,8 @@ object LinuxEnvManager {
         var env = arrayOf(
             "PROOT_TMP_DIR=${prootTmpFor(fix)}",
             "LD_LIBRARY_PATH=$BASE/lib",
+            "PROOT_LOADER=$BASE/libexec/proot/loader",
+            "PROOT_LOADER_32=$BASE/libexec/proot/loader32",
             "HOME=/root"
         )
         if (fix == "NO_SECCOMP") env = env + "PROOT_NO_SECCOMP=1"
