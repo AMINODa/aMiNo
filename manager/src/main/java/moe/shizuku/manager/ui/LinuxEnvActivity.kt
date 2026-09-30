@@ -113,7 +113,9 @@ class LinuxEnvActivity : AppActivity() {
         }
         st.tarballBytes.takeIf { it > 0 }?.let { sb.append(getString(R.string.linux_detail_archive, it / (1024 * 1024))).append('\n') }
         sb.append(getString(R.string.linux_detail_free, ((st.freePrivateBytes ?: 0L) / (1024 * 1024)).coerceAtLeast(0)))
-        st.lastError?.let { sb.append("\n").append(getString(R.string.linux_detail_error, it.take(300))) }
+        // r1388: the error now carries the first real failing command + its
+        // stderr verbatim (never a generic message) — give it room to render.
+        st.lastError?.let { sb.append("\n").append(getString(R.string.linux_detail_error, it.take(1600))) }
         statusDetails.text = sb.toString()
 
         // buttons enablement — honest states

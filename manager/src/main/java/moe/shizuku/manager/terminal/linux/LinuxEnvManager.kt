@@ -74,6 +74,36 @@ import java.util.concurrent.atomic.AtomicBoolean
  *  - the verified archive stays in app storage, so a failed install retries
  *    without re-downloading (remote sha256 verified after transfer), and
  *    every failure cleans its temp files safely.
+ *
+ * r1388 FIX (installation failed with "the bundled extractor does not run on
+ * this device: [ acpi arch ascii base32 … ]" even though preflight AND the
+ * PRoot gate now pass — the user's 7 requirements):
+ *  - ROOT CAUSE (reproduced in CI with the exact bundled binary): the r1386
+ *    gate ran the multicall binary BARE (`toybox 2>&1 | head -n 1`). With no
+ *    arguments toybox prints its NORMAL applet banner "[ acpi arch ascii … ]"
+ *    and exits rc=0; the `head` pipeline masked the real exit code (the same
+ *    bug class r1387 fixed for proot) and the banner — which contains no
+ *    "toybox" token — was quoted into the failure message. A perfectly working
+ *    extractor was misclassified by its own capability check: normal
+ *    command-list output was treated as an error.
+ *  - the extractor gate is now: (1) `toybox --version` with the REAL rc (no
+ *    pipeline) and a strict version token; (2) an END-TO-END tiny-archive
+ *    test through the service — a regular file, a directory, a symlink and a
+ *    dangling symlink are created, packed with `toybox tar -cf`, extracted
+ *    with `toybox tar -xf` and verified BEFORE any Debian archive is touched.
+ *  - "the binary failed to EXECUTE" (rc 126/127, spawn failure,
+ *    linker/permission/format text) is reported DIFFERENTLY from "it executed
+ *    but the capability check did not pass" (user req #2).
+ *  - every gated step records the exact executable path, the full command
+ *    with arguments, the working directory, the exit code, and stdout and
+ *    stderr SEPARATELY (stderr goes to a file — user req #1); failures carry
+ *    that evidence verbatim into the log and the UI instead of a generic
+ *    message (user req #7).
+ *  - the service runtime identity is recorded before anything depends on it:
+ *    `id` (real uid/gid), cwd, LD_LIBRARY_PATH/PATH visibility, and the
+ *    extractor file's mode/size (user req #5).
+ *  - READY still requires extract → symlink audit → a real PRoot boot probe
+ *    (id + os-release + bash + apt) — unchanged (user req #6).
  */
 object LinuxEnvManager {
 
@@ -135,6 +165,87 @@ object LinuxEnvManager {
     )
 
     private val installing = AtomicBoolean(false)
+
+    // ---------- r1388 diagnostics: full invocation evidence (req #1/#2/#7) ----------
+
+    /**
+     * One recorded service invocation. Distinguishes "the binary never
+     * EXECUTED" (EXEC_FAIL: rc 126/127, spawn failure, or linker/permission/
+     * format text in stderr) from "it executed but the capability check did
+     * not pass" (CAP_FAIL) — user req #2. [render] carries the full evidence
+     * verbatim into logs, prefs and the UI — never a generic message.
+     */
+    private class Inv(
+        val what: String, val cmd: String, val cwd: String,
+        val rc: Int, val stdout: String, val stderr: String
+    ) {
+        val execFailure: Boolean get() =
+            rc == 126 || rc == 127 || rc == -1 ||
+                Regex("(?i)not found|permission denied|not executable|exec format error|cannot execute|CANNOT LINK")
+                    .containsMatchIn(stderr)
+        val kind: String
+            get() = when {
+                rc == 0 -> "OK"
+                execFailure -> "EXEC_FAIL"
+                else -> "CAP_FAIL"
+            }
+
+        fun render(): String = buildString {
+            append("• command: $cmd\n")
+            append("• working dir: $cwd\n")
+            append("• exit code: $rc (classification: $kind)\n")
+            append("• stdout: ${if (stdout.isBlank()) "(empty)" else stdout.take(700)}\n")
+            append("• stderr: ${if (stderr.isBlank()) "(empty)" else stderr.take(700)}\n")
+        }
+    }
+
+    private var cachedCwd: String? = null
+
+    /** The service's default working directory for spawned commands (req #1). */
+    private suspend fun serviceCwd(): String {
+        cachedCwd?.let { return it }
+        val s = ShizukuExec.oneShot("pwd 2>/dev/null")
+        return s.output.trim().ifEmpty { "(unavailable)" }.also { cachedCwd = it }
+    }
+
+    /**
+     * Runs one gated step with FULL evidence (user req #1): the command's
+     * stderr goes to a file (never merged into stdout), the reported exit
+     * code is the command's OWN (no pipeline masking — the r1386/r1387 bug
+     * class), and the working directory is recorded. A multicall binary's
+     * applet banner is captured as normal stdout and is never an error here.
+     */
+    private suspend fun runStep(
+        what: String, cmd: String, timeoutMs: Long = 25_000,
+        errFile: String = "$BASE/tmp/step.err"
+    ): Inv {
+        ShizukuExec.oneShot("mkdir -p $BASE/tmp 2>/dev/null; : >'$errFile'")
+        val s = ShizukuExec.oneShot("{ $cmd; } 2>'$errFile'; echo __RC__=\$?", timeoutMs)
+        val rc = Regex("__RC__=(\\d+)").find(s.output)?.groupValues?.get(1)?.toIntOrNull() ?: s.rc
+        val stdout = s.output.replace(Regex("__RC__=\\d+"), "").trim()
+        val stderr = ShizukuExec.oneShot("cat '$errFile' 2>/dev/null").output.trim()
+        val inv = Inv(what, cmd, serviceCwd(), rc, stdout, stderr)
+        val line = "[$what] rc=${inv.rc} kind=${inv.kind} stdout=${stdout.take(220)} stderr=${stderr.take(220)}"
+        if (inv.kind == "OK") Log.i(TAG, line) else Log.e(TAG, line)
+        return inv
+    }
+
+    /**
+     * The failure text for the extractor gates (version / tiny archive):
+     * classifies EXEC_FAIL vs CAP_FAIL, then the full invocation evidence.
+     */
+    private fun extractorFailMsg(inv: Inv, why: String): String = buildString {
+        if (inv.execFailure) {
+            append("EXTRACTOR EXECUTION FAILURE — the bundled extractor binary never ran on this device\n")
+            append("• classification: EXEC_FAIL (not found / not executable / wrong ELF format / linker refusal)\n")
+        } else {
+            append("EXTRACTOR CAPABILITY CHECK FAILED — the binary executed, the check did not pass\n")
+            append("• classification: CAP_FAIL (rc != 0 or verification mismatch; a multicall binary's applet banner is NORMAL output, never an error)\n")
+        }
+        append("• reason: $why\n")
+        append(inv.render())
+        append("• this is the bundled extractor (libamino_tar.so → $TOYBOX), NOT the device tar and NOT your storage — preflight already proved symlinks/fstype OK\n")
+    }
 
     // ---------- persistence ----------
 
@@ -283,11 +394,14 @@ object LinuxEnvManager {
         details.add("probe=$m")
         Log.i(TAG, "fsProbe: fstype=$fstype $m")
         // when the bundled extractor is already on the device, record its version
+        // (r1388: `--version` with the real rc — the old bare invocation captured
+        // the applet banner "[ acpi arch … ]", which contains no "toybox" token)
         var extractor: String? = null
         try {
-            val v = ShizukuExec.oneShot("test -x '$TOYBOX' && '$TOYBOX' 2>/dev/null | head -n 1", 15_000)
-            if (v.ok && v.output.contains("oybox")) {
-                extractor = v.output.trim().take(80); details.add("extractor=$extractor")
+            val v = ShizukuExec.oneShot("test -x '$TOYBOX' && '$TOYBOX' --version 2>/dev/null", 15_000)
+            val tok = Regex("(?i)toybox\\s+v?[0-9]+\\.[0-9]+(\\.[0-9]+)?").find(v.output)?.value
+            if (v.ok && tok != null) {
+                extractor = tok; details.add("extractor=$extractor")
             }
         } catch (_: Exception) {}
         return FsProbe(BASE, fstype, writeOk, symlinkOk, symlinkErr,
@@ -445,13 +559,74 @@ object LinuxEnvManager {
             val prootVersion = "${versionTok.take(40)} (rc=0, all DT_NEEDED libraries resolved incl. libtalloc.so.2)"
             step("proot verified on device: $prootVersion")
             val smokeEvidence = "PRoot ran a minimal root with fake-root (id → uid=0) and read /etc/os-release"
-            // r1386: verify the BUNDLED extractor really exec()s on this device —
-            // never fall back silently to a possibly broken system tar.
-            val tbv = ShizukuExec.oneShot("'$TOYBOX' 2>&1 | head -n 1")
-            if (!tbv.ok || !tbv.output.contains("oybox"))
-                return fail(ctx, "the bundled extractor does not run on this device: ${tbv.output.take(200)}")
-            val extractorVersion = tbv.output.trim().take(80)
-            step("extractor verified on device: $extractorVersion")
+            // ---- 2b-α) SERVICE RUNTIME EVIDENCE (r1388, user req #5) ----
+            // The REAL identity and environment the service uses to run proot
+            // AND the extractor: actual uid/gid (`id`), working directory,
+            // LD_LIBRARY_PATH/PATH as the spawned shell sees them, and the
+            // extractor file's mode/size. The device tar is recorded for
+            // reference only — we never rely on it.
+            val envInv = runStep("service runtime environment evidence",
+                "echo \"UID_OUT=\$(id 2>&1)\"; echo \"CWD_OUT=\$(pwd)\"; " +
+                    "echo \"LDP_OUT=\$LD_LIBRARY_PATH\"; echo \"PATH_OUT=\$PATH\"; " +
+                    "stat -c 'TOY_MODE=%A TOY_SIZE=%s TOY_PATH=%n' '$TOYBOX' 2>&1; " +
+                    "command -v tar >/dev/null 2>&1 && echo \"DEV_TAR=\$(tar --version 2>&1 | head -n 1)\" || echo \"DEV_TAR=none\"")
+            step("service runtime evidence: ${envInv.stdout.take(400)}")
+            if (envInv.rc != 0)
+                return runtimeFail(ctx, "could not even read the service runtime environment (req #5)\n" +
+                    extractorFailMsg(envInv, "the evidence command itself failed"), "service environment check")
+
+            // ---- 2b-β) EXTRACTOR VERSION GATE (r1388 — the r1386 false failure) ----
+            // The r1386 check ran the multicall binary BARE piped through `head`:
+            // toybox then prints its NORMAL applet banner "[ acpi arch ascii … ]"
+            // (rc=0!), head masked the real exit code, and the banner — with no
+            // "toybox" token in it — was quoted into "the bundled extractor does
+            // not run on this device". A sound binary was misclassified by its
+            // own capability check. Now: `--version`, the REAL rc (no pipeline),
+            // and a strict version token; banner text can never fail this gate.
+            val ver = runStep("extractor version check", "'$TOYBOX' --version")
+            val verTok = Regex("(?i)toybox\\s+v?[0-9]+\\.[0-9]+(\\.[0-9]+)?").find(ver.stdout)?.value
+            if (ver.rc != 0 || verTok == null)
+                return runtimeFail(ctx, extractorFailMsg(ver,
+                    if (ver.rc == 0) "toybox ran (rc=0) but --version did not return a version token"
+                    else "toybox --version exited with rc=${ver.rc}"),
+                    "extractor runtime test")
+            step("extractor version verified on device: $verTok (rc=0, static musl — no shared-library resolution needed)")
+
+            // ---- 2b-γ) EXTRACTOR END-TO-END TINY-ARCHIVE TEST (r1388, req #4) ----
+            // The capability test that actually matters: pack a tiny archive
+            // with the bundled tar, extract it, and verify a REGULAR FILE, a
+            // DIRECTORY, a SYMLINK and a DANGLING SYMLINK round-trip intact —
+            // the exact classes the 642-symlink Debian layer depends on. All
+            // through the service, on the real runtime filesystem.
+            setState(ctx, State.CHECKING, "testing the bundled extractor on a tiny archive (file + dir + symlink)")
+            val T = "$BASE/tmp/extest"
+            val tiny = runStep("extractor end-to-end tiny-archive test",
+                "rm -rf '$T' && mkdir -p '$T/src/sub' '$T/out' && " +
+                    "printf 'amino-extractor-test' > '$T/src/sub/file.txt' && " +
+                    "ln -sf sub/file.txt '$T/src/link' && ln -sf /nonexistent '$T/src/dangling' && " +
+                    "'$TOYBOX' tar -C '$T/src' -cf '$T/test.tar' . && " +
+                    "'$TOYBOX' tar -C '$T/out' -xf '$T/test.tar' && " +
+                    "echo \"TINY[content=\$(cat '$T/out/sub/file.txt' 2>/dev/null) " +
+                    "dir=\$(test -d '$T/out/sub' && echo yes) " +
+                    "link=\$(readlink '$T/out/link' 2>/dev/null) " +
+                    "dangling=\$(test -L '$T/out/dangling' && echo yes)]\"",
+                60_000)
+            val tinyM = Regex("TINY\\[(.*)\\]").find(tiny.stdout)?.groupValues?.get(1)
+            fun f(k: String): String? = tinyM?.let { Regex("$k=([^ ]+)").find(it)?.groupValues?.get(1) }
+            val tinyOk = tiny.rc == 0 && tinyM != null &&
+                f("content") == "amino-extractor-test" &&
+                f("dir") == "yes" &&
+                f("link") == "sub/file.txt" &&
+                f("dangling") == "yes"
+            if (!tinyOk)
+                return runtimeFail(ctx, extractorFailMsg(tiny,
+                    if (tiny.rc == 0) "the tiny archive did not round-trip intact — extraction itself is broken on this device " +
+                        "(evidence: ${tinyM ?: "no TINY marker in stdout"})"
+                    else "the tar round-trip exited with rc=${tiny.rc}"),
+                    "extractor runtime test")
+            step("extractor end-to-end test PASSED: file content ✓, directory ✓, symlink → sub/file.txt ✓, dangling symlink ✓")
+            ShizukuExec.oneShot("rm -rf '$T'", 30_000)
+            val extractorVersion = "$verTok (rc=0; tiny-archive round-trip passed: regular file + directory + symlink + dangling symlink preserved)"
 
             // ---- 2c) MINIMAL-ROOTFS SMOKE TEST (r1387, before ANY Debian download) ----
             // A tiny root built from the bundled toybox: proves PRoot can actually
@@ -622,16 +797,17 @@ object LinuxEnvManager {
     }
 
     /**
-     * r1387 — failure of the PROOT RUNTIME phase (binary exec, dependency
-     * resolution, smoke root). The environment is NOT "broken": Debian was never
-     * downloaded or extracted, and the user's storage already passed the
-     * preflight. State returns to NOT_INSTALLED with the full diagnostic —
-     * a broken state would be a false claim about the user's device.
+     * r1387/r1388 — failure of a BUNDLED-BINARY runtime phase (proot exec,
+     * dependency resolution, smoke root, or the r1388 extractor gates), all of
+     * which run BEFORE any Debian download. The environment is NOT "broken":
+     * Debian was never downloaded or extracted, and the user's storage already
+     * passed the preflight. State returns to NOT_INSTALLED with the full
+     * diagnostic — a broken state would be a false claim about the device.
      */
-    private fun runtimeFail(ctx: Context, why: String): String {
-        Log.e(TAG, "PROOT RUNTIME FAILED: ${why.take(300)}")
-        setState(ctx, State.NOT_INSTALLED, "install stopped before Debian: PRoot runtime test failed", why)
-        return "PROOT RUNTIME TEST FAILED — Debian was NOT downloaded, nothing was extracted, " +
+    private fun runtimeFail(ctx: Context, why: String, stage: String = "PRoot runtime test"): String {
+        Log.e(TAG, "RUNTIME FAILED [$stage]: ${why.take(300)}")
+        setState(ctx, State.NOT_INSTALLED, "install stopped before Debian: $stage failed", why)
+        return "RUNTIME TEST FAILED ($stage) — Debian was NOT downloaded, nothing was extracted, " +
             "nothing on the storage is broken:\n$why"
     }
 
