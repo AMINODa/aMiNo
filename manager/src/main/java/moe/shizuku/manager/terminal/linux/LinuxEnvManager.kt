@@ -247,6 +247,28 @@ object LinuxEnvManager {
         append("• this is the bundled extractor (libamino_tar.so → $TOYBOX), NOT the device tar and NOT your storage — preflight already proved symlinks/fstype OK\n")
     }
 
+    /**
+     * r1389 — failure text for the SMOKE-ROOT BUILD steps (user req #7): the
+     * EXACT failing command with its real rc/stdout/stderr, PLUS the directory
+     * listing captured AT THE MOMENT OF FAILURE — reported before anything is
+     * changed or cleaned, so the state is inspected, never guessed. The tree
+     * is deliberately left in place; the next install removes and rebuilds it.
+     */
+    private suspend fun smokeFailMsg(inv: Inv, mini: String, why: String): String = buildString {
+        append("SMOKE-ROOT SETUP FAILED — the minimal root could not be built; nothing was downloaded\n")
+        append("• reason: $why\n")
+        append(inv.render())
+        val listing = try {
+            ShizukuExec.oneShot(
+                "echo '--- miniroot ---'; ls -la '$mini' 2>&1; echo '--- miniroot/usr ---'; ls -la '$mini/usr' 2>&1; " +
+                    "echo '--- miniroot/usr/bin ---'; ls -la '$mini/usr/bin' 2>&1; echo '--- miniroot/bin ---'; ls -la '$mini/bin' 2>&1; " +
+                    "echo '--- miniroot/etc ---'; ls -la '$mini/etc' 2>&1", 15_000
+            ).output.trim()
+        } catch (e: Exception) { "(listing unavailable: ${e.message ?: e.javaClass.simpleName})" }
+        append("• directory listing AT FAILURE (unchanged, reported before any fix):\n$listing\n")
+        append("• the smoke root is left in place for inspection; the next install attempt removes and rebuilds it\n")
+    }
+
     // ---------- persistence ----------
 
     private fun prefs(ctx: Context) = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -628,43 +650,137 @@ object LinuxEnvManager {
             ShizukuExec.oneShot("rm -rf '$T'", 30_000)
             val extractorVersion = "$verTok (rc=0; tiny-archive round-trip passed: regular file + directory + symlink + dangling symlink preserved)"
 
-            // ---- 2c) MINIMAL-ROOTFS SMOKE TEST (r1387, before ANY Debian download) ----
-            // A tiny root built from the bundled toybox: proves PRoot can actually
-            // chroot + fake-root + exec INSIDE a rootfs (id → uid=0, /etc/os-release
-            // readable) before the 48 MB Debian archive is even fetched.
+            // ---- 2c) MINIMAL-ROOTFS SMOKE TEST (r1387; rebuilt r1389 — user bug report) ----
+            // r1389 ROOT CAUSE (reproduced byte-for-byte in the sandbox with the
+            // bundled binary): the r1387 build line escaped \$BASE into the device
+            // shell — the service shell has NO BASE variable, so the link loop's
+            // destination expanded to `/miniroot/bin/sh` and every ln failed with
+            // EXACTLY the user's error:
+            //   ln: cannot create symbolic link from 'toybox' to '/miniroot/bin/sh':
+            //   No such file or directory
+            // (mkdir/cp/chmod succeeded because their paths were Kotlin-interpolated.)
+            // Second latent bug found while validating: the bundled toybox 0.8.11
+            // ships NO sh applet, so the old `/bin/sh -c 'id; cat …'` smoke command
+            // could never exec (rc=127) — the smoke run now execs the applets
+            // DIRECTLY under proot, no shell involved.
+            // The layout mirrors Debian 12 merged-/usr: /usr/bin FIRST, then
+            // /bin -> usr/bin as a RELATIVE symlink (/bin is never treated as a
+            // normal directory, req #4); every mkdir/cp/chmod/ln/printf exit code
+            // is checked (req #5); the tree is inspected BEFORE any link is
+            // created (req #1) and the exact failing command + full listing are
+            // reported on failure (req #7). Nothing is blindly recreated.
             setState(ctx, State.CHECKING, "PRoot smoke test on a minimal root (no Debian involved yet)")
-            val mk = ShizukuExec.oneShot(
-                "rm -rf $BASE/miniroot && mkdir -p $BASE/miniroot/bin $BASE/miniroot/etc $BASE/miniroot/root " +
-                    "$BASE/miniroot/tmp $BASE/miniroot/dev $BASE/miniroot/proc && " +
-                    "cp $TOYBOX $BASE/miniroot/bin/toybox && chmod 755 $BASE/miniroot/bin/toybox && " +
-                    "for a in sh cat id uname echo ls; do ln -sf toybox \$BASE/miniroot/bin/\$a; done && " +
-                    "printf 'PRETTY_NAME=\"AMINO PRoot smoke test\"\\nID=amino-smoke\\n' > $BASE/miniroot/etc/os-release && " +
-                    "echo MINI_OK", 30_000
-            )
-            if (!mk.ok || !mk.output.contains("MINI_OK"))
-                return runtimeFail(ctx, "could not build the minimal smoke root at $BASE/miniroot\n" +
-                    "• original error: ${mk.output.take(300)}\n" +
-                    "→ the runtime tree is not usable by the service; use Remove on this page and retry")
-            val smoke = ShizukuExec.oneShot(
+            val MINI = "$BASE/miniroot"
+
+            // 2c-1) clean previous state — VERIFIED removal (never build over debris)
+            val mrClean = runStep("smoke root: remove any previous attempt",
+                "rm -rf '$MINI' && test ! -e '$MINI' && echo CLEAN_OK")
+            if (mrClean.rc != 0 || !mrClean.stdout.contains("CLEAN_OK"))
+                return runtimeFail(ctx, smokeFailMsg(mrClean, MINI,
+                    "the previous smoke root could not be removed at $MINI"), "smoke root build")
+
+            // 2c-2) directory tree — merged-/usr: /usr/bin FIRST (Debian 12 layout)
+            val mrDirs = runStep("smoke root: create directory tree (merged-/usr: usr/bin first)",
+                "mkdir -p '$MINI/usr/bin' '$MINI/etc' '$MINI/root' '$MINI/tmp' '$MINI/dev' '$MINI/proc' && " +
+                    "test -d '$MINI/usr/bin' && echo DIRS_OK")
+            if (mrDirs.rc != 0 || !mrDirs.stdout.contains("DIRS_OK"))
+                return runtimeFail(ctx, smokeFailMsg(mrDirs, MINI,
+                    "could not create the smoke-root directory tree under $MINI"), "smoke root build")
+
+            // 2c-3) toybox into /usr/bin + exec it IN PLACE at its final location
+            val mrToy = runStep("smoke root: install toybox into /usr/bin and exec it in place",
+                "cp '$TOYBOX' '$MINI/usr/bin/toybox' && chmod 755 '$MINI/usr/bin/toybox' && " +
+                    "'$MINI/usr/bin/toybox' --version && echo TOY_OK")
+            if (mrToy.rc != 0 || !mrToy.stdout.contains("TOY_OK"))
+                return runtimeFail(ctx, smokeFailMsg(mrToy, MINI,
+                    "the toybox copy inside the smoke root did not exec at $MINI/usr/bin/toybox"), "smoke root build")
+
+            // 2c-4) INSPECT every parent path BEFORE creating any link (user req #1)
+            val mrInspect = runStep("smoke root: directory inspection before linking",
+                "echo '--- miniroot ---'; ls -la '$MINI' 2>&1; echo '--- miniroot/usr ---'; ls -la '$MINI/usr' 2>&1; " +
+                    "echo '--- miniroot/usr/bin ---'; ls -la '$MINI/usr/bin' 2>&1")
+            if (mrInspect.rc != 0)
+                return runtimeFail(ctx, smokeFailMsg(mrInspect, MINI,
+                    "could not list the smoke-root directories"), "smoke root build")
+            step("smoke-root listing before any link:\n${mrInspect.stdout.take(700)}")
+
+            // 2c-5) /bin -> usr/bin — RELATIVE symlink (merged-/usr; survives being
+            // mounted at any root; /bin is NEVER treated as a normal directory)
+            val mrBin = runStep("smoke root: /bin -> usr/bin (relative, merged-/usr)",
+                "ln -s usr/bin '$MINI/bin' && echo \"BIN_TARGET=\$('$TOYBOX' readlink '$MINI/bin' 2>&1)\"")
+            if (mrBin.rc != 0 || !mrBin.stdout.contains("BIN_TARGET=usr/bin"))
+                return runtimeFail(ctx, smokeFailMsg(mrBin, MINI,
+                    "could not create the merged-/usr /bin -> usr/bin symlink"), "smoke root build")
+
+            // 2c-6) applet links — EACH ln individually exit-code-checked, fail-fast
+            // with the applet name (user reqs #2/#5). NOTE: no `sh` link — the
+            // bundled toybox 0.8.11 ships no sh applet (verified in sandbox), and a
+            // link that cannot exec is exactly the dishonesty this fix removes.
+            val mrLinks = runStep("smoke root: applet links (each ln rc-checked)",
+                "ok=1; for a in id cat; do ln -sf toybox '$MINI/usr/bin/'\$a || { ok=0; echo \"LN_FAIL applet=\$a\"; }; done; " +
+                    "[ \"\$ok\" = 1 ] && echo LINKS_OK")
+            if (mrLinks.rc != 0 || !mrLinks.stdout.contains("LINKS_OK"))
+                return runtimeFail(ctx, smokeFailMsg(mrLinks, MINI,
+                    "an applet symlink failed inside the smoke root (${mrLinks.stdout.take(120)})"), "smoke root build")
+
+            // 2c-7) /etc/os-release — written AND read back
+            val mrOsr = runStep("smoke root: write /etc/os-release and read it back",
+                "printf 'PRETTY_NAME=\"AMINO PRoot smoke test\"\\nID=amino-smoke\\n' > '$MINI/etc/os-release' && " +
+                    "cat '$MINI/etc/os-release' && echo OSR_OK")
+            if (mrOsr.rc != 0 || !mrOsr.stdout.contains("OSR_OK"))
+                return runtimeFail(ctx, smokeFailMsg(mrOsr, MINI,
+                    "could not write/read the smoke root's /etc/os-release"), "smoke root build")
+
+            // 2c-8) post-setup verification BEFORE proot (user req #6):
+            // exists / executable / readlink -f through the merged-/usr chain /
+            // REALLY execs — /bin/id and /bin/cat, both through the /bin symlink
+            val mrVerify = runStep("smoke root: verify bin/* (exists, executable, readlink -f, direct exec)",
+                "test -e '$MINI/bin/id' && echo E_ID; test -x '$MINI/bin/id' && echo X_ID; " +
+                    "echo \"RESOLVES_ID=\$('$TOYBOX' readlink -f '$MINI/bin/id' 2>&1)\"; '$MINI/bin/id' 2>&1; " +
+                    "test -e '$MINI/bin/cat' && echo E_CAT; test -x '$MINI/bin/cat' && echo X_CAT; " +
+                    "'$MINI/bin/cat' '$MINI/etc/os-release' && echo CAT_OK")
+            val resolvesId = Regex("RESOLVES_ID=(\\S+)").find(mrVerify.stdout)?.groupValues?.get(1)
+            val verifyOk = mrVerify.rc == 0 && mrVerify.stdout.contains("E_ID") &&
+                mrVerify.stdout.contains("X_ID") && mrVerify.stdout.contains("E_CAT") &&
+                mrVerify.stdout.contains("X_CAT") && mrVerify.stdout.contains("CAT_OK") &&
+                mrVerify.stdout.contains("uid=") && resolvesId == "$MINI/usr/bin/toybox"
+            if (!verifyOk)
+                return runtimeFail(ctx, smokeFailMsg(mrVerify, MINI,
+                    "the smoke root failed post-setup verification (exists/executable/resolves/exec; " +
+                        "resolves=$resolvesId, expected $MINI/usr/bin/toybox)"), "smoke root build")
+            step("smoke root verified before PRoot: /bin/id and /bin/cat exist ✓ executable ✓ " +
+                "resolve → $resolvesId (merged-/usr chain) ✓ direct exec ✓")
+
+            // 2c-9) THE SMOKE RUN — proot execs the applets DIRECTLY (no shell: the
+            // bundled toybox has no sh applet, and the service PATH is meaningless
+            // inside the rootfs anyway). Two real runs: id (fakeroot → uid=0) and
+            // cat /etc/os-release (file read INSIDE the rootfs). Each rc captured
+            // explicitly — no pipeline masking.
+            val smoke = runStep("PRoot smoke run (id + os-release inside the minimal root)",
                 "PROOT_TMP_DIR=$BASE/tmp LD_LIBRARY_PATH=$BASE/lib $BASE/bin/proot --kill-on-exit " +
-                    "-0 -r $BASE/miniroot -w /root /bin/sh -c 'id; cat /etc/os-release' 2>&1; " +
-                    "echo SMOKE_RC=\$?", 60_000
-            )
-            val smokeRc = Regex("SMOKE_RC=(\\d+)").find(smoke.output)?.groupValues?.get(1)?.toIntOrNull() ?: -1
-            val smokeOut = smoke.output.replace(Regex("SMOKE_RC=\\d+"), "").trim()
-            if (smokeRc != 0 || !smokeOut.contains("uid=0") || !smokeOut.contains("AMINO PRoot smoke test")) {
+                    "-0 -r '$MINI' -w /root /usr/bin/id; echo \"SMOKE_RC1=\$?\"; " +
+                    "PROOT_TMP_DIR=$BASE/tmp LD_LIBRARY_PATH=$BASE/lib $BASE/bin/proot --kill-on-exit " +
+                    "-0 -r '$MINI' -w /root /usr/bin/cat /etc/os-release; echo \"SMOKE_RC2=\$?\"",
+                60_000)
+            val rc1 = Regex("SMOKE_RC1=(\\d+)").find(smoke.stdout)?.groupValues?.get(1)?.toIntOrNull() ?: -1
+            val rc2 = Regex("SMOKE_RC2=(\\d+)").find(smoke.stdout)?.groupValues?.get(1)?.toIntOrNull() ?: -1
+            val idOut = smoke.stdout.substringBefore("SMOKE_RC1=").trim()
+            val catOut = smoke.stdout.substringAfter("SMOKE_RC1=").substringBefore("SMOKE_RC2=").trim()
+            if (rc1 != 0 || rc2 != 0 || !idOut.contains("uid=0") || !catOut.contains("AMINO PRoot smoke test")) {
                 val why = buildString {
                     append("PRoot could not run even the minimal smoke root — installing Debian would fail the same way\n")
-                    append("• exit code: $smokeRc\n")
-                    append("• full output: ${smokeOut.take(400)}\n")
+                    append("• assertion: id → rc=0 + uid=0 (fakeroot), cat → rc=0 + os-release content\n")
+                    append("• actual: id rc=$rc1 (output: ${idOut.take(200)}), cat rc=$rc2 (output: ${catOut.take(200)})\n")
+                    if (smoke.stderr.isNotBlank()) append("• stderr: ${smoke.stderr.take(400)}\n")
+                    append(smoke.render())
                     append("→ this is a PRoot runtime problem, NOT your storage; nothing was downloaded\n")
                     append("→ update aMiNo and retry; use Remove on this page to clear $BASE")
                 }
-                Log.e(TAG, "PROOT SMOKE TEST FAILED: rc=$smokeRc ${smokeOut.take(300)}")
-                return runtimeFail(ctx, why)
+                Log.e(TAG, "PROOT SMOKE TEST FAILED: rc1=$rc1 rc2=$rc2 ${smoke.stdout.take(300)}")
+                return runtimeFail(ctx, why, "PRoot smoke test")
             }
-            step("smoke test PASSED: ${smokeOut.lines().take(3).joinToString(" · ")} — PRoot chroot + fake-root + exec all work; proceeding to Debian")
-            ShizukuExec.oneShot("rm -rf $BASE/miniroot", 30_000)
+            step("smoke test PASSED: id → uid=0 (fakeroot) · os-release read inside the rootfs — PRoot chroot + fake-root + merged-/usr exec all work; proceeding to Debian")
+            ShizukuExec.oneShot("rm -rf '$MINI'", 30_000)
 
             // ---- 3) download — or REUSE the verified archive from a failed attempt ----
             setState(ctx, State.DOWNLOADING, "obtaining the Debian 12 rootfs")
