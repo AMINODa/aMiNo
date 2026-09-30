@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- aMiNo r1384: one session chip in the terminal tab row -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/TermSessionChip"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content" />

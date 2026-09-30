@@ -444,4 +444,20 @@
     <string name="tools_status_needs_shell">● Nécessite un Shell connecté (débogage sans fil)</string>
     <string name="tools_status_accessibility_only">● Nécessite Shell ou Accessibilité</string>
     <string name="tools_status_no_internet">● Pas d\'Internet</string>
+    <!-- aMiNo r1384 : terminal intégré -->
+    <string name="terminal_title">Terminal</string>
+    <string name="terminal_empty">Aucune session — touchez ➕ pour en ouvrir une (le shell local fonctionne toujours)</string>
+    <string name="terminal_hint">Saisissez une commande…</string>
+    <string name="terminal_send">Exécuter</string>
+    <string name="term_copied">Contenu copié</string>
+    <string name="term_pick_env">Choisir l\'environnement</string>
+    <string name="term_close_confirm">Fermer cette session ? Son processus et son état seront détruits.</string>
+    <string name="term_btn_close_label">Fermer</string>
+    <string name="term_btn_history">Historique des commandes</string>
+    <string name="term_btn_copy">Copier le contenu</string>
+    <string name="term_btn_paste">Coller</string>
+    <string name="term_btn_clear">Effacer l\'écran</string>
+    <string name="term_btn_stop">Arrêter le processus</string>
+    <string name="term_btn_new">Nouvelle session</string>
+
 </resources>

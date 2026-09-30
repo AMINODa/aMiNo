@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- aMiNo r1384: real integrated terminal — black/red identity.
+     Wired to TerminalEngine: persistent sessions, live stdout/stderr, exit codes. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0B0B0E"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="#0B0B0E"
+        app:title="@string/terminal_title"
+        app:titleTextColor="#FF5252" />
+
+    <!-- session tabs (user + agent sessions; agent ones are tagged) -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/sessionChips"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp" />
+    </HorizontalScrollView>
+
+    <TextView
+        android:id="@+id/statusLine"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#0D0D11"
+        android:fontFamily="monospace"
+        android:paddingStart="12dp"
+        android:paddingTop="4dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="4dp"
+        android:textColor="#8A8A94"
+        android:textSize="11sp" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/termList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingStart="8dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="6dp" />
+
+        <TextView
+            android:id="@+id/emptyView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:text="@string/terminal_empty"
+            android:textColor="#6A6A74"
+            android:textSize="14sp"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <!-- actions row -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="4dp">
+
+            <TextView android:id="@+id/btnHistory" style="@style/TermActionButton" android:text="🕘" android:contentDescription="@string/term_btn_history" />
+            <TextView android:id="@+id/btnCopy" style="@style/TermActionButton" android:text="📋" android:contentDescription="@string/term_btn_copy" />
+            <TextView android:id="@+id/btnPaste" style="@style/TermActionButton" android:text="📥" android:contentDescription="@string/term_btn_paste" />
+            <TextView android:id="@+id/btnClear" style="@style/TermActionButton" android:text="🧹" android:contentDescription="@string/term_btn_clear" />
+            <TextView android:id="@+id/btnStop" style="@style/TermActionButton" android:text="⛔" android:contentDescription="@string/term_btn_stop" />
+            <TextView android:id="@+id/btnNew" style="@style/TermActionButton" android:text="➕" android:contentDescription="@string/term_btn_new" />
+            <TextView android:id="@+id/btnClose" style="@style/TermActionButton" android:text="✖" android:contentDescription="@string/term_btn_close_label" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- composer -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="bottom"
+        android:orientation="horizontal"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="10dp">
+
+        <EditText
+            android:id="@+id/inputEdit"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/bg_chat_composer"
+            android:fontFamily="monospace"
+            android:hint="@string/terminal_hint"
+            android:imeOptions="actionSend"
+            android:importantForAutofill="no"
+            android:inputType="text"
+            android:maxLines="4"
+            android:paddingStart="14dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="10dp"
+            android:textColor="#EDEDF2"
+            android:textColorHint="#6A6A74"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/sendBtn"
+            android:layout_width="42dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_chat_agent_avatar"
+            android:contentDescription="@string/terminal_send"
+            android:gravity="center"
+            android:text="❯"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </LinearLayout>
+</LinearLayout>

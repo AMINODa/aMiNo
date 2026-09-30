@@ -502,4 +502,20 @@
     <string name="tools_status_needs_shell">● يحتاج اتصال Shell (تصحيح لاسلكي)</string>
     <string name="tools_status_accessibility_only">● يحتاج Shell أو خدمة الإتاحة</string>
     <string name="tools_status_no_internet">● لا يوجد إنترنت</string>
+    <!-- aMiNo r1384: الطرفية المتكاملة -->
+    <string name="terminal_title">الطرفية</string>
+    <string name="terminal_empty">لا توجد جلسة طرفية بعد — اضغط ➕ لفتح واحدة (الشل المحلي يعمل دائماً)</string>
+    <string name="terminal_hint">اكتب أمراً…</string>
+    <string name="terminal_send">تنفيذ الأمر</string>
+    <string name="term_copied">تم نسخ محتوى الشاشة</string>
+    <string name="term_pick_env">اختر البيئة</string>
+    <string name="term_close_confirm">إغلاق هذه الجلسة؟ ستُدمَّر عمليتها وحالتها.</string>
+    <string name="term_btn_close_label">إغلاق</string>
+    <string name="term_btn_history">سجل الأوامر</string>
+    <string name="term_btn_copy">نسخ الشاشة</string>
+    <string name="term_btn_paste">لصق</string>
+    <string name="term_btn_clear">مسح الشاشة</string>
+    <string name="term_btn_stop">إيقاف العملية الجارية</string>
+    <string name="term_btn_new">جلسة جديدة</string>
+
 </resources>

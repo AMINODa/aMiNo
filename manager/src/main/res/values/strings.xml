@@ -528,4 +528,20 @@
     <string name="tools_status_needs_shell">● Needs a connected Shell (wireless debugging)</string>
     <string name="tools_status_accessibility_only">● Needs Shell or Accessibility</string>
     <string name="tools_status_no_internet">● No internet</string>
+    <!-- aMiNo r1384: integrated terminal -->
+    <string name="terminal_title">Terminal</string>
+    <string name="terminal_empty">No terminal session yet — tap ➕ to open one (local shell always works)</string>
+    <string name="terminal_hint">Enter command…</string>
+    <string name="terminal_send">Run command</string>
+    <string name="term_copied">Scrollback copied</string>
+    <string name="term_pick_env">Pick environment</string>
+    <string name="term_close_confirm">Close this session? Its process and state are destroyed.</string>
+    <string name="term_btn_close_label">Close</string>
+    <string name="term_btn_history">Command history</string>
+    <string name="term_btn_copy">Copy scrollback</string>
+    <string name="term_btn_paste">Paste</string>
+    <string name="term_btn_clear">Clear screen</string>
+    <string name="term_btn_stop">Stop running process</string>
+    <string name="term_btn_new">New session</string>
+
 </resources>

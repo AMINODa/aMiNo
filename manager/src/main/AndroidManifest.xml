@@ -44,6 +44,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- aMiNo r1384: Termux handoff for package installs (real detection + RUN_COMMAND;
+         requires Termux's own "allow-external-apps" setting — reported honestly if refused). -->
+    <uses-permission android:name="com.termux.permission.RUN_COMMAND" />
 
     <uses-permission
         android:name="android.permission.WRITE_SECURE_SETTINGS"
@@ -88,6 +91,8 @@
 
     <queries>
         <package android:name="moe.shizuku.privileged.api" />
+        <!-- aMiNo r1384: honest Termux detection on API 30+ (package visibility) -->
+        <package android:name="com.termux" />
     </queries>
 
     <application
@@ -149,6 +154,12 @@
             android:name=".ui.AllPermissionsActivity"
             android:exported="false"
             android:label="@string/menu_permissions"
+            android:windowSoftInputMode="adjustResize" />
+        <!-- aMiNo r1384: real integrated terminal (persistent sessions, black/red) -->
+        <activity
+            android:name=".ui.TerminalActivity"
+            android:exported="false"
+            android:label="@string/terminal_title"
             android:windowSoftInputMode="adjustResize" />
         <!-- aMiNo Agent (r1376) -->
         <activity

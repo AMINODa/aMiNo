@@ -105,6 +105,169 @@ object ToolRegistry {
             requiresShell = false
         ) { ctx, args ->
             AgentTools.userData(ctx, args.optString("kind", ""), args.optInt("limit", 10))
+        },
+
+        // ================= r1384: INTEGRATED TERMINAL (11 tools) =================
+        RegisteredTool(
+            ToolSpec(
+                "terminal_list_environments",
+                "Discover which REAL terminal environments exist on this device right now: " +
+                    "local app shell (always), adb shell (uid 2000, when wireless debugging is paired), " +
+                    "root (only if su really runs), termux (only if the app is installed), " +
+                    "linux userspace (not bundled). Each entry reports identity, path and limits. " +
+                    "ALWAYS call this first when a command needs a place to run — never claim there is no terminal.",
+                JSONObject().put("type", "object").put("properties", JSONObject())
+            ),
+            requiresShell = false
+        ) { ctx, _ ->
+            TerminalTools.listEnvironments(ctx)
+        },
+        RegisteredTool(
+            ToolSpec(
+                "terminal_connect",
+                "Really verify one environment and report its identity: environment = local | adb | " +
+                    "root | termux | linux. root is only reported available if 'su -c id' returns uid=0; " +
+                    "adb is only verified by running 'id' over the wireless channel.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("environment", JSONObject().put("type", "string")))
+                    .put("required", org.json.JSONArray().put("environment"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            TerminalTools.connect(ctx, args.optString("environment", ""))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "terminal_create_session",
+                "Open a REAL persistent shell session (one long-lived sh; cwd and exported env " +
+                    "survive between commands). environment = local | adb. Returns the session_id " +
+                    "used by all other terminal_* tools.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("environment", JSONObject().put("type", "string"))
+                        .put("name", JSONObject().put("type", "string")))
+                    .put("required", org.json.JSONArray().put("environment"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            TerminalTools.createSession(ctx, args.optString("environment", "local"),
+                args.optString("name", ""), agentSession = true)
+        },
+        RegisteredTool(
+            ToolSpec(
+                "terminal_execute",
+                "Run a command INSIDE a persistent terminal session and get the REAL result: " +
+                    "stdout, stderr, exit_code, cwd. session_id optional (an agent session is " +
+                    "auto-created in the best environment). timeout_seconds default 20; on timeout " +
+                    "the command keeps running — stop it with terminal_stop_process.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("command", JSONObject().put("type", "string"))
+                        .put("session_id", JSONObject().put("type", "string"))
+                        .put("timeout_seconds", JSONObject().put("type", "integer")))
+                    .put("required", org.json.JSONArray().put("command"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            TerminalTools.execute(ctx, args.optString("session_id", ""),
+                args.optString("command", ""), args.optInt("timeout_seconds", 20))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "terminal_send_input",
+                "Write raw text (a line is appended) to the stdin of a session's running interactive " +
+                    "program (e.g. a prompt started with terminal_execute).",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("session_id", JSONObject().put("type", "string"))
+                        .put("text", JSONObject().put("type", "string")))
+                    .put("required", org.json.JSONArray().put("session_id").put("text"))
+            ),
+            requiresShell = false
+        ) { _, args ->
+            TerminalTools.sendInput(args.optString("session_id", ""), args.optString("text", ""))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "terminal_get_output",
+                "Read the recent scrollback of a session (kind: cmd/out/err/sys) plus its live state " +
+                    "(busy, cwd, last exit code). Use for long-running commands started with terminal_execute.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("session_id", JSONObject().put("type", "string"))
+                        .put("last_n", JSONObject().put("type", "integer")))
+                    .put("required", org.json.JSONArray().put("session_id"))
+            ),
+            requiresShell = false
+        ) { _, args ->
+            TerminalTools.getOutput(args.optString("session_id", ""), args.optInt("last_n", 40))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "terminal_get_session_status",
+                "Status of one session: environment, alive, ready, busy, cwd, last_exit_code, " +
+                    "running pid, restarts, scrollback size.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("session_id", JSONObject().put("type", "string")))
+                    .put("required", org.json.JSONArray().put("session_id"))
+            ),
+            requiresShell = false
+        ) { _, args ->
+            TerminalTools.sessionStatus(args.optString("session_id", ""))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "terminal_stop_process",
+                "Stop the running foreground command of a session (out-of-band kill of the tracked " +
+                    "pid). If the process cannot report back, the session restarts and this is " +
+                    "reported honestly.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("session_id", JSONObject().put("type", "string")))
+                    .put("required", org.json.JSONArray().put("session_id"))
+            ),
+            requiresShell = false
+        ) { _, args ->
+            TerminalTools.stopProcess(args.optString("session_id", ""))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "terminal_close_session",
+                "Close and destroy a terminal session.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("session_id", JSONObject().put("type", "string")))
+                    .put("required", org.json.JSONArray().put("session_id"))
+            ),
+            requiresShell = false
+        ) { _, args ->
+            TerminalTools.closeSession(args.optString("session_id", ""))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "terminal_install_package",
+                "Install tool(s) like nmap in the RIGHT environment — full honest flow: discover env, " +
+                    "detect the real package manager (pkg/apt/apk/dnf/yum), run update+install, then " +
+                    "VERIFY each tool with its version/path and report. Never assumes a manager exists. " +
+                    "environment optional (termux | adb | local — auto-probed in that order).",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("packages", JSONObject().put("type", "string")
+                        .put("description", "Space-separated package names, e.g. 'nmap'"))
+                        .put("environment", JSONObject().put("type", "string")))
+                    .put("required", org.json.JSONArray().put("packages"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            TerminalTools.installPackage(ctx, args.optString("environment", ""), args.optString("packages", ""))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "terminal_check_command",
+                "Check whether a command/binary REALLY exists in a session's environment: returns its " +
+                    "full path and version line. Use to verify installs and before planning commands. " +
+                    "session_id optional.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("command", JSONObject().put("type", "string"))
+                        .put("session_id", JSONObject().put("type", "string")))
+                    .put("required", org.json.JSONArray().put("command"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            TerminalTools.checkCommand(ctx, args.optString("session_id", ""), args.optString("command", ""))
         }
     )
 

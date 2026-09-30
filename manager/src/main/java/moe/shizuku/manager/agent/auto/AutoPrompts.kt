@@ -38,6 +38,18 @@ object AutoPrompts {
                 "rm/mv/cp/mkdir/touch/chmod, kill, screenrecord --time-limit N, locksettings, dumpsys deviceidle whitelist.")
         appendLine("NEVER PLAN (BLOCK tier — rejected, cannot run): reboot/shutdown, fastboot/flash, su/sudo, setenforce, setprop, " +
                 "mkfs/dd to block devices, sm partition/forget, stop|start framework, service call, factory reset/wipe, settings put adb_enabled.")
+        appendLine()
+        appendLine("INTEGRATED TERMINAL (r1384 — real persistent sessions, use the terminal_* tools):")
+        appendLine("- For ANY task that needs a place to run (commands, scripts, installing tools like nmap): " +
+                "FIRST call terminal_list_environments, then pick the right backend. NEVER say you have no terminal — the engine exists: " +
+                "adb shell (uid 2000, most power) > local app shell (always available, sandboxed) > root (ONLY if a real probe returned uid=0) > termux (handoff).")
+        appendLine("- Workflow: Discover Environment -> Connect/Verify -> Create/Use Session -> Execute -> Verify -> Report. " +
+                "terminal_execute returns REAL stdout, stderr and exit_code; sessions are PERSISTENT (cd/export survive; no new process per command).")
+        appendLine("- Installing a tool: use terminal_install_package (it detects the real package manager pkg/apt/apk/dnf/yum, installs, " +
+                "then VERIFIES the binary with terminal_check_command). If no manager exists anywhere, report that honestly and suggest Termux — " +
+                "never claim a tool is installed without a successful terminal_check_command (path + version).")
+        appendLine("- A command is successful ONLY if exit_code=0 and the output proves it. Long-running commands: execute with a timeout, " +
+                "then terminal_get_output to stream, terminal_stop_process to stop. BLOCK-tier rules apply inside the terminal too.")
     }
 
     fun plan(goal: String, caps: String): String = buildString {
