@@ -132,6 +132,7 @@ class TerminalSession(
     private var remoteProc: moe.shizuku.manager.terminal.linux.ShizukuExec.RemoteProc? = null // LINUX_USERSPACE
     private var stdin: java.io.OutputStream? = null
     private var errFile: String? = null
+    private var procGen = 0                        // r1396 — launch-attempt generation (guards reader threads)
 
     val startDir: String
         get() = when (backend) {
@@ -233,22 +234,70 @@ class TerminalSession(
             return false
         }
 
-        // ---- stage 3: spawn by the service ----
+        // ---- stage 3: spawn by the service (r1396 attempt ladder) ----
+        // Attempt 1 = /bin/bash through the WRAPPED spawn (sh -c 'exec …') — the
+        // exact shape every service execution that WORKS on devices uses (probe,
+        // preflight, install). On a SILENT INIT_TIMEOUT (alive + empty stderr —
+        // the r1395 dialog evidence) attempt 2 retries ONCE with /bin/sh, the
+        // shell class proven on this device by every probe/preflight run.
+        linuxAttempt(cmd, env, d)
+        if (ready) {
+            d.summary = "session ready — the PRoot guest shell answered the init marker"
+            addSys("launch diagnostic: ${d.oneLine()}")
+            return true
+        }
+        if (d.failedStage == "INIT_TIMEOUT" && d.stderrTail.isBlank()) {
+            addSys("attempt 1 (guest ${d.guestShell}) diagnostic: ${d.oneLine()}")
+            val d2 = LaunchDiagnostic(id).also {
+                it.environmentId = d.environmentId; it.rootfsPath = d.rootfsPath
+                it.guestShell = "/bin/sh"; it.prootPath = d.prootPath
+                it.serviceUid = d.serviceUid; it.serviceDomain = d.serviceDomain
+            }
+            val (cmd2, env2) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.sessionCommand(appContext, guest = "/bin/sh")
+            d2.commandSanitized = cmd2.joinToString(" ")
+            lastLaunch = d2
+            procGen++                                   // invalidate attempt-1 reader threads FIRST
+            try { remoteProc?.destroy() } catch (_: Throwable) {}
+            linuxAttempt(cmd2, env2, d2)
+            if (ready) {
+                d2.summary = "session ready via /bin/sh fallback — /bin/bash hung silently at init (attempt 1 diagnostic above)"
+                addSys("session ready via /bin/sh fallback — guest /bin/bash was spawned but never answered (evidence above)")
+                addSys("attempt 2 (guest /bin/sh) diagnostic: ${d2.oneLine()}")
+            } else {
+                addSys("attempt 2 (guest /bin/sh) diagnostic: ${d2.oneLine()}")
+            }
+        } else {
+            addSys("attempt 1 (guest ${d.guestShell}) diagnostic: ${d.oneLine()}")
+        }
+        return true
+    }
+
+    /**
+     * r1396 — one Linux launch attempt: spawn by the service, wire the streams,
+     * run the init exchange. Returns the ready verdict. Full evidence lands in
+     * the diagnostic + the page log + Logcat — r1395 captured stdout/stderr tails
+     * on failure but never surfaced them; every failed attempt now shows its own
+     * oneLine evidence (tails + receipt markers).
+     */
+    private fun linuxAttempt(cmd: List<String>, env: Array<String>, d: LaunchDiagnostic): Boolean {
         val rp = try {
             moe.shizuku.manager.terminal.linux.ShizukuExec.spawn(cmd, env, "/")
         } catch (e: Throwable) {
             d.fail("SPAWN_FAILED", "${e.message ?: e.javaClass.simpleName}")
             addSys("launch failed at SPAWN_FAILED: ${d.summary}")
-            throw e
+            Log.w("LinuxSession", "launch failed [$id] guest=${d.guestShell}: ${d.oneLine()}")
+            return false
         }
         remoteProc = rp
+        val gen = ++procGen
         stdin = rp.stdin
         errFile = "/tmp/.amino_err_$id"   // inside the container
         d.spawned = true
         d.processAliveAfterSpawn = try { rp.alive() } catch (_: Throwable) { null }
+        val outStart = synchronized(lock) { outCap.length }   // per-attempt stdout slice
         // native stderr pipe MUST be drained or the child can block on a full pipe.
-        // r1395: drained into a BOUNDED capture too — proot's own error text is
-        // primary evidence and was previously discarded.
+        // Drained into a BOUNDED capture too — proot's own error text is primary
+        // evidence and is surfaced on failure via the diagnostic oneLine.
         val errCapture = StringBuilder()
         Thread({
             try { rp.stderr.copyTo(object : java.io.OutputStream() {
@@ -258,49 +307,67 @@ class TerminalSession(
                     synchronized(errCapture) { val take = minOf(len, 4096 - cap); if (take > 0) { errCapture.append(String(b, off, take)); cap += take } }
                 }
             }) } catch (_: Throwable) {}
-        }, "amino-linux-errdrain-$id").apply { isDaemon = true; start() }
+        }, "amino-linux-errdrain-$id-$gen").apply { isDaemon = true; start() }
         Thread({
             try {
                 val r = BufferedReader(InputStreamReader(rp.stdout, Charsets.UTF_8))
                 var line = r.readLine()
                 while (line != null) { parseLine(line); line = r.readLine() }
             } catch (_: Throwable) {}
-            onBackendDied()
-        }, "amino-linux-out-$id").apply { isDaemon = true; start() }
+            if (gen == procGen) onBackendDied()      // only the CURRENT attempt may bury the session
+        }, "amino-linux-out-$id-$gen").apply { isDaemon = true; start() }
         alive = true
         sendLinuxInit()
-        if (ready) {
-            d.summary = "session ready — the PRoot guest shell answered the init marker"
-            addSys("launch diagnostic: ${d.oneLine()}")
-        } else {
+        if (!ready) {
             val aliveNow = try { rp.alive() } catch (_: Throwable) { false }
-            d.stderrTail = errCapture.toString().trim().take(500)
-            d.stdoutTail = synchronized(lock) { outCap.toString() }.trim().take(500)
+            d.stderrTail = synchronized(errCapture) { errCapture.toString() }.trim().take(500)
+            d.stdoutTail = synchronized(lock) { outCap.substring(outStart) }.trim().take(500)
+            d.stdinReceipt = d.stdoutTail.contains("__AMINO_T9_IN_")
+            d.stderrReceipt = d.stderrTail.contains("__AMINO_T9_INE_")
             d.fail(
                 if (aliveNow) "INIT_TIMEOUT" else "GUEST_DIED",
                 if (aliveNow) "no init marker (__AMINO_T9_HI_42) within 15s — the guest shell was spawned but never answered"
-                else "the guest shell exited during init — stderr: ${errCapture.toString().trim().take(300).ifBlank { "(empty)" }}"
+                else "the guest shell exited during init — stderr: ${d.stderrTail.take(300).ifBlank { "(empty)" }}"
             )
             addSys("launch failed at ${d.failedStage}: ${d.summary}")
+            Log.w("LinuxSession", "launch failed [$id] guest=${d.guestShell}: ${d.oneLine()}")
         }
-        return true
+        return ready
     }
 
-    /** Linux init: container PATH, per-session stderr file inside /tmp, /root home. Returns the init verdict. */
+    /**
+     * Linux init: r1396 receipt markers FIRST (IN on stdout = stdin reached the
+     * guest, INE on stderr = the guest is executing), then the unchanged container
+     * PATH, per-session stderr file inside /tmp, /root home, and the HI_42 ready
+     * marker. The ready marker is RE-SENT at +5s and +10s — a lost or late stdin
+     * write must not cost the session its init (extra markers are harmless: ready
+     * stays true). Returns the init verdict.
+     */
     private fun sendLinuxInit(): Boolean {
         ready = false
+        val marker = "echo \"${M}HI_\$((6*7))\"\n"
         val init = buildString {
+            append("echo \"${M}IN_$id\"\n")            // stdout receipt — stdin reached the guest
+            append("echo \"${M}INE_$id\" >&2\n")       // stderr receipt — the guest is executing
             append("export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n")
             append("__amino_err=${errFile}\n")
             append("export __amino_err\n")
             append("mkdir -p /tmp 2>/dev/null; ")
             append("cd ${shellQuote(startDir)} 2>/dev/null || cd /\n")
-            append("echo \"${M}HI_\$((6*7))\"\n")
+            append(marker)
         }
         writeRaw(init)
         // PRoot startup is slower than a plain shell — allow more time
-        val deadline = System.currentTimeMillis() + 15000
-        while (alive && !ready && System.currentTimeMillis() < deadline) Thread.sleep(80)
+        val t0 = System.currentTimeMillis()
+        val deadline = t0 + 15000
+        var retry1 = t0 + 5000
+        var retry2 = t0 + 10000
+        while (alive && !ready && System.currentTimeMillis() < deadline) {
+            val now = System.currentTimeMillis()
+            if (now >= retry1) { writeRaw(marker); retry1 = Long.MAX_VALUE }
+            if (now >= retry2) { writeRaw(marker); retry2 = Long.MAX_VALUE }
+            Thread.sleep(80)
+        }
         if (ready) {
             cwd = startDir
             addSys("session ready — env: ${backend.title} (Debian 12 userspace via PRoot — host identity: Android shell UID 2000, NOT real root)")
@@ -709,6 +776,8 @@ class LaunchDiagnostic(val sessionId: String) {
     var summary: String = ""
     var stdoutTail: String = ""
     var stderrTail: String = ""
+    var stdinReceipt: Boolean? = null    // r1396 — the IN receipt marker arrived on stdout (stdin reached the guest)
+    var stderrReceipt: Boolean? = null   // r1396 — the INE receipt marker arrived on stderr (the guest executes)
 
     fun fail(stage: String, why: String) { failedStage = stage; summary = why }
 
@@ -728,6 +797,8 @@ class LaunchDiagnostic(val sessionId: String) {
         if (summary.isNotBlank()) append(" — ").append(summary.take(300))
         if (stderrTail.isNotBlank()) append(" · stderr: ").append(stderrTail.take(200))
         if (stdoutTail.isNotBlank()) append(" · stdout: ").append(stdoutTail.take(200))
+        stdinReceipt?.let { append(" · stdinReceipt=").append(it) }
+        stderrReceipt?.let { append(" · stderrReceipt=").append(it) }
     }
 }
 

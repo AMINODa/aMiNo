@@ -282,7 +282,7 @@ object TerminalEngine {
             throw IllegalStateException(
                 "could not start a ${backend.title} session" +
                     (diag?.let { " — failed stage: ${it.failedStage ?: "?"} — ${it.summary.take(400)}" } ?: "") +
-                    (if (tail.isNotBlank()) " · session log: ${tail.take(400)}" else "")
+                    (if (tail.isNotBlank()) " · session log: ${tail.take(700)}" else "")
             )
         }
         sessions[id] = s

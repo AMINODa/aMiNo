@@ -1887,15 +1887,26 @@ object LinuxEnvManager {
     private fun prootTmpFor(mode: String): String =
         if (mode == "FRESH_TMP") "$BASE/tmp2" else "$BASE/tmp"
 
-    /** The PRoot argv that becomes a persistent bash session inside Debian. */
-    fun sessionCommand(ctx: Context): Pair<List<String>, Array<String>> {
+    /**
+     * r1396 — `guest` selects the guest shell (/bin/bash by default; /bin/sh for the
+     * launch fallback) and `wrapShell` wraps the direct argv in `sh -c 'exec …'`.
+     * WHY the wrap: EVERY service execution that works on real devices (probe,
+     * preflight, install steps — all oneShot) spawns `sh -c …`; the only direct-argv
+     * spawn was the persistent session, and it is exactly the launch that hung
+     * (r1395 dialog: INIT_TIMEOUT — spawned but never answered) while the same shape
+     * answers in <1s in the local reproduction (scripts/repro_session_shape_1396.py:
+     * A_exact_bash / B_guest_sh / A2_in_marker / D_sh_wrap all PASS in 0.08s).
+     * Aligning the session spawn with the proven-on-device shape removes the last
+     * structural difference between the launches that work and the one that hung.
+     */
+    fun sessionCommand(ctx: Context, guest: String = "/bin/bash", wrapShell: Boolean = true): Pair<List<String>, Array<String>> {
         val fix = prootFix(ctx)
         val binds = ArrayList<String>()
         for (b in listOf("/dev", "/proc", "/sys", "/system", "/vendor"))
             if (java.io.File(b).exists()) { binds.add("-b"); binds.add(b) }
         val shared = File(ctx.filesDir, "linux/shared").apply { mkdirs() }
         binds.add("-b"); binds.add("${shared.absolutePath}:/shared")
-        val cmd = buildList {
+        val baseCmd = buildList {
             add("$BASE/bin/proot"); add("--kill-on-exit"); add("--link2symlink")
             if (fix != "NO_FAKEROOT") add("-0")
             add("-r"); add(ROOTFS)
@@ -1904,11 +1915,11 @@ object LinuxEnvManager {
             add(if (fix == "HOST_PATH") "$ROOTFS/usr/bin/env" else "/usr/bin/env")
             addAll(listOf(
                 "-i",
-                "HOME=/root", "USER=root", "SHELL=/bin/bash",
+                "HOME=/root", "USER=root", "SHELL=$guest",
                 "TERM=xterm-256color", "LANG=C.UTF-8",
                 "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                 "TMPDIR=/tmp",
-                "/bin/bash"
+                guest
             ))
         }
         var env = arrayOf(
@@ -1919,6 +1930,10 @@ object LinuxEnvManager {
             "HOME=/root"
         )
         if (fix == "NO_SECCOMP") env = env + "PROOT_NO_SECCOMP=1"
+        val cmd = if (wrapShell) {
+            val q = { s: String -> "'" + s.replace("'", "'\\''") + "'" }
+            listOf("sh", "-c", "exec " + baseCmd.joinToString(" ") { q(it) })
+        } else baseCmd
         return cmd to env
     }
 
