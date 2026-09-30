@@ -153,6 +153,7 @@ object AgentOrchestrator {
         val provider: LlmProvider = when (ApiKeysStore.provider(context)) {
             ApiKeysStore.PROVIDER_CLOUDFLARE -> CloudflareProvider
             ApiKeysStore.PROVIDER_OPENROUTER -> OpenRouterProvider
+            ApiKeysStore.PROVIDER_AGENTROUTER -> AgentRouterProvider
             ApiKeysStore.PROVIDER_OPENAI_COMPAT -> OpenAiCompatProvider
             else -> GeminiProvider
         }

@@ -12,12 +12,14 @@ object ApiKeysStore {
     const val PROVIDER_CLOUDFLARE = "cloudflare"
     const val PROVIDER_OPENROUTER = "openrouter"
     const val PROVIDER_GEMINI = "gemini"
+    const val PROVIDER_AGENTROUTER = "agentrouter"   // r1387 — agentrouter.org (verified current)
     const val PROVIDER_OPENAI_COMPAT = "openai_compat"
 
     val PROVIDERS = listOf(
         ProviderInfo(PROVIDER_CLOUDFLARE, "Cloudflare Workers AI", "@cf/meta/llama-3.1-8b-instruct", "https://api.cloudflare.com/client/v4/accounts/ACCOUNT_ID/ai/v1"),
         ProviderInfo(PROVIDER_OPENROUTER, "OpenRouter", "meta-llama/llama-3.3-70b-instruct", "https://openrouter.ai/api/v1"),
         ProviderInfo(PROVIDER_GEMINI, "Google Gemini", "gemini-flash-latest", "https://generativelanguage.googleapis.com/v1beta"),
+        ProviderInfo(PROVIDER_AGENTROUTER, "AgentRouter", "claude-opus-4-8", "https://agentrouter.org/v1"),
         ProviderInfo(PROVIDER_OPENAI_COMPAT, "OpenAI-compatible", "gpt-4o-mini", "https://api.openai.com/v1")
     )
 

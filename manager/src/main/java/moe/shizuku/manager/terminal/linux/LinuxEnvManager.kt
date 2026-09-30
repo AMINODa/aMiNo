@@ -22,10 +22,21 @@ import java.util.concurrent.atomic.AtomicBoolean
  * running through PRoot inside /data/local/tmp (executed by the aMiNo service as
  * the ADB shell identity — NO root, no fake claims).
  *
+ * r1387 — PRoot RUNTIME fix: the r1385/r1386 installs never proved that the
+ * bundled PRoot binary can execute under the Android linker. Termux builds carry
+ * DT_RUNPATH=/data/data/com.termux/files/usr/lib (absent on aMiNo devices), so
+ * every exec MUST set LD_LIBRARY_PATH=$BASE/lib or the linker fails with
+ * CANNOT LINK EXECUTABLE … library "libtalloc.so.2" not found — exactly the
+ * user's screenshot. Now: ELF dependency diagnostic before install, a strict
+ * `proot --version` gate (no pipeline masking, no error-text false positive),
+ * a minimal-root smoke test BEFORE the Debian download, and runtime failures
+ * set NOT_INSTALLED (never BROKEN — the user's storage is not at fault).
+ *
  * HONESTY RULES (user spec #9):
  *  - nothing is reported READY before the rootfs is downloaded, digest-verified,
  *    extracted AND a real probe (id + /etc/os-release through PRoot) succeeds;
- *  - every failure keeps the real error message and sets state BROKEN;
+ *  - every failure keeps the real error message; Debian-phase failures set BROKEN,
+ *    PRoot-runtime failures set NOT_INSTALLED (Debian was never touched);
  *  - the environment is NEVER claimed to be installed/successful without proof.
  *
  * STORAGE LAYOUT (user spec #2 + Android 10+ W^X reality, documented honestly):
@@ -99,6 +110,7 @@ object LinuxEnvManager {
         val networkOk: Boolean,
         val serviceOk: Boolean, val serviceUid: Int,
         val prootBundled: Boolean,
+        val prootElfDiag: String?,   // r1387: dependency diagnostic of the bundled PRoot
         val fs: FsProbe?,
         val problems: List<String>
     ) {
@@ -184,6 +196,23 @@ object LinuxEnvManager {
         val problems = ArrayList<String>()
         if (arch == null) problems.add("no supported CPU ABI for the Debian rootfs (needs arm64 or x86_64)")
         if (!prootBundled(ctx)) problems.add("proot is not bundled in this APK build")
+        // r1387: dependency diagnostic BEFORE anything is pushed or downloaded —
+        // ELF machine/ABI, dynamic interpreter and DT_NEEDED of the bundled PRoot.
+        var prootElfDiag: String? = null
+        if (prootBundled(ctx)) {
+            val pf = File(ctx.applicationInfo.nativeLibraryDir, "libamino_proot.so")
+            val info = ElfInspector.inspect(pf)
+            prootElfDiag = ElfInspector.describe(pf)
+            if (!info.ok) {
+                problems.add("cannot read the bundled proot ELF header (${info.reason}) — the binary may be corrupted")
+            } else {
+                val want = when (arch) { "arm64" -> "aarch64"; "amd64" -> "x86-64"; else -> null }
+                if (want != null && info.machine != want)
+                    problems.add("bundled proot is built for ${info.machine} but this device needs $want — a build error, not a device problem")
+                if (!info.isAndroidInterpreter)
+                    problems.add("bundled proot has a non-Android dynamic interpreter (${info.interpreter}) — it can never execute under the Android linker")
+            }
+        }
         if (free in 0..(700L * 1024 * 1024)) problems.add("app storage low: ${free / (1024 * 1024)} MB free (need ≥ 700 MB)")
         if (freeData != null && freeData in 0..(800L * 1024 * 1024))
             problems.add("/data storage low: ${freeData / (1024 * 1024)} MB free (need ≥ 800 MB)")
@@ -205,7 +234,7 @@ object LinuxEnvManager {
             }
         }
         return PreFlight(arch != null, arch, free, freeData, networkOk(ctx),
-            serviceOk, ShizukuExec.serviceUid(), prootBundled(ctx), fs, problems)
+            serviceOk, ShizukuExec.serviceUid(), prootBundled(ctx), prootElfDiag, fs, problems)
     }
 
     /**
@@ -319,8 +348,10 @@ object LinuxEnvManager {
     // ---------- install flow ----------
 
     /**
-     * Full honest install: preflight → push bundled binaries → download
-     * (digest-verified) → transfer → extract → configure → VERIFY probe.
+     * Full honest install: preflight → push bundled binaries → PROOT RUNTIME
+     * TEST (LD_LIBRARY_PATH-correct, version-gated) → MINIMAL-ROOT SMOKE TEST →
+     * download (digest-verified) → transfer → extract → audit → configure →
+     * VERIFY probe. Debian is only touched AFTER PRoot itself proved it runs.
      * Returns the final human-readable summary; every step's real result is kept.
      */
     suspend fun install(ctx: Context, onProgress: (String) -> Unit = {}): String =
@@ -355,6 +386,7 @@ object LinuxEnvManager {
             step("preflight OK: arch=${pf.arch}, app-storage ${pf.freePrivateBytes / (1024 * 1024)} MB free, " +
                 "data ${((pf.freeDataBytes ?: -1) / (1024 * 1024))} MB free, service uid=${pf.serviceUid}, " +
                 "fstype=${pf.fs?.fstype ?: "?"}, symlinks=OK")
+            pf.prootElfDiag?.let { step("proot ELF diagnostic: $it") }
 
             // ---- 2) runtime dirs + bundled binaries ----
             setState(ctx, State.CHECKING, "preparing runtime directory")
@@ -378,11 +410,41 @@ object LinuxEnvManager {
                 if (!p.ok) return fail(ctx, "pushing $what failed: ${p.output.take(200)}")
                 step("pushed $what → $dst (${f.length()} bytes, size verified)")
             }
-            s = ShizukuExec.oneShot("chmod 755 $BASE/bin/proot $BASE/bin/xz $TOYBOX && $BASE/bin/proot --version 2>&1 | head -n 1")
-            if (!s.ok || !s.output.lowercase().contains("proot"))
-                return fail(ctx, "proot does not run on this device: rc=${s.rc} ${s.output.take(200)}")
-            val prootVersion = s.output.trim().take(80)
+            // ---- 2b) PROOT RUNTIME TEST (r1387 — the r1385/r1386 blocker) ----
+            // The bionic linker resolves libtalloc.so.2 ONLY through LD_LIBRARY_PATH:
+            // the Termux build's DT_RUNPATH points at /data/data/com.termux/files/usr/lib
+            // which does not exist on aMiNo devices. The r1386 gate was ALSO unsound:
+            // it piped through `head` (masking proot's exit code) and matched the
+            // linker's own error text with contains("proot"). Both fixed here:
+            //   - LD_LIBRARY_PATH is set for every proot exec, like Termux does;
+            //   - no pipeline → the exit code is PROOT's own;
+            //   - success requires a real version token, and linker error text is
+            //     rejected explicitly and reported VERBATIM (library name included).
+            s = ShizukuExec.oneShot(
+                "chmod 755 $BASE/bin/proot $BASE/bin/xz $TOYBOX && " +
+                    "LD_LIBRARY_PATH=$BASE/lib $BASE/bin/proot --version 2>&1"
+            )
+            val versionTok = Regex("(?i)proot\\s+v?[0-9]+\\.[0-9]+").find(s.output)?.value
+                ?: Regex("\\b[0-9]+\\.[0-9]+\\.[0-9]+\\b").find(s.output)?.value
+            val linkerErr = Regex("CANNOT LINK|not found|not accessible", RegexOption.IGNORE_CASE).containsMatchIn(s.output)
+            if (!s.ok || versionTok == null || linkerErr) {
+                val elfDiag = pf.prootElfDiag ?: ElfInspector.describe(File(nd, "libamino_proot.so"))
+                val lib = ElfInspector.failingLibraryIn(s.output)
+                val why = buildString {
+                    append("the PRoot binary itself failed to execute on this device\n")
+                    append("• failing library: ${lib ?: "(not stated by the linker)"}\n")
+                    append("• complete linker error: ${s.output.take(400)}\n")
+                    append("• proot ELF: $elfDiag\n")
+                    append("• the linker resolves the libraries through LD_LIBRARY_PATH=$BASE/lib — if this test fails the shipped binary/dependency pair is incompatible with this device\n")
+                    append("→ this is a bundled-binary problem, NOT your storage (the preflight already proved symlinks/fstype OK); Debian was NOT downloaded and nothing was extracted\n")
+                    append("→ update aMiNo and retry; use Remove on this page to clear $BASE")
+                }
+                Log.e(TAG, "PROOT RUNTIME TEST FAILED: rc=${s.rc} ${s.output.take(300)}")
+                return runtimeFail(ctx, why)
+            }
+            val prootVersion = "${versionTok.take(40)} (rc=0, all DT_NEEDED libraries resolved incl. libtalloc.so.2)"
             step("proot verified on device: $prootVersion")
+            val smokeEvidence = "PRoot ran a minimal root with fake-root (id → uid=0) and read /etc/os-release"
             // r1386: verify the BUNDLED extractor really exec()s on this device —
             // never fall back silently to a possibly broken system tar.
             val tbv = ShizukuExec.oneShot("'$TOYBOX' 2>&1 | head -n 1")
@@ -390,6 +452,44 @@ object LinuxEnvManager {
                 return fail(ctx, "the bundled extractor does not run on this device: ${tbv.output.take(200)}")
             val extractorVersion = tbv.output.trim().take(80)
             step("extractor verified on device: $extractorVersion")
+
+            // ---- 2c) MINIMAL-ROOTFS SMOKE TEST (r1387, before ANY Debian download) ----
+            // A tiny root built from the bundled toybox: proves PRoot can actually
+            // chroot + fake-root + exec INSIDE a rootfs (id → uid=0, /etc/os-release
+            // readable) before the 48 MB Debian archive is even fetched.
+            setState(ctx, State.CHECKING, "PRoot smoke test on a minimal root (no Debian involved yet)")
+            val mk = ShizukuExec.oneShot(
+                "rm -rf $BASE/miniroot && mkdir -p $BASE/miniroot/bin $BASE/miniroot/etc $BASE/miniroot/root " +
+                    "$BASE/miniroot/tmp $BASE/miniroot/dev $BASE/miniroot/proc && " +
+                    "cp $TOYBOX $BASE/miniroot/bin/toybox && chmod 755 $BASE/miniroot/bin/toybox && " +
+                    "for a in sh cat id uname echo ls; do ln -sf toybox \$BASE/miniroot/bin/\$a; done && " +
+                    "printf 'PRETTY_NAME=\"AMINO PRoot smoke test\"\\nID=amino-smoke\\n' > $BASE/miniroot/etc/os-release && " +
+                    "echo MINI_OK", 30_000
+            )
+            if (!mk.ok || !mk.output.contains("MINI_OK"))
+                return runtimeFail(ctx, "could not build the minimal smoke root at $BASE/miniroot\n" +
+                    "• original error: ${mk.output.take(300)}\n" +
+                    "→ the runtime tree is not usable by the service; use Remove on this page and retry")
+            val smoke = ShizukuExec.oneShot(
+                "PROOT_TMP_DIR=$BASE/tmp LD_LIBRARY_PATH=$BASE/lib $BASE/bin/proot --kill-on-exit " +
+                    "-0 -r $BASE/miniroot -w /root /bin/sh -c 'id; cat /etc/os-release' 2>&1; " +
+                    "echo SMOKE_RC=\$?", 60_000
+            )
+            val smokeRc = Regex("SMOKE_RC=(\\d+)").find(smoke.output)?.groupValues?.get(1)?.toIntOrNull() ?: -1
+            val smokeOut = smoke.output.replace(Regex("SMOKE_RC=\\d+"), "").trim()
+            if (smokeRc != 0 || !smokeOut.contains("uid=0") || !smokeOut.contains("AMINO PRoot smoke test")) {
+                val why = buildString {
+                    append("PRoot could not run even the minimal smoke root — installing Debian would fail the same way\n")
+                    append("• exit code: $smokeRc\n")
+                    append("• full output: ${smokeOut.take(400)}\n")
+                    append("→ this is a PRoot runtime problem, NOT your storage; nothing was downloaded\n")
+                    append("→ update aMiNo and retry; use Remove on this page to clear $BASE")
+                }
+                Log.e(TAG, "PROOT SMOKE TEST FAILED: rc=$smokeRc ${smokeOut.take(300)}")
+                return runtimeFail(ctx, why)
+            }
+            step("smoke test PASSED: ${smokeOut.lines().take(3).joinToString(" · ")} — PRoot chroot + fake-root + exec all work; proceeding to Debian")
+            ShizukuExec.oneShot("rm -rf $BASE/miniroot", 30_000)
 
             // ---- 3) download — or REUSE the verified archive from a failed attempt ----
             setState(ctx, State.DOWNLOADING, "obtaining the Debian 12 rootfs")
@@ -486,6 +586,7 @@ object LinuxEnvManager {
                 .put("arch", pf.arch)
                 .put("prootVersion", prootVersion)
                 .put("extractor", extractorVersion)
+                .put("smoke", smokeEvidence)
                 .put("installedAt", System.currentTimeMillis())
                 .remove("lastError")
             save(ctx, meta)
@@ -493,6 +594,7 @@ object LinuxEnvManager {
             return "INSTALLED AND VERIFIED\n" +
                 "• source: ${dl.source}${if (dl.digest != null) "\n• layer digest: ${dl.digest.take(19)}…" else ""}\n" +
                 "• $prootVersion\n" +
+                "• smoke test: $smokeEvidence\n" +
                 "• extractor: $extractorVersion\n" +
                 "• audit: ${audit.second}\n" +
                 "• probe: ${probe.second.trim().replace("\n", " · ")}\n" +
@@ -517,6 +619,20 @@ object LinuxEnvManager {
             )
         }
         return "INSTALL FAILED — nothing is claimed to work:\n$why"
+    }
+
+    /**
+     * r1387 — failure of the PROOT RUNTIME phase (binary exec, dependency
+     * resolution, smoke root). The environment is NOT "broken": Debian was never
+     * downloaded or extracted, and the user's storage already passed the
+     * preflight. State returns to NOT_INSTALLED with the full diagnostic —
+     * a broken state would be a false claim about the user's device.
+     */
+    private fun runtimeFail(ctx: Context, why: String): String {
+        Log.e(TAG, "PROOT RUNTIME FAILED: ${why.take(300)}")
+        setState(ctx, State.NOT_INSTALLED, "install stopped before Debian: PRoot runtime test failed", why)
+        return "PROOT RUNTIME TEST FAILED — Debian was NOT downloaded, nothing was extracted, " +
+            "nothing on the storage is broken:\n$why"
     }
 
     // ---------- r1386 helpers: resume, bundled extraction, audit ----------

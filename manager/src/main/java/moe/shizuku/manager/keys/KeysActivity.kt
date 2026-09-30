@@ -175,6 +175,7 @@ class KeysActivity : AppActivity() {
             val impl = when (provider) {
                 ApiKeysStore.PROVIDER_CLOUDFLARE -> CloudflareProvider
                 ApiKeysStore.PROVIDER_OPENROUTER -> OpenRouterProvider
+                ApiKeysStore.PROVIDER_AGENTROUTER -> moe.shizuku.manager.agent.AgentRouterProvider
                 ApiKeysStore.PROVIDER_OPENAI_COMPAT -> OpenAiCompatProvider
                 else -> GeminiProvider
             }
