@@ -199,15 +199,14 @@ class TerminalActivity : AppActivity() {
 
     private fun showNewSessionDialog() {
         val envs = TerminalEngine.discover(this).filter { it.available }
-        val items = envs.map { "${it.backend.title} — ${it.identity}" }.toTypedArray()
-        if (items.isEmpty()) { toast(getString(R.string.terminal_empty)); return }
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.term_pick_env))
-            .setItems(items) { _, which ->
-                val backend = envs[which].backend
+        val items = ArrayList<String>()
+        val actions = ArrayList<() -> Unit>()
+        for (e in envs) {
+            items.add("${e.backend.title} — ${e.identity}")
+            actions.add {
                 lifecycleScope.launch {
                     val s = withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        runCatching { TerminalEngine.create(this@TerminalActivity, backend, "", false) }
+                        runCatching { TerminalEngine.create(this@TerminalActivity, e.backend, "", false) }
                             .onFailure { toast(it.message ?: "failed") }
                             .getOrNull()
                     }
@@ -218,6 +217,14 @@ class TerminalActivity : AppActivity() {
                     }
                 }
             }
+        }
+        // r1385: always offer the Linux environment manager (install / manage)
+        val linuxRow = getString(R.string.term_linux_manage)
+        items.add(linuxRow)
+        actions.add { startActivity(android.content.Intent(this, LinuxEnvActivity::class.java)) }
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.term_pick_env))
+            .setItems(items.toTypedArray()) { _, which -> actions[which].invoke() }
             .setNegativeButton(android.R.string.cancel, null)
             .show()
     }

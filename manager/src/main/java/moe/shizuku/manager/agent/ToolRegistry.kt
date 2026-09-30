@@ -268,6 +268,86 @@ object ToolRegistry {
             requiresShell = false
         ) { ctx, args ->
             TerminalTools.checkCommand(ctx, args.optString("session_id", ""), args.optString("command", ""))
+        },
+
+        // ================= r1385: LINUX USER-SPACE ENVIRONMENT (6 tools) =================
+        RegisteredTool(
+            ToolSpec(
+                "linux_env_status",
+                "REAL status of the bundled Linux user-space environment (Debian 12 via PRoot, " +
+                    "executed by the aMiNo service as shell uid — no root): install state, architecture, " +
+                    "storage used/free, install source + digest, last error. Call BEFORE any linux plan.",
+                JSONObject().put("type", "object").put("properties", JSONObject())
+            ),
+            requiresShell = false
+        ) { ctx, _ ->
+            TerminalTools.linuxEnvStatus(ctx)
+        },
+        RegisteredTool(
+            ToolSpec(
+                "linux_env_install",
+                "Install the Debian 12 user-space (PRoot, no root, stored in /data/local/tmp — " +
+                    "separate from ADB/Termux/local). WITHOUT confirm=true it returns the REAL pre-flight " +
+                    "plan (arch, storage, network, service checks). WITH confirm=true it downloads the " +
+                    "digest-verified rootfs, installs and VERIFIES with a real probe (id + os-release). " +
+                    "READY is never reported without that probe passing.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("confirm", JSONObject().put("type", "boolean")
+                        .put("description", "false = show the pre-flight plan only; true = really install")))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            TerminalTools.linuxEnvInstall(ctx, args.optBoolean("confirm", false))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "linux_env_remove",
+                "Completely remove the Linux user-space (runtime tree in /data/local/tmp/amino-linux " +
+                    "AND the rootfs archive in app storage). Requires confirm=true. Honest about what is deleted.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("confirm", JSONObject().put("type", "boolean")))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            TerminalTools.linuxEnvRemove(ctx, args.optBoolean("confirm", false))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "linux_env_reset",
+                "Reset the Linux user-space to a fresh Debian 12: wipe the runtime tree and re-extract " +
+                    "the verified archive (apt-installed packages are lost). Requires confirm=true. " +
+                    "Re-verifies with a real probe afterwards.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("confirm", JSONObject().put("type", "boolean")))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            TerminalTools.linuxEnvReset(ctx, args.optBoolean("confirm", false))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "linux_env_update",
+                "Run apt-get update && apt-get upgrade INSIDE the Linux environment through a real " +
+                    "session, return real exit codes + output tail. Requires confirm=true. " +
+                    "Only touches the container — never Android itself.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("confirm", JSONObject().put("type", "boolean")))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            TerminalTools.linuxEnvUpdate(ctx, args.optBoolean("confirm", false))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "linux_env_acceptance_tests",
+                "Run the 7 post-install acceptance tests for the Linux environment, each with REAL " +
+                    "evidence: os-release, bash, id/pwd/uname, apt update, install+verify a tool, " +
+                    "session persistence after cd, stopping a long-running process.",
+                JSONObject().put("type", "object").put("properties", JSONObject())
+            ),
+            requiresShell = false
+        ) { ctx, _ ->
+            TerminalTools.linuxEnvAcceptanceTests(ctx)
         }
     )
 

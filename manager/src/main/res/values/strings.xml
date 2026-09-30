@@ -544,4 +544,47 @@
     <string name="term_btn_stop">Stop running process</string>
     <string name="term_btn_new">New session</string>
 
+
+    <!-- aMiNo r1385: Linux user-space environment (Debian 12 + PRoot) -->
+    <string name="linux_title">Linux environment</string>
+    <string name="term_linux_manage">Linux (Debian 12) — install / manage…</string>
+    <string name="linux_state_ready">Debian 12 is READY (verified by a real probe)</string>
+    <string name="linux_state_broken">Environment broken — see the error below</string>
+    <string name="linux_state_not_installed">Not installed — Debian 12 can be set up without root</string>
+    <string name="linux_state_unknown">Checking real state…</string>
+    <string name="linux_state_working">Working</string>
+    <string name="linux_detail_arch">Device architecture: %1$s (Debian rootfs: arm64/amd64)</string>
+    <string name="linux_detail_source">Install source: %1$s</string>
+    <string name="linux_detail_digest">Verified layer digest: %1$s</string>
+    <string name="linux_detail_used">Rootfs disk usage: %1$d MB</string>
+    <string name="linux_detail_runtime">Runtime tree: %1$s (executed by the aMiNo service as shell — no root)</string>
+    <string name="linux_detail_archive">Rootfs archive kept for Reset: %1$d MB (app private storage)</string>
+    <string name="linux_detail_free">Free app storage: %1$d MB</string>
+    <string name="linux_detail_error">Last error: %1$s</string>
+    <string name="linux_btn_install">Install Debian 12</string>
+    <string name="linux_btn_terminal">Open terminal</string>
+    <string name="linux_btn_update">Update</string>
+    <string name="linux_btn_reset">Reset</string>
+    <string name="linux_btn_remove">Remove</string>
+    <string name="linux_btn_tests">Run the 7 acceptance tests</string>
+    <string name="linux_busy">Another operation is running…</string>
+    <string name="linux_need_ready">Install the environment first</string>
+    <string name="linux_session_failed">Could not open a Linux session</string>
+    <string name="linux_toast_ready">Installed and verified — Debian 12 is ready</string>
+    <string name="linux_toast_failed">Installation FAILED — nothing is claimed to work (see the log)</string>
+    <string name="linux_preflight_summary">Real pre-flight checks before install:</string>
+    <string name="linux_pf_arch">Architecture: %1$s</string>
+    <string name="linux_pf_unsupported">unsupported for the Debian rootfs</string>
+    <string name="linux_pf_private">App storage free: %1$d MB (need ≥ 700)</string>
+    <string name="linux_pf_data">/data free: %1$d MB (need ≥ 800)</string>
+    <string name="linux_pf_net">Network: %1$s</string>
+    <string name="linux_pf_service">aMiNo service (PRoot runs through it, no root): %1$s</string>
+    <string name="linux_pf_problems">Problems that block the install right now:</string>
+    <string name="linux_update_confirm">Run apt-get update + upgrade INSIDE the Debian environment?\n\nOnly the container is touched — Android itself is never modified. Real output will be shown.</string>
+    <string name="linux_reset_confirm">Reset the Linux environment to a fresh Debian 12?\n\nThe runtime tree is wiped and re-extracted from the verified archive. Packages you installed with apt are LOST. A real verification runs afterwards.</string>
+    <string name="linux_remove_confirm">Completely remove the Linux environment?\n\nDeleted: the runtime tree /data/local/tmp/amino-linux AND the rootfs archive in aMiNo\'s private storage. ADB, Termux and the local shell are NOT touched.</string>
+    <string name="linux_tests_pass">Acceptance tests: ALL PASSED</string>
+    <string name="linux_tests_fail">Acceptance tests: FAILED (evidence below)</string>
+    <string name="linux_note_honest">Honesty notes: PRoot gives a FAKEROOT inside Debian (id shows uid=0) — it grants NO real system privileges and never bypasses Android. The environment is separate from ADB, Termux and the local shell. The runtime lives in /data/local/tmp because Android 10+ forbids executing binaries from app-private storage; the archive stays in aMiNo\'s private space and the whole install runs through the aMiNo service (shell uid, no root). Nothing is reported as success before a real probe (id + /etc/os-release) passes.</string>
+
 </resources>

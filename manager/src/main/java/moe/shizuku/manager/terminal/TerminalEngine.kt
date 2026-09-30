@@ -110,13 +110,24 @@ object TerminalEngine {
         }
         list.add(termux)
 
-        // 5) linux userspace — honest: not bundled
-        list.add(EnvironmentInfo(
-            backend = TermBackend.LINUX_USERSPACE, available = false,
-            status = "not included in this build",
-            path = "-", identity = "-",
-            notes = "a proot distro would have to be bundled and configured; nothing is faked"
-        ))
+        // 5) linux userspace — REAL state from LinuxEnvManager (r1385):
+        //    Debian 12 via PRoot, installed on demand, verified by a real probe.
+        //    We never report it ready before the probe (id + os-release) passed.
+        run {
+            val (ok, why) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.discoveryInfo(ctx)
+            val notes = when {
+                ok -> "persistent sessions, bash/apt/dpkg inside; PRoot fakeroot only — the host identity stays shell uid 2000; " +
+                    "files exchanged via /shared (app private)"
+                else -> "separate from ADB/Termux/local — installing it requires the aMiNo service (no root needed)"
+            }
+            list.add(EnvironmentInfo(
+                backend = TermBackend.LINUX_USERSPACE, available = ok,
+                status = why,
+                path = if (ok) "/root (in ${moe.shizuku.manager.terminal.linux.LinuxEnvManager.ROOTFS})" else "-",
+                identity = if (ok) "fakeroot uid=0 INSIDE the container · shell uid 2000 on the host" else "-",
+                notes = notes
+            ))
+        }
 
         return list
     }
@@ -177,6 +188,25 @@ object TerminalEngine {
                 )
             }
             "termux" -> discover(ctx).first { it.backend == TermBackend.TERMUX }
+            "linux", "linux_userspace", "proot", "debian" -> {
+                // REAL probe: spawn PRoot once through the service and require
+                // uid=0 (fakeroot) + Debian os-release. No shortcut, no assumption.
+                val st = moe.shizuku.manager.terminal.linux.LinuxEnvManager.currentState(ctx)
+                if (st != moe.shizuku.manager.terminal.linux.LinuxEnvManager.State.READY) {
+                    val (ok2, why2) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.discoveryInfo(ctx)
+                    return EnvironmentInfo(TermBackend.LINUX_USERSPACE, false, why2, "-",
+                        "-", "install it first: terminal linux_env_install or the Linux environment page")
+                }
+                val (ok, evidence) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.probe(ctx)
+                if (ok) EnvironmentInfo(TermBackend.LINUX_USERSPACE, true,
+                    "VERIFIED: ${evidence.replace("\n", " · ").take(140)}",
+                    "/root (in ${moe.shizuku.manager.terminal.linux.LinuxEnvManager.ROOTFS})",
+                    "fakeroot uid=0 inside · shell uid 2000 on host",
+                    "ready for persistent sessions (bash/apt/dpkg)")
+                else EnvironmentInfo(TermBackend.LINUX_USERSPACE, false,
+                    "probe failed: ${evidence.take(180)}", "-", "-",
+                    "the environment is marked installed but did NOT verify — use linux_env_reset or linux_env_remove")
+            }
             else -> EnvironmentInfo(
                 TermBackend.LINUX_USERSPACE, false, "unknown environment id '$backendId'",
                 "-", "-", "use: local | adb | root | termux | linux"
@@ -224,9 +254,13 @@ object TerminalEngine {
         if (backend == TermBackend.TERMUX) throw IllegalStateException(
             "termux is handoff-only (RUN_COMMAND) — aMiNo cannot hold a termux session; use local or adb"
         )
-        if (backend == TermBackend.LINUX_USERSPACE) throw IllegalStateException(
-            "linux userspace is not bundled in this build"
-        )
+        if (backend == TermBackend.LINUX_USERSPACE) {
+            val st = moe.shizuku.manager.terminal.linux.LinuxEnvManager.currentState(ctx)
+            if (st != moe.shizuku.manager.terminal.linux.LinuxEnvManager.State.READY) {
+                val (ok, why) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.discoveryInfo(ctx)
+                throw IllegalStateException("linux userspace is not ready: $why")
+            }
+        }
 
         val id = "t${idGen.getAndIncrement()}"
         val s = TerminalSession(

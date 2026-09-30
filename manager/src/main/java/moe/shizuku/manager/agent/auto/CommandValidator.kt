@@ -73,7 +73,11 @@ object CommandValidator {
         Regex("""\blocksettings\b""") to "changes lock-screen credentials/settings",
         Regex("""\bdumpsys\s+battery\s+(set|unplug|reset|disable|enable)\b""") to "alters battery simulation",
         Regex("""\bdevice_config\s+(put|delete|change)\b""") to "modifies device configuration",
-        Regex("""\bcmd\s+(notification|wifi|bluetooth_manager|connectivity|telecom|camera|audio|display|battery|vibrator_manager|location|uimode|overlay|nfc)\b""") to "changes a device service via cmd"
+        Regex("""\bcmd\s+(notification|wifi|bluetooth_manager|connectivity|telecom|camera|audio|display|battery|vibrator_manager|location|uimode|overlay|nfc)\b""") to "changes a device service via cmd",
+        // ---- r1385: Linux user-space (apt/dpkg inside the container — still ASK-FIRST) ----
+        Regex("""\bapt(-get)?\s+(update|install|upgrade|full-upgrade|dist-upgrade|remove|purge|autoremove|download|add-apt-repository)\b""") to "installs/modifies packages in the terminal environment",
+        Regex("""\bdpkg\s+(-i|--install|--configure|--unpack|-r|--remove|--purge)\b""") to "installs/removes .deb packages",
+        Regex("""\b(snap|flatpak)\b""") to "modifies packages via another package manager"
     )
 
     // ---------- ALLOW: provably read-only (first-word or first-two-words heads) ----------
@@ -83,7 +87,10 @@ object CommandValidator {
         "find", "getprop", "ps", "id", "whoami", "groups", "getenforce", "sestatus",
         "uptime", "uname", "date", "printenv", "env", "netstat", "ss", "nproc", "free",
         "lsof", "md5sum", "sha1sum", "sha256sum", "vmstat", "iostat", "screencap",
-        "ifconfig" // r1381: read forms only — up/down mutations are caught by confirmRules first
+        "ifconfig", // r1381: read forms only — up/down mutations are caught by confirmRules first
+        "pwd", "which", "hostname", "basename", "dirname", "printf", "echo", "dpkg-query",
+        "tree", "file", "less", "more", "sort", "uniq", "cut", "tr", "sed", "awk"
+        // r1385: generic read/stream heads — sed -i and tee-style writes are caught by the guard below
     )
 
     private val allowTwoWord = setOf(
@@ -95,7 +102,10 @@ object CommandValidator {
         "content query", "content read",   // read content providers (sms/call_log/contacts/media)
         "appops get",                        // per-app ops inspection
         "service list",                      // binder services enumeration
-        "dumpsys" // covered by head too, kept for clarity
+        "dumpsys",                           // covered by head too, kept for clarity
+        // r1385: Linux user-space read-only package queries
+        "apt list", "apt show", "apt search", "apt policy", "apt-cache policy", "apt-cache search",
+        "dpkg -l", "dpkg -s", "dpkg -L", "dpkg -p", "dpkg -C", "dpkg --list", "dpkg --audit"
     )
 
     private val chaining = Regex("""&&|\|\||;|`|\$\(""")
@@ -159,6 +169,10 @@ object CommandValidator {
         if (first == "top") return cmd.contains("-n")
         if (first == "ping") return cmd.contains("-c")
         if (first == "wm") return two == "wm size" && head.size == 2 || two == "wm density" && head.size == 2
+        // r1385: sed/awk writes files in-place => never auto-ALLOW
+        if (first == "sed" && cmd.contains(" -i")) return false
+        // r1385: sleep is harmless but must not auto-run chained (chain check already handled)
+        if (first == "sleep") return Regex("""^sleep\s+\d+$""").matches(cmd)
         return false
     }
 }

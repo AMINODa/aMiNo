@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- aMiNo r1385 — Linux environment manager (black/red identity) -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0B0B0E"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="#0B0B0E"
+        app:title="@string/linux_title"
+        app:titleTextColor="#FF5252"
+        xmlns:app="http://schemas.android.com/apk/res-auto" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- status card -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#15151B"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <TextView
+                    android:id="@+id/statusTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#FF5252"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:text="@string/linux_state_unknown" />
+
+                <TextView
+                    android:id="@+id/statusDetails"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textColor="#C9C9D2"
+                    android:textSize="13sp" />
+
+                <ProgressBar
+                    android:id="@+id/progress"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:indeterminateOnly="true"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- preflight rows -->
+            <TextView
+                android:id="@+id/preflightBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="#15151B"
+                android:fontFamily="monospace"
+                android:padding="12dp"
+                android:textColor="#8A8A94"
+                android:textSize="12sp" />
+
+            <!-- action buttons -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btnInstall"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="#8A1F1F"
+                    android:gravity="center"
+                    android:padding="12dp"
+                    android:text="@string/linux_btn_install"
+                    android:textColor="#FFFFFF"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/btnTerminal"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:background="#1E1E26"
+                    android:gravity="center"
+                    android:padding="12dp"
+                    android:text="@string/linux_btn_terminal"
+                    android:textColor="#FF867C"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/btnUpdate"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="#1E1E26"
+                    android:gravity="center"
+                    android:padding="10dp"
+                    android:text="@string/linux_btn_update"
+                    android:textColor="#C9C9D2" />
+
+                <TextView
+                    android:id="@+id/btnReset"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:background="#1E1E26"
+                    android:gravity="center"
+                    android:padding="10dp"
+                    android:text="@string/linux_btn_reset"
+                    android:textColor="#C9C9D2" />
+
+                <TextView
+                    android:id="@+id/btnRemove"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:background="#1E1E26"
+                    android:gravity="center"
+                    android:padding="10dp"
+                    android:text="@string/linux_btn_remove"
+                    android:textColor="#FF867C" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/btnTests"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="#1E1E26"
+                android:gravity="center"
+                android:padding="12dp"
+                android:text="@string/linux_btn_tests"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+
+            <!-- live log -->
+            <TextView
+                android:id="@+id/logView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="#101015"
+                android:fontFamily="monospace"
+                android:minLines="4"
+                android:padding="12dp"
+                android:textColor="#9FE89F"
+                android:textSize="12sp" />
+
+            <!-- honesty note -->
+            <TextView
+                android:id="@+id/honestyNote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:lineSpacingExtra="3dp"
+                android:text="@string/linux_note_honest"
+                android:textColor="#6E6E78"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

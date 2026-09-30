@@ -25,8 +25,13 @@ enum class TermBackend(val id: String, val title: String, val startDir: String) 
     /** Termux app — detection + RUN_COMMAND handoff; never claimed without the app. */
     TERMUX("termux", "Termux", ""),
 
-    /** A bundled Linux userspace (proot distro). NOT shipped in this build — reported absent. */
-    LINUX_USERSPACE("linux", "Linux userspace", "")
+    /**
+     * A real Debian 12 user-space through PRoot (r1385), executed by the aMiNo
+     * service (shell uid) from /data/local/tmp/amino-linux — installed on demand
+     * via LinuxEnvManager, NEVER claimed before a real probe succeeds.
+     * PRoot's -0 fakes uid 0 INSIDE the container only — no real root, ever.
+     */
+    LINUX_USERSPACE("linux", "Linux (Debian 12 · PRoot)", "/root")
 }
 
 /** One environment as reported by honest discovery. */

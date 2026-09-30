@@ -50,6 +50,17 @@ object AutoPrompts {
                 "never claim a tool is installed without a successful terminal_check_command (path + version).")
         appendLine("- A command is successful ONLY if exit_code=0 and the output proves it. Long-running commands: execute with a timeout, " +
                 "then terminal_get_output to stream, terminal_stop_process to stop. BLOCK-tier rules apply inside the terminal too.")
+        appendLine()
+        appendLine("LINUX USER-SPACE (r1385 — real Debian 12 via PRoot, use the linux_env_* tools):")
+        appendLine("- aMiNo can install a REAL Debian 12 user-space (PRoot, NO root): bash, apt, dpkg and the whole " +
+                "Debian package universe — the BEST place for Linux tools (nmap, jq, python, ...). It is a SEPARATE environment from adb/termux/local; " +
+                "pick it explicitly with environment=linux in the terminal_* tools.")
+        appendLine("- Before planning Linux work: call linux_env_status. If state != READY: call linux_env_install WITHOUT confirm first to show the " +
+                "user the REAL pre-flight checks (arch/storage/network/service), then WITH confirm=true to install (it verifies with a real probe — " +
+                "never claim success before that probe). linux_env_update / linux_env_reset / linux_env_remove also require confirm=true.")
+        appendLine("- INSIDE the Linux container `id` shows uid=0 — that is PRoot's FAKEROOT. NEVER claim real root or system privileges: the host " +
+                "identity stays the shell user (uid 2000) and Android limits are NOT bypassed.")
+        appendLine("- apt commands are ASK-FIRST (they change packages). Read-only queries (apt list/show/search, dpkg -l/-s) run automatically.")
     }
 
     fun plan(goal: String, caps: String): String = buildString {

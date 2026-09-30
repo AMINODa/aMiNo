@@ -8,6 +8,8 @@ import moe.shizuku.manager.terminal.TermBackend
 import moe.shizuku.manager.terminal.TerminalEngine
 import moe.shizuku.manager.terminal.TerminalNet
 import moe.shizuku.manager.terminal.TerminalSession
+import moe.shizuku.manager.terminal.linux.LinuxAcceptance
+import moe.shizuku.manager.terminal.linux.LinuxEnvManager
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -205,10 +207,11 @@ object TerminalTools {
             return ToolResult(false, "invalid package name(s) — refusing: $packages")
         }
 
-        // 1) pick the environment
+        // 1) pick the environment (r1385: an installed Linux env is the BEST home
+        //    for apt/dpkg tools — probed first, but never assumed installed)
         val envId = environment.lowercase().trim()
         val candidates: List<String> = if (envId.isNotEmpty()) listOf(envId)
-        else listOf("termux", "adb", "local")   // best home for linux tools first
+        else listOf("linux", "termux", "adb", "local")   // best home for linux tools first
 
         val report = StringBuilder()
         for (env in candidates) {
@@ -326,6 +329,8 @@ object TerminalTools {
             }
             "local", "local_app", "app" ->
                 TerminalEngine.create(context, TermBackend.LOCAL_APP, "agent", true)
+            "linux", "linux_userspace", "debian" ->
+                TerminalEngine.create(context, TermBackend.LINUX_USERSPACE, "agent", true)
             "root" -> throw Exception("root not verified — run terminal_connect root first")
             else -> throw Exception("environment '$env' cannot hold a session")
         }
@@ -356,4 +361,126 @@ object TerminalTools {
                 "Termux must be installed, with the RUN_COMMAND permission granted and 'allow-external-apps' enabled.")
         }
     }
+
+    // ================= r1385: LINUX USER-SPACE ENVIRONMENT (6 tools) =================
+    //
+    // A real Debian 12 user-space through PRoot, executed by the aMiNo service
+    // (shell uid 2000 — NO root; PRoot -0 fakes uid 0 inside the container only).
+    // Kept SEPARATE from ADB / Termux / local — every tool names its environment.
+    // Nothing is claimed installed/successful before a real verification passes.
+
+    /** 1) linux_env_status — REAL state: install stage, storage, source, digests. */
+    fun linuxEnvStatus(context: Context): ToolResult {
+        return try {
+            val st = LinuxEnvManager.status(context)
+            val pf = kotlinx.coroutines.runBlocking { LinuxEnvManager.preFlight(context) }
+            ToolResult(true, JSONObject()
+                .put("state", st.state.name)
+                .put("message", st.message)
+                .put("arch", st.arch ?: "unsupported")
+                .put("install_source", st.installSource ?: JSONObject.NULL)
+                .put("manifest_digest", st.manifestDigest ?: JSONObject.NULL)
+                .put("archive_mb", st.tarballBytes / (1024 * 1024))
+                .put("rootfs_used_mb", st.rootfsDuKb?.div(1024) ?: JSONObject.NULL)
+                .put("app_storage_free_mb", (st.freePrivateBytes ?: 0L) / (1024 * 1024))
+                .put("network", pf.networkOk)
+                .put("service", if (pf.serviceOk) "running (uid ${pf.serviceUid})" else "not running")
+                .put("runtime_path", LinuxEnvManager.ROOTFS)
+                .put("last_error", st.lastError ?: JSONObject.NULL)
+                .toString(2))
+        } catch (e: Exception) {
+            ToolResult(false, "linux_env_status_error: ${e.message ?: e.javaClass.simpleName}")
+        }
+    }
+
+    /**
+     * 2) linux_env_install — without confirm=true returns the REAL pre-flight
+     * plan; with confirm=true performs the install and verifies with a real
+     * probe. READY is only ever reported after the probe passed.
+     */
+    fun linuxEnvInstall(context: Context, confirm: Boolean): ToolResult {
+        return try {
+            val pf = kotlinx.coroutines.runBlocking { LinuxEnvManager.preFlight(context) }
+            if (!confirm) {
+                return ToolResult(false, JSONObject()
+                    .put("stage", "preflight-plan (NOT installed yet — call again with confirm=true)")
+                    .put("preflight_ok", pf.ok)
+                    .put("arch", pf.arch ?: "unsupported")
+                    .put("checks", JSONArray()
+                        .put("CPU ABI ${pf.arch ?: "unsupported"} for the Debian arm64/amd64 rootfs")
+                        .put("app storage free: ${pf.freePrivateBytes / (1024 * 1024)} MB (need ≥ 700)")
+                        .put("data free: ${pf.freeDataBytes?.div(1024 * 1024) ?: "?"} MB (need ≥ 800)")
+                        .put("network: ${pf.networkOk}")
+                        .put("aMiNo service: ${if (pf.serviceOk) "running (uid ${pf.serviceUid})" else "NOT running — required (no root needed)"}"))
+                    .put("problems", JSONArray(pf.problems))
+                    .put("plan", "download Debian 12 rootfs (digest-verified) → push bundled proot → " +
+                        "extract into ${LinuxEnvManager.BASE} → verify with a real probe (id + os-release)")
+                    .toString(2))
+            }
+            if (!pf.ok) return ToolResult(false,
+                "preflight FAILED — nothing was installed:\n" + pf.problems.joinToString("\n") { "• $it" })
+            val report = kotlinx.coroutines.runBlocking { LinuxEnvManager.install(context) {} }
+            val ready = LinuxEnvManager.currentState(context) == LinuxEnvManager.State.READY
+            ToolResult(ready, report)
+        } catch (e: Exception) {
+            ToolResult(false, "linux_env_install_error: ${e.message ?: e.javaClass.simpleName}")
+        }
+    }
+
+    /** 3) linux_env_remove — deletes the runtime tree + the private archive. */
+    fun linuxEnvRemove(context: Context, confirm: Boolean): ToolResult {
+        if (!confirm) return ToolResult(false,
+            "remove requires confirm=true — it deletes ${LinuxEnvManager.BASE} (runtime tree) AND the rootfs archive in app storage")
+        val report = kotlinx.coroutines.runBlocking { LinuxEnvManager.remove(context) {} }
+        // close any linux sessions — their runtime is gone
+        TerminalEngine.listSessions().filter { it.backend == TermBackend.LINUX_USERSPACE }
+            .forEach { TerminalEngine.close(it.id) }
+        val gone = LinuxEnvManager.currentState(context) == LinuxEnvManager.State.NOT_INSTALLED
+        return ToolResult(gone, report)
+    }
+
+    /** 4) linux_env_reset — re-extract the verified archive, verify again. */
+    fun linuxEnvReset(context: Context, confirm: Boolean): ToolResult {
+        if (!confirm) return ToolResult(false,
+            "reset requires confirm=true — it wipes ${LinuxEnvManager.BASE}/rootfs and re-extracts the stored archive (packages installed by apt are LOST)")
+        val report = kotlinx.coroutines.runBlocking { LinuxEnvManager.reset(context) {} }
+        TerminalEngine.listSessions().filter { it.backend == TermBackend.LINUX_USERSPACE }
+            .forEach { TerminalEngine.close(it.id) }
+        val ok = LinuxEnvManager.currentState(context) == LinuxEnvManager.State.READY
+        return ToolResult(ok, report)
+    }
+
+    /**
+     * 5) linux_env_update — apt update + upgrade INSIDE a real Linux session.
+     * Returns the real combined output and exit codes; verification via rc only.
+     */
+    fun linuxEnvUpdate(context: Context, confirm: Boolean): ToolResult {
+        if (!confirm) return ToolResult(false,
+            "update requires confirm=true — plan: apt-get update && apt-get upgrade -y INSIDE the Debian environment (upgrades only touch the container, never Android)")
+        val s = try { resolveSessionForEnv(context, "linux") } catch (e: Exception) {
+            return ToolResult(false, "no Linux session possible: ${e.message}")
+        } ?: return ToolResult(false, "no Linux session available")
+        val u = runInSession(context, s, "export DEBIAN_FRONTEND=noninteractive; apt-get update 2>&1 | tail -n 3; echo UPD_RC=\${PIPESTATUS[0]}", 240)
+        val updRc = Regex("UPD_RC=(\\d+)").find(u.stdout)?.groupValues?.get(1)?.toIntOrNull()
+        if (updRc != 0) return ToolResult(false, JSONObject()
+            .put("apt_update_rc", updRc)
+            .put("output", u.stdout.take(2000).ifBlank { u.stderr.take(800) })
+            .toString(2))
+        val g = runInSession(context, s, "export DEBIAN_FRONTEND=noninteractive; apt-get upgrade -y 2>&1 | tail -n 5; echo GRD_RC=\${PIPESTATUS[0]}", 900)
+        val grdRc = Regex("GRD_RC=(\\d+)").find(g.stdout)?.groupValues?.get(1)?.toIntOrNull()
+        return ToolResult(grdRc == 0, JSONObject()
+            .put("apt_update_rc", updRc)
+            .put("apt_upgrade_rc", grdRc)
+            .put("output", g.stdout.take(2500).ifBlank { g.stderr.take(800) })
+            .toString(2))
+    }
+
+    /** 6) linux_env_acceptance_tests — the user's 7 post-install tests, for real. */
+    fun linuxEnvAcceptanceTests(context: Context): ToolResult {
+        val (pass, results) = kotlinx.coroutines.runBlocking {
+            LinuxAcceptance.runAll(context) { }
+        }
+        return ToolResult(pass, LinuxAcceptance.report(pass, results))
+    }
 }
+

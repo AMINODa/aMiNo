@@ -161,6 +161,12 @@
             android:exported="false"
             android:label="@string/terminal_title"
             android:windowSoftInputMode="adjustResize" />
+        <!-- aMiNo r1385: Linux user-space environment manager (Debian 12 + PRoot) -->
+        <activity
+            android:name=".ui.LinuxEnvActivity"
+            android:exported="false"
+            android:label="@string/linux_title"
+            android:windowSoftInputMode="adjustResize" />
         <!-- aMiNo Agent (r1376) -->
         <activity
             android:name=".keys.KeysActivity"

@@ -55,6 +55,8 @@ android {
     packagingOptions {
         jniLibs {
             useLegacyPackaging = true
+            // r1385: bundled executables (proot, xz) must not be touched by strip
+            keepDebugSymbols += "**/libamino_*.so"
         }
         resources {
             excludes += ["**"]

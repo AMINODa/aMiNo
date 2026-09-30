@@ -126,6 +126,7 @@ class TerminalSession(
     // backend handles
     private var proc: Process? = null              // LOCAL_APP / ROOT
     private var adbShell: AdbInteractiveShell? = null   // ADB_SHELL
+    private var remoteProc: moe.shizuku.manager.terminal.linux.ShizukuExec.RemoteProc? = null // LINUX_USERSPACE
     private var stdin: java.io.OutputStream? = null
     private var errFile: String? = null
 
@@ -144,6 +145,7 @@ class TerminalSession(
                 when (backend) {
                     TermBackend.ADB_SHELL -> startAdb()
                     TermBackend.LOCAL_APP, TermBackend.ROOT -> startLocal(root = backend == TermBackend.ROOT)
+                    TermBackend.LINUX_USERSPACE -> startLinux()
                     else -> false
                 }
             } catch (e: Throwable) {
@@ -152,6 +154,61 @@ class TerminalSession(
                 alive = false
                 false
             }
+        }
+    }
+
+    /**
+     * r1385 — Linux userspace backend: one persistent bash INSIDE the Debian
+     * rootfs, spawned through the aMiNo service (shell uid, no root) under PRoot.
+     * Streams come from the service over binder; the same marker protocol and
+     * reader loop as the local backend drive the session.
+     */
+    private fun startLinux(): Boolean {
+        val (cmd, env) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.sessionCommand(appContext)
+        val rp = moe.shizuku.manager.terminal.linux.ShizukuExec.spawn(cmd, env, "/")
+        remoteProc = rp
+        stdin = rp.stdin
+        errFile = "/tmp/.amino_err_$id"   // inside the container
+        // native stderr pipe MUST be drained or the child can block on a full pipe.
+        Thread({
+            try { rp.stderr.copyTo(object : java.io.OutputStream() {
+                override fun write(b: Int) {}
+                override fun write(b: ByteArray, off: Int, len: Int) {}
+            }) } catch (_: Throwable) {}
+        }, "amino-linux-errdrain-$id").apply { isDaemon = true; start() }
+        Thread({
+            try {
+                val r = BufferedReader(InputStreamReader(rp.stdout, Charsets.UTF_8))
+                var line = r.readLine()
+                while (line != null) { parseLine(line); line = r.readLine() }
+            } catch (_: Throwable) {}
+            onBackendDied()
+        }, "amino-linux-out-$id").apply { isDaemon = true; start() }
+        alive = true
+        sendLinuxInit()
+        return true
+    }
+
+    /** Linux init: container PATH, per-session stderr file inside /tmp, /root home. */
+    private fun sendLinuxInit() {
+        ready = false
+        val init = buildString {
+            append("export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n")
+            append("__amino_err=${errFile}\n")
+            append("export __amino_err\n")
+            append("mkdir -p /tmp 2>/dev/null; ")
+            append("cd ${shellQuote(startDir)} 2>/dev/null || cd /\n")
+            append("echo \"${M}HI_\$((6*7))\"\n")
+        }
+        writeRaw(init)
+        // PRoot startup is slower than a plain shell — allow more time
+        val deadline = System.currentTimeMillis() + 15000
+        while (alive && !ready && System.currentTimeMillis() < deadline) Thread.sleep(80)
+        if (ready) {
+            cwd = startDir
+            addSys("session ready — env: ${backend.title} (Debian 12 · PRoot fakeroot — shell uid on the host, NOT real root)")
+        } else {
+            addSys("session init timed out — the environment did not answer")
         }
     }
 
@@ -444,6 +501,14 @@ class TerminalSession(
                             val out = p.inputStream.bufferedReader().readText(); p.waitFor(); out.contains("KILLDONE")
                         }.getOrDefault(false)
                     }
+                    TermBackend.LINUX_USERSPACE -> {
+                        // the tracked pid is a GLOBAL pid inside the PRoot container;
+                        // the whole tree is owned by the shell identity, so the
+                        // service can kill it out-of-band while the session survives.
+                        killed = kotlinx.coroutines.runBlocking {
+                            moe.shizuku.manager.terminal.linux.LinuxEnvManager.killPid(pid)
+                        }
+                    }
                     else -> {}
                 }
             } catch (e: Throwable) {
@@ -470,7 +535,16 @@ class TerminalSession(
     private fun destroyBackend() {
         runCatching { adbShell?.close() }
         runCatching { proc?.destroy() }
-        adbShell = null; proc = null; stdin = null
+        val rp = remoteProc
+        if (rp != null) {
+            runCatching { rp.destroy() }
+            // best-effort sweep of anything left bound to the runtime tree
+            // (bash itself exits on stdin EOF; traced children follow the tracer)
+            runCatching {
+                kotlinx.coroutines.runBlocking { moe.shizuku.manager.terminal.linux.LinuxEnvManager.sweepStrayProcesses() }
+            }
+        }
+        adbShell = null; proc = null; remoteProc = null; stdin = null
         alive = false; ready = false
     }
 

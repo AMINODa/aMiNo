@@ -518,4 +518,47 @@
     <string name="term_btn_stop">إيقاف العملية الجارية</string>
     <string name="term_btn_new">جلسة جديدة</string>
 
+
+    <!-- aMiNo r1385: بيئة Linux الحقيقية (Debian 12 + PRoot) -->
+    <string name="linux_title">بيئة Linux</string>
+    <string name="term_linux_manage">‏Linux (Debian 12) — تثبيت / إدارة…</string>
+    <string name="linux_state_ready">‏Debian 12 جاهزة (تم التحقق بمسح حقيقي)</string>
+    <string name="linux_state_broken">البيئة معطوبة — انظر الخطأ أدناه</string>
+    <string name="linux_state_not_installed">غير مثبتة — يمكن تثبيت Debian 12 بدون صلاحيات Root</string>
+    <string name="linux_state_unknown">جارٍ فحص الحالة الفعلية…</string>
+    <string name="linux_state_working">جارٍ العمل</string>
+    <string name="linux_detail_arch">معمارية الجهاز: %1$s (‏Rootfs متوافقة: arm64/amd64)</string>
+    <string name="linux_detail_source">مصدر التثبيت: %1$s</string>
+    <string name="linux_detail_digest">بصمة الطبقة بعد التحقق: %1$s</string>
+    <string name="linux_detail_used">استهلاك القرص للبيئة: %1$d MB</string>
+    <string name="linux_detail_runtime">شجرة التشغيل: %1$s (تُنفّذ عبر خدمة aMiNo بمعرّف shell — بدون Root)</string>
+    <string name="linux_detail_archive">أرشيف Rootfs محفوظ لإعادة التهيئة: %1$d MB (مساحة aMiNo الخاصة)</string>
+    <string name="linux_detail_free">المساحة الحرة في تخزين التطبيق: %1$d MB</string>
+    <string name="linux_detail_error">آخر خطأ: %1$s</string>
+    <string name="linux_btn_install">تثبيت Debian 12</string>
+    <string name="linux_btn_terminal">فتح الطرفية</string>
+    <string name="linux_btn_update">تحديث</string>
+    <string name="linux_btn_reset">إعادة تهيئة</string>
+    <string name="linux_btn_remove">إزالة</string>
+    <string name="linux_btn_tests">تشغيل اختبارات القبول السبعة</string>
+    <string name="linux_busy">عملية أخرى قيد التنفيذ…</string>
+    <string name="linux_need_ready">ثبّت البيئة أولاً</string>
+    <string name="linux_session_failed">تعذّر فتح جلسة Linux</string>
+    <string name="linux_toast_ready">تم التثبيت والتحقق — Debian 12 جاهزة</string>
+    <string name="linux_toast_failed">فشل التثبيت — لا نزعم أي نجاح (انظر السجل)</string>
+    <string name="linux_preflight_summary">فحوصات حقيقية قبل التثبيت:</string>
+    <string name="linux_pf_arch">المعمارية: %1$s</string>
+    <string name="linux_pf_unsupported">غير مدعومة لـ Rootfs الخاصة بـ Debian</string>
+    <string name="linux_pf_private">المساحة الحرة في تخزين التطبيق: %1$d MB (المطلوب ≥ 700)</string>
+    <string name="linux_pf_data">المساحة الحرة في /data: %1$d MB (المطلوب ≥ 800)</string>
+    <string name="linux_pf_net">الشبكة: %1$s</string>
+    <string name="linux_pf_service">خدمة aMiNo (يعمل PRoot عبرها، بدون Root): %1$s</string>
+    <string name="linux_pf_problems">مشاكل تمنع التثبيت الآن:</string>
+    <string name="linux_update_confirm">تشغيل apt-get update + upgrade داخل بيئة Debian؟\n\nسيُلمس الحاوية فقط — لن يُعدّل أي شيء في أندرويد نفسه، وسيُعرض المخرجات الحقيقية.</string>
+    <string name="linux_reset_confirm">إعادة تهيئة بيئة Linux إلى Debian 12 نظيفة؟\n\nسيُمسح شجرة التشغيل ويُعاد فكّ الأرشيف المتحقق منه. الحزم التي ثبّتها بـ apt ستُفقد. يُجرى تحقق حقيقي بعدها.</string>
+    <string name="linux_remove_confirm">إزالة بيئة Linux بالكامل؟\n\nسيُحذف: شجرة التشغيل /data/local/tmp/amino-linux وأرشيف Rootfs من مساحة aMiNo الخاصة. لن يُلمس ADB أو Termux أو شل التطبيق.</string>
+    <string name="linux_tests_pass">اختبارات القبول: كلها ناجحة</string>
+    <string name="linux_tests_fail">اختبارات القبول: فشل (الأدلة أدناه)</string>
+    <string name="linux_note_honest">ملاحظات صراحة: يمنح PRoot حساب Root وهمياً داخل Debian (يُظهر id ‏uid=0) — لا يمنح أي صلاحيات نظام حقيقية ولا يتجاوز قيود أندرويد. البيئة منفصلة تماماً عن ADB وTermux وشل التطبيق. تعيش شجرة التشغيل في /data/local/tmp لأن أندرويد 10+ يمنع تنفيذ الملفات التنفيذية من مساحة التطبيق الخاصة؛ يبقى الأرشيف في مساحة aMiNo الخاصة ويُنفّذ التثبيت كله عبر خدمة aMiNo (معرّف shell بدون Root). لا يُعلن أي نجاح قبل نجاح مسح حقيقي (id + /etc/os-release).</string>
+
 </resources>

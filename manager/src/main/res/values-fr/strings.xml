@@ -460,4 +460,47 @@
     <string name="term_btn_stop">Arrêter le processus</string>
     <string name="term_btn_new">Nouvelle session</string>
 
+
+    <!-- aMiNo r1385 : environnement Linux (Debian 12 + PRoot) -->
+    <string name="linux_title">Environnement Linux</string>
+    <string name="term_linux_manage">Linux (Debian 12) — installer / gérer…</string>
+    <string name="linux_state_ready">Debian 12 PRÊTE (vérifiée par une vraie sonde)</string>
+    <string name="linux_state_broken">Environnement cassé — voir l\'erreur ci-dessous</string>
+    <string name="linux_state_not_installed">Non installée — Debian 12 s\'installe sans root</string>
+    <string name="linux_state_unknown">Vérification de l\'état réel…</string>
+    <string name="linux_state_working">En cours</string>
+    <string name="linux_detail_arch">Architecture de l\'appareil : %1$s (rootfs : arm64/amd64)</string>
+    <string name="linux_detail_source">Source d\'installation : %1$s</string>
+    <string name="linux_detail_digest">Empreinte de couche vérifiée : %1$s</string>
+    <string name="linux_detail_used">Disque utilisé par la rootfs : %1$d Mo</string>
+    <string name="linux_detail_runtime">Arborescence d\'exécution : %1$s (exécutée par le service aMiNo en uid shell — sans root)</string>
+    <string name="linux_detail_archive">Archive rootfs conservée pour la réinitialisation : %1$d Mo (stockage privé)</string>
+    <string name="linux_detail_free">Stockage app libre : %1$d Mo</string>
+    <string name="linux_detail_error">Dernière erreur : %1$s</string>
+    <string name="linux_btn_install">Installer Debian 12</string>
+    <string name="linux_btn_terminal">Ouvrir le terminal</string>
+    <string name="linux_btn_update">Mettre à jour</string>
+    <string name="linux_btn_reset">Réinitialiser</string>
+    <string name="linux_btn_remove">Supprimer</string>
+    <string name="linux_btn_tests">Lancer les 7 tests d\'acceptation</string>
+    <string name="linux_busy">Une autre opération est en cours…</string>
+    <string name="linux_need_ready">Installez d\'abord l\'environnement</string>
+    <string name="linux_session_failed">Impossible d\'ouvrir une session Linux</string>
+    <string name="linux_toast_ready">Installée et vérifiée — Debian 12 est prête</string>
+    <string name="linux_toast_failed">ÉCHEC de l\'installation — aucun succès n\'est revendiqué (voir le journal)</string>
+    <string name="linux_preflight_summary">Vérifications réelles avant installation :</string>
+    <string name="linux_pf_arch">Architecture : %1$s</string>
+    <string name="linux_pf_unsupported">non prise en charge pour la rootfs Debian</string>
+    <string name="linux_pf_private">Stockage app libre : %1$d Mo (≥ 700 requis)</string>
+    <string name="linux_pf_data">/data libre : %1$d Mo (≥ 800 requis)</string>
+    <string name="linux_pf_net">Réseau : %1$s</string>
+    <string name="linux_pf_service">Service aMiNo (PRoot passe par lui, sans root) : %1$s</string>
+    <string name="linux_pf_problems">Problèmes bloquants actuellement :</string>
+    <string name="linux_update_confirm">Lancer apt-get update + upgrade DANS l\'environnement Debian ?\n\nSeul le conteneur est touché — Android n\'est jamais modifié. Sortie réelle affichée.</string>
+    <string name="linux_reset_confirm">Réinitialiser l\'environnement Linux vers un Debian 12 neuf ?\n\nL\'arborescence est effacée puis ré-extraite de l\'archive vérifiée. Les paquets installés via apt sont PERDUS. Une vérification réelle suit.</string>
+    <string name="linux_remove_confirm">Supprimer complètement l\'environnement Linux ?\n\nSupprimés : l\'arborescence /data/local/tmp/amino-linux ET l\'archive rootfs du stockage privé d\'aMiNo. ADB, Termux et le shell local ne sont PAS touchés.</string>
+    <string name="linux_tests_pass">Tests d\'acceptation : TOUS RÉUSSIS</string>
+    <string name="linux_tests_fail">Tests d\'acceptation : ÉCHEC (preuves ci-dessous)</string>
+    <string name="linux_note_honest">Notes d\'honnêteté : PRoot donne un FAKEROOT dans Debian (id affiche uid=0) — aucun privilège système réel, aucune dérogation à Android. L\'environnement est séparé d\'ADB, de Termux et du shell local. L\'arborescence vit dans /data/local/tmp car Android 10+ interdit d\'exécuter des binaires depuis le stockage privé ; l\'archive reste dans l\'espace privé d\'aMiNo et l\'installation entière passe par le service aMiNo (uid shell, sans root). Aucun succès n\'est annoncé avant une vraie sonde (id + /etc/os-release).</string>
+
 </resources>

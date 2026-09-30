@@ -150,6 +150,25 @@ through the wireless-ADB session. No root. What `shell` can do on Android, the a
 | App identity fallback | The aMiNo app itself declares and requests (official dialogs, Permissions page "Grant all") READ_CALL_LOG / READ_CONTACTS / READ_SMS / READ_PHONE_STATE / media / notifications; the `user_data` tool (kind = calls / sms / contacts) reads through the app's ContentResolver — works even when the shell identity stays blocked. |
 | Auto-loop self-heal | When a read fails with Permission Denial, the planner/self-corrector is instructed to `pm grant com.android.shell <perm>` (ASK-FIRST) and retry the same read. |
 
+## 21. Linux user-space environment (r1385 — Debian 12 via PRoot)
+A REAL Debian 12 (bookworm) user-space can be installed INSIDE aMiNo — no root, fully separate from ADB / Termux / the local app shell.
+
+| Aspect | Reality |
+|---|---|
+| What it is | Debian 12 rootfs + PRoot; one persistent bash per session inside the container (cwd/env survive), separate stdout/stderr, real exit codes |
+| Where it runs | `/data/local/tmp/amino-linux` (bin/, lib/, rootfs/, tmp/), executed BY the aMiNo service as the ADB shell identity (uid 2000) — because Android 10+ W^X forbids exec() from app-private storage |
+| Where the archive lives | aMiNo private storage (`files/linux/debian-rootfs.tar.gz|xz`), kept for Reset |
+| Integrity | Primary: official Docker `library/debian` registry — manifest by tag → layer blob verified byte-by-byte against its sha256 digest. Fallback: cdimage.debian.org cloud rootfs verified against the official SHA512SUMS |
+| Bundled binaries | proot (termux build, bionic), libtalloc, libandroid-shmem, xz + liblzma — shipped as jniLibs (`libamino_*.so`), pushed to the runtime dir and exec-verified before use |
+| Pre-flight (all real) | CPU ABI (arm64/amd64), app storage ≥ 700 MB, /data ≥ 800 MB, network, aMiNo service running |
+| Verification gate | READY only after a real probe through PRoot returns `uid=0` + a Debian `/etc/os-release` line; every failure keeps the real error and state BROKEN |
+| Agent tools | `linux_env_status`, `linux_env_install` (confirm=false → real pre-flight plan; confirm=true → install+verify), `linux_env_update`, `linux_env_reset`, `linux_env_remove`, `linux_env_acceptance_tests` (7 tests with real evidence) |
+| UI | Linux environment page (status card, pre-flight, install/update/reset/remove, acceptance-test runner, honesty notes) + "Linux — install/manage" in the terminal env picker |
+| Honesty contract | `id` inside the container shows uid=0 — that is PRoot FAKEROOT, not real root; the host identity stays shell uid 2000; Android limits are not bypassed; root-mode services are auto-dropped via `su 2000` wrapping so nothing ever runs as real root |
+| Command safety | CommandValidator now knows apt/dpkg: read-only queries (`apt list/show/search`, `dpkg -l/-s`) = ALLOW; `apt update/install/upgrade`, `dpkg -i` = CONFIRM; the BLOCK tier applies inside the container too |
+
+Acceptance tests (runnable in-app, one tap): `/etc/os-release` · bash · `id`/`pwd`/`uname -a` · `apt-get update` · install a tool + verify it runs · session keeps cwd after `cd` · stopping a long-running process (in-container kill + out-of-band session stop).
+
 ## What the agent can NOT do (by design)
 - Root / privilege escalation: `su`, `sudo`, `magisk`, `setenforce` → BLOCK.
 - Boot/recovery/partition damage: `reboot`, `fastboot`, `flash*`, `dd` to block devices, `mkfs`, `sm partition` → BLOCK.
