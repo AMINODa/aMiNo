@@ -538,7 +538,7 @@ object LinuxEnvManager {
         try {
             // ---- 1) preflight (real checks incl. the r1386 filesystem probe) ----
             setState(ctx, State.CHECKING, "checking device (architecture, storage, network, service, filesystem)")
-            step("preflight: arch / storage / network / service / symlink-support")
+            step("preflight: arch / storage / network / service / symlink+hardlink-support")
             val pf = preFlight(ctx)
             if (!pf.ok) {
                 val symlinkBlocked = pf.fs != null && !pf.fs.symlinkOk && pf.fs.writeOk
@@ -554,9 +554,14 @@ object LinuxEnvManager {
                 setState(ctx, State.BROKEN, "preflight failed", pf.problems.joinToString("; "))
                 return "PREFLIGHT FAILED — nothing was installed:\n" + pf.problems.joinToString("\n") { "• $it" }
             }
+            val hardlinkState = when (pf.fs?.hardlinkOk) {
+                true -> "OK"
+                false -> "DENIED by this device — extraction auto-repairs the affected entries by copy (r1394)"
+                null -> "unknown"
+            }
             step("preflight OK: arch=${pf.arch}, app-storage ${pf.freePrivateBytes / (1024 * 1024)} MB free, " +
                 "data ${((pf.freeDataBytes ?: -1) / (1024 * 1024))} MB free, service uid=${pf.serviceUid}, " +
-                "fstype=${pf.fs?.fstype ?: "?"}, symlinks=OK")
+                "fstype=${pf.fs?.fstype ?: "?"}, symlinks=OK, hardlinks=$hardlinkState")
             pf.prootElfDiag?.let { step("proot ELF diagnostic: $it") }
 
             // ---- 2) runtime dirs + bundled binaries ----
@@ -1366,6 +1371,23 @@ object LinuxEnvManager {
      * Extract with the BUNDLED toybox tar (never the device's tar — r1386).
      * stderr is captured to files; on failure the ORIGINAL error text (with
      * the failing paths) is returned verbatim for the log and the UI.
+     *
+     * r1394 hardlink repair: some devices refuse link() during extraction
+     * while allowing symlinks (user device, r1393 install: "can't link
+     * 'usr/bin/perl5.36.0' -> 'usr/bin/perl': Permission denied" +
+     * "…'usr/bin/uncompress' -> 'usr/bin/gunzip'…" — SELinux 'link' on the
+     * FILE class is denied even though file create + symlink creation are
+     * allowed). toybox 0.8.11 tar.c (extract_to_disk) CONTINUES with the
+     * next entry after a failed link() and only exits 1 at the end ("had
+     * errors"), so the tree is complete EXCEPT the hardlink entries. When
+     * link errors are the ONLY error class, each pair is repaired by copying
+     * the already-extracted target file with the bundled toybox (rm -f first
+     * — exactly what tar.c does before its link()). The tree is then NOT
+     * cleaned and the flow continues into the full audit + Debian probe,
+     * which remain the real success gates. Verified locally against the
+     * bundled toybox: scripts/verify_hardlink_repair_1394.py (message
+     * format + arg order, tar continuation, repair incl. mode preservation,
+     * unrecoverable-pair refusal).
      */
     private suspend fun extractRootfs(remoteTar: String, targetDir: String): Extract {
         ShizukuExec.oneShot("rm -rf '$targetDir' && mkdir -p '$targetDir' && echo MK_OK", 60_000)
@@ -1378,6 +1400,34 @@ object LinuxEnvManager {
         val rc = Regex("EXTRACT_RC=(\\d+)").find(s.output)?.groupValues?.get(1)?.toIntOrNull() ?: -1
         val tarErr = ShizukuExec.oneShot("tail -c 1500 '$BASE/tmp/tar.err' 2>/dev/null").output.trim()
         if (rc != 0) {
+            // ---- r1394: hardlink-only failures are repairable ----
+            val tarErrFull = run {
+                val head = ShizukuExec.oneShot("head -c 40000 '$BASE/tmp/tar.err' 2>/dev/null").output
+                if (head.length >= 40000)
+                    head + "\n" + ShizukuExec.oneShot("tail -c 4000 '$BASE/tmp/tar.err' 2>/dev/null").output
+                else head
+            }
+            // toybox tar.c: perror_msg("can't link '%s' -> '%s'", name, link_target)
+            // — the FIRST path is the entry being created (missing), the SECOND
+            // is the already-extracted target file.
+            val linkPairs = Regex("can't link '([^']*)' -> '([^']*)': ")
+                .findAll(tarErrFull)
+                .map { it.groupValues[1] to it.groupValues[2] }
+                .filter { (n, t) -> safeTarPath(n) && safeTarPath(t) }
+                .toList()
+            val otherErrs = tarErrFull.lines().filter {
+                it.startsWith("tar:") && !it.contains("can't link '") && !it.trim().endsWith("had errors")
+            }
+            if (linkPairs.isNotEmpty() && otherErrs.isEmpty() && linkPairs.size <= 500) {
+                val rep = repairDeniedHardlinks(targetDir, linkPairs)
+                if (rep != null) {
+                    Log.w(TAG, "extract rc=$rc repaired: ${rep.take(200)}")
+                    return Extract(true, rep)
+                }
+                Log.e(TAG, "hardlink repair FAILED — falling back to the fatal path")
+            } else {
+                Log.e(TAG, "extract rc=$rc is NOT a hardlink-only failure (otherErrs=${otherErrs.size}, pairs=${linkPairs.size}) — no repair attempted")
+            }
             val why = buildString {
                 append("bundled toybox tar exited with rc=$rc. ")
                 if (tarErr.isNotBlank()) {
@@ -1391,6 +1441,59 @@ object LinuxEnvManager {
         }
         if (tarErr.isNotBlank()) Log.w(TAG, "extract warnings: ${tarErr.take(300)}")
         return Extract(true, "toybox 0.8.11 tar rc=0${if (tarErr.isNotBlank()) " (warnings: ${tarErr.take(120)})" else ""}")
+    }
+
+    /** A tar-entry path may only reach the repair shell if it is strictly
+     *  relative and cannot break out of the single-quoted context. */
+    private fun safeTarPath(p: String): Boolean =
+        p.isNotEmpty() && !p.startsWith("/") && !p.contains('\'') &&
+            !p.contains('\n') && !p.contains('\r') &&
+            p.split('/').none { it == ".." }
+
+    /**
+     * r1394: repair the hardlink entries this device refused to create.
+     * Returns the honest detail line on success, null on ANY failure (the
+     * caller then falls back to the fatal path — the tree is cleaned there
+     * exactly as before). For every reported pair the destination is removed
+     * first (mirroring tar.c's unlink-before-link), then the already-
+     * extracted target file is COPIED with the bundled toybox `cp -a` (mode
+     * + timestamps preserved; the two files simply stop sharing an inode,
+     * which is exactly what this device class demands). Both members are
+     * required to exist afterwards, so a repair can never silently pass.
+     */
+    private suspend fun repairDeniedHardlinks(
+        targetDir: String,
+        pairs: List<Pair<String, String>>
+    ): String? {
+        val q = { p: String -> p.replace("'", "'\\''") }
+        val cmd = buildString {
+            append("cd '").append(q(targetDir)).append("' || { echo REPAIR_RC=9; exit; }; R=0; N=0")
+            for ((name, target) in pairs) {
+                val n = q(name); val t = q(target)
+                append("; rm -f '").append(n).append("' 2>/dev/null")
+                append("; if [ -f '").append(t).append("' ]; then '").append(TOYBOX)
+                    .append("' cp -a '").append(t).append("' '").append(n).append("' || R=1")
+                append("; else '").append(TOYBOX).append("' cp -a '").append(n)
+                    .append("' '").append(t).append("' || R=1; fi")
+                append("; [ -f '").append(n).append("' ] && [ -f '").append(t)
+                    .append("' ] && N=\$((N+1)) || R=1")
+            }
+            append("; echo REPAIR_RC=\$R N=\$N")
+        }
+        val s = ShizukuExec.oneShot(cmd, 120_000)
+        val m = Regex("REPAIR_RC=(\\d+) N=(\\d+)").find(s.output) ?: return null
+        val (rrc, nn) = m.destructured
+        if (rrc != "0" || nn.toIntOrNull() != pairs.size) {
+            Log.e(TAG, "hardlink repair rc=$rrc n=$nn (expected ${pairs.size}): ${s.output.take(300)}")
+            return null
+        }
+        val listing = pairs.joinToString(", ") { (n, t) -> "$n ← $t" }
+        return "toybox 0.8.11 tar rc=1, but the ONLY errors were HARDLINK creations this device refuses " +
+            "(link(): Permission denied — symlink creation is allowed; the SELinux 'link' permission on the " +
+            "file class is not): toybox tar continues after each failed link, so the tree was complete except " +
+            "those entries; repaired ${pairs.size} of them by COPYING the already-extracted target file " +
+            "(both members verified present, mode preserved): $listing — the tree was NOT deleted; " +
+            "the post-extract audit + Debian probe below remain the real success gates"
     }
 
     /**
