@@ -964,6 +964,8 @@ object LinuxEnvManager {
             val baselineOk = contentOk(smokeInv, rc1, rc2)
             var winner: String? = if (baselineOk) "BASELINE" else null
             val matrix = ArrayList<Triple<String, Int, Int>>()
+            var originSummary = ""
+            var originDetail = ""
             if (winner == null) {
                 step("smoke FAILED on the baseline config (rc1=$rc1 rc2=$rc2, wrapper rc=${smokeInv.rc}) — running the single-variable isolation matrix; nothing is downloaded and nothing is modified")
                 val variants = listOf(
@@ -980,6 +982,134 @@ object LinuxEnvManager {
                     Log.i(TAG, "smoke variant $mode: rc1=$r1 rc2=$r2 stderr=${inv.stderr.take(200)}")
                     if (contentOk(inv, r1, r2)) { winner = mode; break }
                 }
+                // ---- 2c-9d) EXEC-ORIGIN ISOLATION MATRIX (r1392, round-7
+                // reqs 1-4) — runs ONLY when the baseline AND every
+                // single-variable variant failed. Four questions the previous
+                // matrix could not answer, all READ-ONLY (binds only, no
+                // copy, no chmod, no SELinux change, rootfs untouched):
+                //   T0  the failing baseline re-run as the CONTROL (if it
+                //       passes here, the earlier all-variant failure was not
+                //       reproducible in this run).
+                //   T1  can PRoot start ANY command inside the rootfs? The
+                //       ANDROID SYSTEM SHELL bound at its own path
+                //       (-b /system), builtin-only command — no guest binary
+                //       involved (req #1).
+                //   T2  does the SAME toybox file exec at a DIFFERENT guest
+                //       path? The known-good file is BIND-mounted (no copy,
+                //       no change) to /host-toybox and invoked there (req #2).
+                //   T3  can PRoot exec AT ALL on this device? (3A) the same
+                //       file by its HOST path with NO -r (identity
+                //       translation); (3C) the host path again but WITH -r
+                //       and -b /data so the host path is visible inside the
+                //       guest ("the required bind mapping if needed");
+                //       (3B) the system shell with NO rootfs at all (req #3
+                //       — host paths are NOT assumed visible in the guest;
+                //       each form makes them visible explicitly).
+                //   T4  the documented trace option PROOT_VERBOSE=2 (present
+                //       in this build's strings, parsed from the env var in
+                //       cli.c) around the failing baseline — the exec
+                //       translation evidence around the failing execve, not
+                //       a guess (req #4). Full trace copy kept at
+                //       $BASE/tmp/execve_trace.txt for adb pull.
+                //   T5  LOADER-SLOT PROBE (upstream evidence, reproducible):
+                //       this build was compiled with PROOT_UNBUNDLE_LOADER=
+                //       "/data/data/com.termux/files/usr/libexec/proot" —
+                //       upstream cli.c prints the GUEST path in the error
+                //       while enter.c rewrote the execve to the LOADER path
+                //       ("Execute the loader instead of the program"), and
+                //       get_loader_path() = PROOT_LOADER env ?: that
+                //       compiled-in Termux path. Pointing PROOT_LOADER at a
+                //       runnable host binary (/system/bin/id) therefore
+                //       replaces the failing path-walk with a known-good
+                //       exec: if id's output comes out of the slot, the
+                //       denial is the loader path itself — confirmed by a
+                //       reproducible test, not a guess (req #6).
+                //   T6  the compiled-in loader path probed read-only
+                //       (ls -ld): ENOENT (no Termux) or EACCES (Termux's
+                //       0700 app data, invisible to the shell UID) — either
+                //       matches the observed denial class.
+                val originPayload =
+                    "P=$BASE/bin/proot; MINI=$MINI; T=$BASE/tmp\n" +
+                        "export PROOT_TMP_DIR=$BASE/tmp LD_LIBRARY_PATH=$BASE/lib\n" +
+                        "sec() { if [ -s \$1 ]; then echo \$2_BEGIN; head -c 300 \$1; echo; echo \$2_END; else echo \$2_EMPTY; fi; }\n" +
+                        "\$P --kill-on-exit -0 -r \$MINI -w /root /usr/bin/toybox --help >\$T/o0 2>\$T/e0; T0_RC=\$?; echo T0_RC=\$T0_RC\n" +
+                        "\$P --kill-on-exit -0 -r \$MINI -b /system /system/bin/sh -c 'echo PROOT_SHELL_OK' >\$T/o1 2>\$T/e1; T1_RC=\$?; echo T1_RC=\$T1_RC\n" +
+                        "\$P --kill-on-exit -0 -r \$MINI -b \$MINI/usr/bin/toybox:/host-toybox /host-toybox --help >\$T/o2 2>\$T/e2; T2_RC=\$?; echo T2_RC=\$T2_RC\n" +
+                        "\$P --kill-on-exit -0 \$MINI/usr/bin/toybox --help >\$T/o3a 2>\$T/e3a; T3A_RC=\$?; echo T3A_RC=\$T3A_RC\n" +
+                        "\$P --kill-on-exit -0 -r \$MINI -b /data \$MINI/usr/bin/toybox --help >\$T/o3c 2>\$T/e3c; T3C_RC=\$?; echo T3C_RC=\$T3C_RC\n" +
+                        "\$P --kill-on-exit -0 /system/bin/sh -c 'echo PROOT_SHELL_HOST_OK' >\$T/o3b 2>\$T/e3b; T3B_RC=\$?; echo T3B_RC=\$T3B_RC\n" +
+                        "PROOT_VERBOSE=2 \$P --kill-on-exit -0 -r \$MINI -w /root /usr/bin/toybox --help >\$T/o4 2>\$T/e4; T4_RC=\$?; echo T4_RC=\$T4_RC\n" +
+                        "PROOT_LOADER=/system/bin/id \$P --kill-on-exit -0 -r \$MINI /usr/bin/toybox --help >\$T/o5 2>\$T/e5; T5_RC=\$?; echo T5_RC=\$T5_RC\n" +
+                        "echo T6_BEGIN; ls -ld /data/data/com.termux 2>&1; ls -ld /data/data/com.termux/files/usr/libexec/proot 2>&1; ls -ld /data/data/com.termux/files/usr/libexec/proot/loader 2>&1; echo T6_END\n" +
+                        "cp \$T/e4 \$T/execve_trace.txt 2>/dev/null\n" +
+                        "echo LOADER_ENV=\${PROOT_LOADER:-unset}\n" +
+                        "sec \$T/o0 O0; sec \$T/e0 E0; sec \$T/o1 O1; sec \$T/e1 E1; sec \$T/o2 O2; sec \$T/e2 E2; " +
+                        "sec \$T/o3a O3A; sec \$T/e3a E3A; sec \$T/o3c O3C; sec \$T/e3c E3C; sec \$T/o3b O3B; sec \$T/e3b E3B; sec \$T/o4 O4; sec \$T/o5 O5; sec \$T/e5 E5\n" +
+                        "echo EXECVE_LINES_BEGIN; grep -i execve \$T/e4 2>/dev/null | head -n 8; echo EXECVE_LINES_END\n" +
+                        "echo TRACE_BEGIN; head -c 2400 \$T/e4 2>/dev/null; echo; echo TRACE_END\n" +
+                        "echo MATRIX_BEGIN\n" +
+                        "echo T0_baseline_rootfs_toybox_help_RC=\$T0_RC\n" +
+                        "echo T1_rootfs_bind_system_exec_system_sh_echo_RC=\$T1_RC\n" +
+                        "echo T2_rootfs_bind_toybox_to_host_toybox_exec_help_RC=\$T2_RC\n" +
+                        "echo T3A_no_rootfs_exec_host_toybox_path_RC=\$T3A_RC\n" +
+                        "echo T3C_rootfs_bind_data_exec_host_toybox_path_RC=\$T3C_RC\n" +
+                        "echo T3B_no_rootfs_exec_system_sh_echo_RC=\$T3B_RC\n" +
+                        "echo T4_baseline_PROOT_VERBOSE_RC=\$T4_RC\n" +
+                        "echo T5_loader_slot_id_rc=\$T5_RC\n" +
+                        "echo MATRIX_END"
+                val originInv = runStep(
+                    "exec-origin isolation matrix (read-only): can PRoot exec anything at all / the same file at other paths / PROOT_VERBOSE trace",
+                    originPayload, 150_000, "$BASE/tmp/origin.err")
+                fun oRc(n: String) =
+                    Regex("$n=(\\d+)").find(originInv.stdout)?.groupValues?.get(1)?.toIntOrNull() ?: -1
+                fun section(tag: String): String? {
+                    val m = Regex(tag + "_BEGIN\\n?([\\s\\S]*?)\\n?" + tag + "_END").find(originInv.stdout)
+                    if (m != null) return m.groupValues[1].trim()
+                    return if (Regex(tag + "_EMPTY").containsMatchIn(originInv.stdout)) "" else null
+                }
+                val t0o = oRc("T0_RC"); val t1o = oRc("T1_RC"); val t2o = oRc("T2_RC")
+                val t3ao = oRc("T3A_RC"); val t3co = oRc("T3C_RC"); val t3bo = oRc("T3B_RC")
+                val t4o = oRc("T4_RC"); val t5o = oRc("T5_RC")
+                val t1Ok = t1o == 0 && section("O1")?.contains("PROOT_SHELL_OK") == true
+                val t2Ok = t2o == 0 && section("O2")?.contains("usage: toybox") == true
+                val t3aOk = t3ao == 0 && section("O3A")?.contains("usage: toybox") == true
+                val t3cOk = t3co == 0 && section("O3C")?.contains("usage: toybox") == true
+                val t3bOk = t3bo == 0 && section("O3B")?.contains("PROOT_SHELL_HOST_OK") == true
+                val t5Ok = t5o == 0 && !(section("O5").isNullOrEmpty())
+                val loaderEnv = Regex("LOADER_ENV=(.*)").find(originInv.stdout)?.groupValues?.get(1)?.trim() ?: "unknown"
+                val loaderPathProbe = section("T6").orEmpty().replace("\n", " | ").ifBlank { "(unavailable)" }
+                val execveLines = section("EXECVE_LINES").orEmpty()
+                val traceExcerpt = section("TRACE").orEmpty()
+                    .ifBlank { "(trace unavailable — this build printed nothing under PROOT_VERBOSE)" }
+                val anyOriginPass = t1Ok || t2Ok || t3aOk || t3bOk || t3cOk
+                val originVerdict = when {
+                    t0o == 0 -> "T0 (the failing baseline, re-run as the control) PASSED this time — the all-variant failure was NOT reproducible in this run; treat the matrix below as transient-failure evidence"
+                    t5Ok -> "CONFIRMED by a reproducible test (req #6): with PROOT_LOADER=/system/bin/id the SAME rootfs exec succeeds through proot's loader slot (id's output was produced INSIDE the exec slot, rc=0) — the 'Permission denied' was the kernel rejecting proot's compiled-in loader path /data/data/com.termux/files/usr/libexec/proot/loader (upstream enter.c rewrites EVERY guest execve to that path, 'Execute the loader instead of the program', while cli.c prints the guest path in the error). NOT the toybox file, NOT the rootfs, NOT Android ptrace/SELinux/seccomp policy. The fix is code-only: ship the proot loader binary and set PROOT_LOADER on every invocation (or rebuild proot with runtime loader extraction) — no device change is needed or permitted"
+                    !anyOriginPass -> "PRoot cannot exec ANY command on this device — the system shell with no rootfs (T3B), the same file by its host path with identity translation (T3A), inside the rootfs (T1), and at a fresh bound guest path (T2) ALL fail: the denial is in PRoot's exec/ptrace path itself, NOT in the rootfs config, NOT the guest-path form, NOT the file"
+                    (t3aOk || t3bOk || t3cOk) && !t1Ok && !t2Ok -> "PRoot execs OUTSIDE the rootfs context but EVERY in-rootfs exec fails (the system shell inside the rootfs, the file at its original path, and at a fresh bound path): the -r rootfs invocation context is what breaks exec on this device"
+                    t1Ok && !t2Ok -> "PRoot starts commands inside the rootfs (the system shell ran) but the toybox file fails at BOTH the original and a fresh guest path — a file-specific interaction in PRoot's exec path"
+                    t2Ok -> "the SAME file execs through PRoot at a DIFFERENT guest path while /usr/bin/toybox fails — the guest-path translation of the original location is implicated"
+                    else -> "mixed outcome — read the per-test sections below"
+                }
+                originSummary = "T0=$t0o T1=$t1o T2=$t2o T3A=$t3ao T3B=$t3bo T3C=$t3co T4=$t4o T5=$t5o (rc; PASS = rc 0 + expected output) — $originVerdict"
+                originDetail = buildString {
+                    append("• exec-origin matrix (r1392, read-only; rc verified against expected output):\n")
+                    append("   - T0 baseline control (expected FAIL): rc=$t0o${if (t0o == 0) " — PASSED UNEXPECTEDLY" else ""}\n")
+                    append("   - T1 rootfs + -b /system, /system/bin/sh -c 'echo PROOT_SHELL_OK': rc=$t1o → ${if (t1Ok) "PASS" else "FAIL"}\n")
+                    append("   - T2 rootfs, bind toybox:/host-toybox, /host-toybox --help: rc=$t2o → ${if (t2Ok) "PASS" else "FAIL"}\n")
+                    append("   - T3A NO rootfs, exec host toybox path: rc=$t3ao → ${if (t3aOk) "PASS" else "FAIL"}\n")
+                    append("   - T3C rootfs + -b /data, exec host toybox path: rc=$t3co → ${if (t3cOk) "PASS" else "FAIL"}\n")
+                    append("   - T3B NO rootfs, /system/bin/sh -c echo: rc=$t3bo → ${if (t3bOk) "PASS" else "FAIL"}\n")
+                    append("   - T4 baseline + PROOT_VERBOSE=2 trace: rc=$t4o\n")
+                    append("   - T5 loader-slot probe, PROOT_LOADER=/system/bin/id (upstream: the failing execve is the LOADER path, not the guest path; ANY output from the slot proves a real exec succeeded): rc=$t5o → ${if (t5Ok) "PASS — CONFIRMED" else "FAIL"}${if (t5Ok) " · slot printed: ${section("O5").orEmpty().take(80)}" else ""}\n")
+                    append("→ verdict: $originVerdict\n")
+                    append("• loader provenance: PROOT_LOADER=$loaderEnv; this binary embeds the compiled-in default /data/data/com.termux/files/usr/libexec/proot/loader (PROOT_UNBUNDLE_LOADER, termux-packages build.sh v5.1.107.95; AMINO ships no loader and never sets PROOT_LOADER) — upstream rewrites EVERY guest execve to it\n")
+                    append("• T6 compiled-in loader path probed (read-only): $loaderPathProbe\n")
+                    if (execveLines.isNotBlank()) append("• execve lines from the trace: ${execveLines.take(400)}\n")
+                    append("• PROOT_VERBOSE=2 trace excerpt (full copy at $BASE/tmp/execve_trace.txt):\n")
+                    for (ln in traceExcerpt.lines().take(24)) append("   | ${ln.take(160)}\n")
+                }
+                Log.i(TAG, "exec-origin matrix: $originSummary")
             }
             if (winner == null) {
                 val execDenied = Regex("(?i)permission denied|execve|exec format")
@@ -1000,12 +1130,13 @@ object LinuxEnvManager {
                         for ((m, mr1, mr2) in matrix) append("   - $m: CHECK1 rc=$mr1, CHECK2 rc=$mr2\n")
                         append("→ no variant passed: the denial is not explained by proot's seccomp handling, a stale loader in PROOT_TMP_DIR, missing proot-distro binds, the fakeroot mapping, the cwd, or the exec-path form ALONE\n")
                     }
+                    if (originDetail.isNotBlank()) append(originDetail)
                     append("→ left unchanged: no chmod, no setenforce, no SELinux/policy change, no remount (req #5)\n")
                     append("• service identity: the aMiNo service runs as $uidLabel; this test never uses or claims root\n")
                     append("• PRESERVED: the pushed binaries, the diagnostic rootfs at $MINI (kept for inspection), and any previously verified rootfs archive in app storage\n")
                     append(smokeInv.render())
                 }
-                Log.e(TAG, "PROOT SMOKE FAILED (no variant passed): rc1=$rc1 rc2=$rc2 diag=[$diagSummary]")
+                Log.e(TAG, "PROOT SMOKE FAILED (no variant passed): rc1=$rc1 rc2=$rc2 diag=[$diagSummary] origin=[$originSummary]")
                 return runtimeFail(ctx, why, "PRoot smoke test")
             }
             if (winner != "BASELINE") {
