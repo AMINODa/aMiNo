@@ -103,7 +103,38 @@ import java.util.concurrent.atomic.AtomicBoolean
  *    `id` (real uid/gid), cwd, LD_LIBRARY_PATH/PATH visibility, and the
  *    extractor file's mode/size (user req #5).
  *  - READY still requires extract → symlink audit → a real PRoot boot probe
- *    (id + os-release + bash + apt) — unchanged (user req #6).
+ *    (os-release + bash + apt; id is evidence only) — unchanged (user req #6).
+ *
+ * r1390 FIX (Debian runtime smoke test — user bug report, 6 requirements):
+ *  - FALSE-FAILURE ROOT CAUSE (device evidence, mechanism reproduced with the
+ *    bundled binary): the aMiNo service runs as Android shell UID 2000 and the
+ *    smoke rootfs has NO /etc/passwd — toybox `id` on a uid with no passwd
+ *    entry FAILS ("bad uid 2000", rc=1). The r1389 gates required `uid=0`
+ *    from `id` in BOTH the host-side post-setup verification AND the PRoot
+ *    smoke run, so a perfectly healthy userspace rootfs was rejected by an
+ *    identity lookup that says nothing about Debian. `id` is no longer a gate
+ *    ANYWHERE: not in the smoke test, not in probe(), not in acceptance T3.
+ *  - IDENTITY HONESTY (reqs #1/#6): this is NOT a root environment. The
+ *    service executes everything as the Android shell user (UID 2000; a
+ *    root-mode service is dropped to 2000 via `su 2000 -c`). Every label now
+ *    says "Debian userspace under Android shell UID 2000"; a UID-0 label is
+ *    used only when a genuine privileged backend actually answered.
+ *  - CANONICAL SYMLINK VALIDATION (req #3): `readlink -f` is resolved on BOTH
+ *    sides (link and target) and those canonical paths are compared with each
+ *    other — a valid `bin → usr/bin` + `cat → toybox` chain can no longer be
+ *    rejected because the expected path was expressed differently (relative
+ *    vs absolute, prefix symlinks).
+ *  - THE SMOKE RUN IS A DEBIAN USERSPACE SMOKE TEST (req #4): (1) toybox is
+ *    executable in place; (2) `toybox --help` runs (rc=0, stable
+ *    "usage: toybox" token — validated with the exact shipped binary);
+ *    (3) `/bin/cat /etc/os-release` runs through the merged-/usr chain and
+ *    the content must match; (4) each run's rc and output are verified
+ *    INDEPENDENTLY as its own named CHECK; (5) the service UID is reported
+ *    separately as identity evidence, never as a pass condition.
+ *  - FAILURE TEXT (req #5): "nothing was downloaded" is never claimed once
+ *    binaries were already pushed — the report names the EXACT failed check
+ *    and states what is PRESERVED (pushed binaries, the minimal rootfs for
+ *    inspection, and any previously verified rootfs archive for the retry).
  */
 object LinuxEnvManager {
 
@@ -248,14 +279,17 @@ object LinuxEnvManager {
     }
 
     /**
-     * r1389 — failure text for the SMOKE-ROOT BUILD steps (user req #7): the
-     * EXACT failing command with its real rc/stdout/stderr, PLUS the directory
-     * listing captured AT THE MOMENT OF FAILURE — reported before anything is
-     * changed or cleaned, so the state is inspected, never guessed. The tree
-     * is deliberately left in place; the next install removes and rebuilds it.
+     * r1390 — failure text for the SMOKE-ROOTFS BUILD steps (user req #5): the
+     * EXACT failed check — the failing command with its real rc/stdout/stderr,
+     * PLUS the directory listing captured AT THE MOMENT OF FAILURE — reported
+     * before anything is changed or cleaned, so the state is inspected, never
+     * guessed. It never claims "nothing was downloaded": binaries WERE pushed
+     * by this point and a previously verified archive may exist — the text
+     * states what is PRESERVED instead. The tree is deliberately left in
+     * place; the next install removes and rebuilds it.
      */
     private suspend fun smokeFailMsg(inv: Inv, mini: String, why: String): String = buildString {
-        append("SMOKE-ROOT SETUP FAILED — the minimal root could not be built; nothing was downloaded\n")
+        append("SMOKE ROOTFS SETUP FAILED — the exact failed check is below\n")
         append("• reason: $why\n")
         append(inv.render())
         val listing = try {
@@ -266,7 +300,8 @@ object LinuxEnvManager {
             ).output.trim()
         } catch (e: Exception) { "(listing unavailable: ${e.message ?: e.javaClass.simpleName})" }
         append("• directory listing AT FAILURE (unchanged, reported before any fix):\n$listing\n")
-        append("• the smoke root is left in place for inspection; the next install attempt removes and rebuilds it\n")
+        append("• the minimal rootfs is left in place for inspection; the next install attempt removes and rebuilds it\n")
+        append("• PRESERVED: the bundled binaries already pushed to $BASE and any previously verified rootfs archive in app storage — the next attempt reuses them without re-downloading\n")
     }
 
     // ---------- persistence ----------
@@ -462,7 +497,7 @@ object LinuxEnvManager {
     fun discoveryInfo(ctx: Context): Pair<Boolean, String> {
         val st = currentState(ctx)
         return when (st) {
-            State.READY -> true to "ready — Debian 12 via PRoot (fakeroot inside, no real root)"
+            State.READY -> true to "ready — Debian 12 userspace via PRoot, running under the Android shell identity (no root)"
             State.BROKEN -> false to "broken: ${load(ctx).optString("lastError", "unknown")} — reinstall from the Linux environment page"
             State.CHECKING, State.DOWNLOADING, State.TRANSFERRING, State.EXTRACTING, State.VERIFYING ->
                 false to "installation in progress (${st.name.lowercase()})"
@@ -580,7 +615,6 @@ object LinuxEnvManager {
             }
             val prootVersion = "${versionTok.take(40)} (rc=0, all DT_NEEDED libraries resolved incl. libtalloc.so.2)"
             step("proot verified on device: $prootVersion")
-            val smokeEvidence = "PRoot ran a minimal root with fake-root (id → uid=0) and read /etc/os-release"
             // ---- 2b-α) SERVICE RUNTIME EVIDENCE (r1388, user req #5) ----
             // The REAL identity and environment the service uses to run proot
             // AND the extractor: actual uid/gid (`id`), working directory,
@@ -650,136 +684,183 @@ object LinuxEnvManager {
             ShizukuExec.oneShot("rm -rf '$T'", 30_000)
             val extractorVersion = "$verTok (rc=0; tiny-archive round-trip passed: regular file + directory + symlink + dangling symlink preserved)"
 
-            // ---- 2c) MINIMAL-ROOTFS SMOKE TEST (r1387; rebuilt r1389 — user bug report) ----
-            // r1389 ROOT CAUSE (reproduced byte-for-byte in the sandbox with the
-            // bundled binary): the r1387 build line escaped \$BASE into the device
-            // shell — the service shell has NO BASE variable, so the link loop's
-            // destination expanded to `/miniroot/bin/sh` and every ln failed with
-            // EXACTLY the user's error:
-            //   ln: cannot create symbolic link from 'toybox' to '/miniroot/bin/sh':
-            //   No such file or directory
-            // (mkdir/cp/chmod succeeded because their paths were Kotlin-interpolated.)
-            // Second latent bug found while validating: the bundled toybox 0.8.11
-            // ships NO sh applet, so the old `/bin/sh -c 'id; cat …'` smoke command
-            // could never exec (rc=127) — the smoke run now execs the applets
-            // DIRECTLY under proot, no shell involved.
-            // The layout mirrors Debian 12 merged-/usr: /usr/bin FIRST, then
-            // /bin -> usr/bin as a RELATIVE symlink (/bin is never treated as a
-            // normal directory, req #4); every mkdir/cp/chmod/ln/printf exit code
-            // is checked (req #5); the tree is inspected BEFORE any link is
-            // created (req #1) and the exact failing command + full listing are
-            // reported on failure (req #7). Nothing is blindly recreated.
-            setState(ctx, State.CHECKING, "PRoot smoke test on a minimal root (no Debian involved yet)")
+            // ---- 2c) MINIMAL-ROOTFS SMOKE TEST (r1387; rebuilt r1389; DEBIAN
+            //          USERSPACE rework r1390 — user bug report) ----
+            // r1390 ROOT CAUSE (user device evidence + mechanism reproduced with
+            // the bundled binary): the service runs as Android shell UID 2000 and
+            // the smoke rootfs has NO /etc/passwd — toybox `id` on a uid with no
+            // passwd entry ERRORS ("bad uid 2000", rc=1). The r1389 gates
+            // required `uid=0` from `id` BOTH in post-setup verification AND in
+            // the PRoot smoke run, so a healthy userspace rootfs was rejected by
+            // an identity lookup that says nothing about Debian (reqs #1/#2).
+            // `id` is no longer run or linked here at all; the service UID is
+            // reported separately as evidence (req #4). This is a USERSPACE
+            // environment — never classified as root (req #1). Symlink
+            // validation compares readlink -f of BOTH sides so a valid link
+            // expressed differently cannot be rejected (req #3). The smoke run
+            // verifies toybox exec, `toybox --help` and `cat /etc/os-release`
+            // with each rc and output checked INDEPENDENTLY (req #4). The
+            // layout still mirrors Debian 12 merged-/usr: /usr/bin FIRST, then
+            // /bin -> usr/bin as a RELATIVE symlink; every op stays
+            // exit-code-checked, the tree is inspected before linking.
+            setState(ctx, State.CHECKING, "PRoot smoke test on a minimal userspace rootfs (no Debian involved yet)")
             val MINI = "$BASE/miniroot"
 
             // 2c-1) clean previous state — VERIFIED removal (never build over debris)
-            val mrClean = runStep("smoke root: remove any previous attempt",
+            val mrClean = runStep("smoke rootfs: remove any previous attempt",
                 "rm -rf '$MINI' && test ! -e '$MINI' && echo CLEAN_OK")
             if (mrClean.rc != 0 || !mrClean.stdout.contains("CLEAN_OK"))
                 return runtimeFail(ctx, smokeFailMsg(mrClean, MINI,
-                    "the previous smoke root could not be removed at $MINI"), "smoke root build")
+                    "the previous smoke rootfs could not be removed at $MINI"), "smoke rootfs build")
 
             // 2c-2) directory tree — merged-/usr: /usr/bin FIRST (Debian 12 layout)
-            val mrDirs = runStep("smoke root: create directory tree (merged-/usr: usr/bin first)",
+            val mrDirs = runStep("smoke rootfs: create directory tree (merged-/usr: usr/bin first)",
                 "mkdir -p '$MINI/usr/bin' '$MINI/etc' '$MINI/root' '$MINI/tmp' '$MINI/dev' '$MINI/proc' && " +
                     "test -d '$MINI/usr/bin' && echo DIRS_OK")
             if (mrDirs.rc != 0 || !mrDirs.stdout.contains("DIRS_OK"))
                 return runtimeFail(ctx, smokeFailMsg(mrDirs, MINI,
-                    "could not create the smoke-root directory tree under $MINI"), "smoke root build")
+                    "could not create the smoke-rootfs directory tree under $MINI"), "smoke rootfs build")
 
-            // 2c-3) toybox into /usr/bin + exec it IN PLACE at its final location
-            val mrToy = runStep("smoke root: install toybox into /usr/bin and exec it in place",
+            // 2c-3) toybox into /usr/bin + exec it IN PLACE at its final location.
+            // Req #4 (1)+(2): toybox is executable AND `toybox --help` runs —
+            // the bundled binary answers rc=0 with a stable "usage: toybox"
+            // token (validated with the exact shipped binary; NO pipeline —
+            // the rc is toybox's own, per the r1387/r1388 lesson).
+            val mrToy = runStep("smoke rootfs: install toybox into /usr/bin, exec it in place (+ --help)",
                 "cp '$TOYBOX' '$MINI/usr/bin/toybox' && chmod 755 '$MINI/usr/bin/toybox' && " +
-                    "'$MINI/usr/bin/toybox' --version && echo TOY_OK")
-            if (mrToy.rc != 0 || !mrToy.stdout.contains("TOY_OK"))
+                    "'$MINI/usr/bin/toybox' --version && '$MINI/usr/bin/toybox' --help && echo TOY_OK")
+            if (mrToy.rc != 0 || !mrToy.stdout.contains("TOY_OK") || !mrToy.stdout.contains("usage: toybox"))
                 return runtimeFail(ctx, smokeFailMsg(mrToy, MINI,
-                    "the toybox copy inside the smoke root did not exec at $MINI/usr/bin/toybox"), "smoke root build")
+                    "the toybox copy inside the smoke rootfs did not exec, or --help did not answer, at $MINI/usr/bin/toybox"), "smoke rootfs build")
 
             // 2c-4) INSPECT every parent path BEFORE creating any link (user req #1)
-            val mrInspect = runStep("smoke root: directory inspection before linking",
+            val mrInspect = runStep("smoke rootfs: directory inspection before linking",
                 "echo '--- miniroot ---'; ls -la '$MINI' 2>&1; echo '--- miniroot/usr ---'; ls -la '$MINI/usr' 2>&1; " +
                     "echo '--- miniroot/usr/bin ---'; ls -la '$MINI/usr/bin' 2>&1")
             if (mrInspect.rc != 0)
                 return runtimeFail(ctx, smokeFailMsg(mrInspect, MINI,
-                    "could not list the smoke-root directories"), "smoke root build")
-            step("smoke-root listing before any link:\n${mrInspect.stdout.take(700)}")
+                    "could not list the smoke-rootfs directories"), "smoke rootfs build")
+            step("smoke-rootfs listing before any link:\n${mrInspect.stdout.take(700)}")
 
             // 2c-5) /bin -> usr/bin — RELATIVE symlink (merged-/usr; survives being
             // mounted at any root; /bin is NEVER treated as a normal directory)
-            val mrBin = runStep("smoke root: /bin -> usr/bin (relative, merged-/usr)",
+            val mrBin = runStep("smoke rootfs: /bin -> usr/bin (relative, merged-/usr)",
                 "ln -s usr/bin '$MINI/bin' && echo \"BIN_TARGET=\$('$TOYBOX' readlink '$MINI/bin' 2>&1)\"")
             if (mrBin.rc != 0 || !mrBin.stdout.contains("BIN_TARGET=usr/bin"))
                 return runtimeFail(ctx, smokeFailMsg(mrBin, MINI,
-                    "could not create the merged-/usr /bin -> usr/bin symlink"), "smoke root build")
+                    "could not create the merged-/usr /bin -> usr/bin symlink"), "smoke rootfs build")
 
             // 2c-6) applet links — EACH ln individually exit-code-checked, fail-fast
-            // with the applet name (user reqs #2/#5). NOTE: no `sh` link — the
-            // bundled toybox 0.8.11 ships no sh applet (verified in sandbox), and a
-            // link that cannot exec is exactly the dishonesty this fix removes.
-            val mrLinks = runStep("smoke root: applet links (each ln rc-checked)",
-                "ok=1; for a in id cat; do ln -sf toybox '$MINI/usr/bin/'\$a || { ok=0; echo \"LN_FAIL applet=\$a\"; }; done; " +
+            // with the applet name. r1390 (user req #2): `id` is NOT linked and
+            // NEVER run — the Android shell UID (2000) has no entry in the smoke
+            // rootfs's (nonexistent) passwd database, so toybox `id` errors there
+            // ("bad uid 2000"); that is the normal Android identity showing
+            // through, NOT an installation failure. Only `cat` is linked: it is
+            // the applet the userspace smoke test actually verifies.
+            val mrLinks = runStep("smoke rootfs: applet links (each ln rc-checked)",
+                "ok=1; for a in cat; do ln -sf toybox '$MINI/usr/bin/'\$a || { ok=0; echo \"LN_FAIL applet=\$a\"; }; done; " +
                     "[ \"\$ok\" = 1 ] && echo LINKS_OK")
             if (mrLinks.rc != 0 || !mrLinks.stdout.contains("LINKS_OK"))
                 return runtimeFail(ctx, smokeFailMsg(mrLinks, MINI,
-                    "an applet symlink failed inside the smoke root (${mrLinks.stdout.take(120)})"), "smoke root build")
+                    "an applet symlink failed inside the smoke rootfs (${mrLinks.stdout.take(120)})"), "smoke rootfs build")
 
-            // 2c-7) /etc/os-release — written AND read back
-            val mrOsr = runStep("smoke root: write /etc/os-release and read it back",
-                "printf 'PRETTY_NAME=\"AMINO PRoot smoke test\"\\nID=amino-smoke\\n' > '$MINI/etc/os-release' && " +
+            // 2c-7) /etc/os-release — written AND read back (this is the file the
+            // userspace smoke test cats through the merged-/usr chain, req #4 (3))
+            val mrOsr = runStep("smoke rootfs: write /etc/os-release and read it back",
+                "printf 'PRETTY_NAME=\"AMINO userspace smoke rootfs\"\\nID=amino-smoke\\n' > '$MINI/etc/os-release' && " +
                     "cat '$MINI/etc/os-release' && echo OSR_OK")
             if (mrOsr.rc != 0 || !mrOsr.stdout.contains("OSR_OK"))
                 return runtimeFail(ctx, smokeFailMsg(mrOsr, MINI,
-                    "could not write/read the smoke root's /etc/os-release"), "smoke root build")
+                    "could not write/read the smoke rootfs's /etc/os-release"), "smoke rootfs build")
 
-            // 2c-8) post-setup verification BEFORE proot (user req #6):
-            // exists / executable / readlink -f through the merged-/usr chain /
-            // REALLY execs — /bin/id and /bin/cat, both through the /bin symlink
-            val mrVerify = runStep("smoke root: verify bin/* (exists, executable, readlink -f, direct exec)",
-                "test -e '$MINI/bin/id' && echo E_ID; test -x '$MINI/bin/id' && echo X_ID; " +
-                    "echo \"RESOLVES_ID=\$('$TOYBOX' readlink -f '$MINI/bin/id' 2>&1)\"; '$MINI/bin/id' 2>&1; " +
-                    "test -e '$MINI/bin/cat' && echo E_CAT; test -x '$MINI/bin/cat' && echo X_CAT; " +
+            // 2c-8) post-setup verification BEFORE proot (r1390, user reqs #3/#4):
+            //   • /bin/cat exists + executable through the /bin -> usr/bin chain
+            //   • CANONICAL symlink validation (req #3): `readlink -f` is
+            //     resolved on BOTH sides and the two canonical paths are compared
+            //     WITH EACH OTHER — a valid bin→usr/bin + cat→toybox chain can no
+            //     longer be rejected because the expected path was expressed
+            //     differently (relative vs absolute, prefix symlinks)
+            //   • the link EXPRESSIONS (usr/bin, toybox) are recorded as evidence
+            //   • a REAL direct exec of /bin/cat against /etc/os-release
+            //   NO `id` anywhere (req #2 — see 2c-6)
+            val mrVerify = runStep("smoke rootfs: verify links canonically (readlink -f both sides) and exec cat",
+                "test -e '$MINI/bin/cat' && echo E_CAT; test -x '$MINI/bin/cat' && echo X_CAT; " +
+                    "echo \"LINK_BIN=\$('$TOYBOX' readlink '$MINI/bin' 2>&1)\"; " +
+                    "echo \"LINK_CAT=\$('$TOYBOX' readlink '$MINI/usr/bin/cat' 2>&1)\"; " +
+                    "echo \"CANON_TOY=\$('$TOYBOX' readlink -f '$MINI/usr/bin/toybox' 2>&1)\"; " +
+                    "echo \"CANON_CAT=\$('$TOYBOX' readlink -f '$MINI/bin/cat' 2>&1)\"; " +
                     "'$MINI/bin/cat' '$MINI/etc/os-release' && echo CAT_OK")
-            val resolvesId = Regex("RESOLVES_ID=(\\S+)").find(mrVerify.stdout)?.groupValues?.get(1)
-            val verifyOk = mrVerify.rc == 0 && mrVerify.stdout.contains("E_ID") &&
-                mrVerify.stdout.contains("X_ID") && mrVerify.stdout.contains("E_CAT") &&
+            fun vTag(k: String) = Regex("$k=(.*)").find(mrVerify.stdout)?.groupValues?.get(1)?.trim()
+            val canonToy = vTag("CANON_TOY")
+            val canonCat = vTag("CANON_CAT")
+            val verifyOk = mrVerify.rc == 0 && mrVerify.stdout.contains("E_CAT") &&
                 mrVerify.stdout.contains("X_CAT") && mrVerify.stdout.contains("CAT_OK") &&
-                mrVerify.stdout.contains("uid=") && resolvesId == "$MINI/usr/bin/toybox"
+                !canonToy.isNullOrBlank() && !canonCat.isNullOrBlank() && canonToy == canonCat
             if (!verifyOk)
                 return runtimeFail(ctx, smokeFailMsg(mrVerify, MINI,
-                    "the smoke root failed post-setup verification (exists/executable/resolves/exec; " +
-                        "resolves=$resolvesId, expected $MINI/usr/bin/toybox)"), "smoke root build")
-            step("smoke root verified before PRoot: /bin/id and /bin/cat exist ✓ executable ✓ " +
-                "resolve → $resolvesId (merged-/usr chain) ✓ direct exec ✓")
+                    "the smoke rootfs failed post-setup verification (exists/executable/canonical-resolve/exec; " +
+                        "canonical toybox=$canonToy, canonical cat=$canonCat — they must be the SAME path)"), "smoke rootfs build")
+            step("smoke rootfs verified before PRoot: /bin/cat exists ✓ executable ✓ " +
+                "resolves canonically → $canonCat (== toybox, merged-/usr chain) ✓ direct exec ✓ " +
+                "link expressions: /bin→${vTag("LINK_BIN")}, cat→${vTag("LINK_CAT")}")
 
-            // 2c-9) THE SMOKE RUN — proot execs the applets DIRECTLY (no shell: the
-            // bundled toybox has no sh applet, and the service PATH is meaningless
-            // inside the rootfs anyway). Two real runs: id (fakeroot → uid=0) and
-            // cat /etc/os-release (file read INSIDE the rootfs). Each rc captured
-            // explicitly — no pipeline masking.
-            val smoke = runStep("PRoot smoke run (id + os-release inside the minimal root)",
+            // 2c-8b) SERVICE IDENTITY — reported SEPARATELY, never a gate
+            // (user reqs #2/#4). `id -u` runs through the service's own execution
+            // path (a root-mode service is already dropped to 2000 via
+            // `su 2000 -c`, so this is the true EXECUTING identity).
+            val uidInv = runStep("smoke rootfs: service identity (reported separately, never a gate)",
+                "echo \"UID_NUM=\$(id -u 2>&1)\"; id 2>&1")
+            val uidNum = Regex("UID_NUM=(\\d+)").find(uidInv.stdout)?.groupValues?.get(1)
+                ?: ShizukuExec.serviceUid().takeIf { it >= 0 }?.toString() ?: "unknown"
+            val uidLabel = if (uidNum == "0") "UID 0 — a genuine privileged backend answered"
+                else "Android shell UID $uidNum — Debian userspace, NOT root"
+            step("service identity (evidence only): $uidLabel")
+
+            // 2c-9) THE SMOKE RUN — a DEBIAN USERSPACE SMOKE TEST (user req #4);
+            // proot execs the applets DIRECTLY (no shell: the bundled toybox has
+            // no sh applet). Two INDEPENDENT checks, each with its OWN rc marker
+            // and its OWN output assertion, verified SEPARATELY:
+            //   CHECK 1: `toybox --help` inside the rootfs — exec + loader +
+            //            chroot proof, identity-free (rc=0 + "usage: toybox")
+            //   CHECK 2: `/bin/cat /etc/os-release` through the merged-/usr
+            //            chain — rc=0 + the exact written content must return
+            // `-0` is kept because it is what the real session uses (fakeroot
+            // mapping INSIDE the container only); NOTHING here asserts a uid.
+            val smoke = runStep("PRoot smoke run (toybox --help + cat os-release inside the minimal rootfs)",
                 "PROOT_TMP_DIR=$BASE/tmp LD_LIBRARY_PATH=$BASE/lib $BASE/bin/proot --kill-on-exit " +
-                    "-0 -r '$MINI' -w /root /usr/bin/id; echo \"SMOKE_RC1=\$?\"; " +
+                    "-0 -r '$MINI' -w /root /usr/bin/toybox --help; echo \"SMOKE_RC1=\$?\"; " +
                     "PROOT_TMP_DIR=$BASE/tmp LD_LIBRARY_PATH=$BASE/lib $BASE/bin/proot --kill-on-exit " +
-                    "-0 -r '$MINI' -w /root /usr/bin/cat /etc/os-release; echo \"SMOKE_RC2=\$?\"",
+                    "-0 -r '$MINI' -w /root /bin/cat /etc/os-release; echo \"SMOKE_RC2=\$?\"",
                 60_000)
             val rc1 = Regex("SMOKE_RC1=(\\d+)").find(smoke.stdout)?.groupValues?.get(1)?.toIntOrNull() ?: -1
             val rc2 = Regex("SMOKE_RC2=(\\d+)").find(smoke.stdout)?.groupValues?.get(1)?.toIntOrNull() ?: -1
-            val idOut = smoke.stdout.substringBefore("SMOKE_RC1=").trim()
+            val helpOut = smoke.stdout.substringBefore("SMOKE_RC1=").trim()
             val catOut = smoke.stdout.substringAfter("SMOKE_RC1=").substringBefore("SMOKE_RC2=").trim()
-            if (rc1 != 0 || rc2 != 0 || !idOut.contains("uid=0") || !catOut.contains("AMINO PRoot smoke test")) {
+            // each check verified INDEPENDENTLY (user req #4) and named in the report
+            val helpOk = rc1 == 0 && helpOut.contains("usage: toybox")
+            val catOk = rc2 == 0 && catOut.contains("AMINO userspace smoke rootfs")
+            if (!helpOk || !catOk) {
                 val why = buildString {
-                    append("PRoot could not run even the minimal smoke root — installing Debian would fail the same way\n")
-                    append("• assertion: id → rc=0 + uid=0 (fakeroot), cat → rc=0 + os-release content\n")
-                    append("• actual: id rc=$rc1 (output: ${idOut.take(200)}), cat rc=$rc2 (output: ${catOut.take(200)})\n")
+                    append("PRoot could not run the minimal userspace rootfs — installing Debian would fail the same way\n")
+                    append("• CHECK 1 (toybox --help inside the rootfs): " +
+                        if (helpOk) "PASSED (rc=0, usage token present)\n"
+                        else "FAILED — rc=$rc1, output=${helpOut.take(200)}\n")
+                    append("• CHECK 2 (cat /etc/os-release through the merged-/usr chain): " +
+                        if (catOk) "PASSED (rc=0, content matches)\n"
+                        else "FAILED — rc=$rc2, output=${catOut.take(200)}\n")
                     if (smoke.stderr.isNotBlank()) append("• stderr: ${smoke.stderr.take(400)}\n")
                     append(smoke.render())
-                    append("→ this is a PRoot runtime problem, NOT your storage; nothing was downloaded\n")
+                    append("• service identity: the aMiNo service runs as $uidLabel; this test never uses or claims root\n")
+                    append("→ the EXACT failed check is named above; pushed binaries and any previously verified archive are PRESERVED\n")
                     append("→ update aMiNo and retry; use Remove on this page to clear $BASE")
                 }
                 Log.e(TAG, "PROOT SMOKE TEST FAILED: rc1=$rc1 rc2=$rc2 ${smoke.stdout.take(300)}")
                 return runtimeFail(ctx, why, "PRoot smoke test")
             }
-            step("smoke test PASSED: id → uid=0 (fakeroot) · os-release read inside the rootfs — PRoot chroot + fake-root + merged-/usr exec all work; proceeding to Debian")
+            val smokeEvidence = "Debian userspace smoke test passed: toybox --help + cat /etc/os-release ran inside " +
+                "the minimal rootfs through PRoot (both rc=0, verified independently); service identity: $uidLabel — no root claims"
+            step("smoke test PASSED (Debian userspace smoke test): toybox --help rc=0 · cat /etc/os-release rc=0 " +
+                "through the merged-/usr chain — PRoot chroot + exec work; service identity: $uidLabel; proceeding to Debian")
             ShizukuExec.oneShot("rm -rf '$MINI'", 30_000)
 
             // ---- 3) download — or REUSE the verified archive from a failed attempt ----
@@ -889,7 +970,8 @@ object LinuxEnvManager {
                 "• extractor: $extractorVersion\n" +
                 "• audit: ${audit.second}\n" +
                 "• probe: ${probe.second.trim().replace("\n", " · ")}\n" +
-                "• runtime: $ROOTFS (shell uid 2000, PRoot fakeroot — NOT real root)\n" +
+                "• runtime: $ROOTFS — Debian userspace under the aMiNo service identity ($uidLabel); " +
+                "PRoot may map it to root inside the container; nothing here is real root\n" +
                 "• archive kept in app private storage for Reset (${dl.file.length() / (1024 * 1024)} MB)"
         } catch (e: Throwable) {
             Log.e(TAG, "install crashed", e)
@@ -913,18 +995,26 @@ object LinuxEnvManager {
     }
 
     /**
-     * r1387/r1388 — failure of a BUNDLED-BINARY runtime phase (proot exec,
-     * dependency resolution, smoke root, or the r1388 extractor gates), all of
-     * which run BEFORE any Debian download. The environment is NOT "broken":
-     * Debian was never downloaded or extracted, and the user's storage already
-     * passed the preflight. State returns to NOT_INSTALLED with the full
-     * diagnostic — a broken state would be a false claim about the device.
+     * r1387/r1388/r1390 — failure of a BUNDLED-BINARY runtime phase (proot exec,
+     * dependency resolution, smoke rootfs, or the r1388 extractor gates), all of
+     * which run BEFORE the Debian rootfs is extracted. The environment is NOT
+     * "broken": the user's storage already passed the preflight. State returns
+     * to NOT_INSTALLED with the full diagnostic. r1390 (user req #5): the text
+     * never claims "nothing was downloaded" — binaries WERE pushed by this
+     * point and a previously verified archive may exist; the state line below
+     * says exactly what is PRESERVED for the retry.
      */
     private fun runtimeFail(ctx: Context, why: String, stage: String = "PRoot runtime test"): String {
         Log.e(TAG, "RUNTIME FAILED [$stage]: ${why.take(300)}")
         setState(ctx, State.NOT_INSTALLED, "install stopped before Debian: $stage failed", why)
-        return "RUNTIME TEST FAILED ($stage) — Debian was NOT downloaded, nothing was extracted, " +
-            "nothing on the storage is broken:\n$why"
+        val archive = File(ctx.filesDir, "linux").listFiles()
+            ?.firstOrNull { it.name.startsWith("debian-rootfs.tar.") }
+        val kept = if (archive != null)
+            "a previously verified rootfs archive (${archive.name}, ${archive.length() / (1024 * 1024)} MB) is PRESERVED in app storage — the next install reuses it without re-downloading"
+        else
+            "no rootfs archive exists in app storage yet — the next install will download it"
+        return "RUNTIME TEST FAILED ($stage) — nothing was extracted and nothing on your storage is broken; " +
+            "the EXACT failed check is reported above:\n$why\n• state: $kept"
     }
 
     // ---------- r1386 helpers: resume, bundled extraction, audit ----------
@@ -1231,8 +1321,14 @@ object LinuxEnvManager {
     // ---------- probe (the ONLY thing that flips claims into facts) ----------
 
     /**
-     * Spawns PRoot once and runs `id; head -1 /etc/os-release` INSIDE the
-     * container. Returns (verified, evidence).
+     * Spawns PRoot once and runs identity + os-release + bash + apt INSIDE the
+     * container. r1390 (user req #2): the GATES are Debian's own artifacts —
+     * os-release + bash + apt. `id` is recorded as identity evidence ONLY: the
+     * Android shell UID (2000) has no entry in the Debian passwd database, so
+     * `id` may print a bare numeric uid or an applet error there; that is the
+     * normal host identity showing through, NOT an installation failure. The
+     * environment itself is Debian USERSPACE under the shell identity — never
+     * claimed as root. Returns (verified, evidence).
      */
     suspend fun probe(ctx: Context): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         if (!ShizukuExec.available()) return@withContext false to "aMiNo service is not running"
@@ -1250,7 +1346,7 @@ object LinuxEnvManager {
                     "/usr/bin/env", "-i",
                     "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                     "HOME=/root",
-                    "/bin/sh", "-c", "id; head -n 1 /etc/os-release; bash --version 2>/dev/null | head -n 1; apt-get --version 2>/dev/null | head -n 1"
+                    "/bin/sh", "-c", "id 2>&1 | head -n 1; head -n 1 /etc/os-release; bash --version 2>/dev/null | head -n 1; apt-get --version 2>/dev/null | head -n 1"
                 ), env, "/"
             )
         } catch (e: Throwable) {
@@ -1271,7 +1367,9 @@ object LinuxEnvManager {
             p.destroy()
         }
         val text = out.toString().trim()
-        val ok = text.contains("uid=0") && text.contains("Debian") &&
+        // Gates are Debian's OWN artifacts — never the guest's view of the uid
+        // (the shell UID may not exist in the Debian passwd database; r1390).
+        val ok = text.contains("Debian") &&
             text.contains("bash", ignoreCase = true) && text.contains("apt", ignoreCase = true)
         ok to text
     }

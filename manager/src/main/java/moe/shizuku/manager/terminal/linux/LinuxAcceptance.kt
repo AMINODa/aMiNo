@@ -59,13 +59,21 @@ object LinuxAcceptance {
             }
 
             // ---- T3: id / pwd / uname -a ----
+            // r1390 (user req #2): `id` is EVIDENCE, not a gate — the Android
+            // shell UID (2000) has no entry in the Debian passwd database, so
+            // `id` may print a bare numeric uid or an applet-level error there;
+            // that is the normal host identity showing through, NOT an
+            // installation failure. Gates: rc + cwd (/root) + a real Linux
+            // kernel string from uname.
             onProgress("T3: id / pwd / uname -a")
             run {
                 val o = session!!.execute("id; pwd; uname -a", 20_000)
                 val ev = o.stdout.ifBlank { o.stderr }
-                val ok = o.ok && o.stdout.contains("uid=0") && o.stdout.contains("/root") && o.stdout.contains("Linux")
-                record("id + pwd + uname -a", "id; pwd; uname -a", ok,
-                    ev + " — note: uid=0 is PRoot's FAKEROOT inside the container only (host identity stays shell uid 2000, no real privileges)",
+                val ok = o.ok && o.stdout.contains("/root") && o.stdout.contains("Linux")
+                record("pwd + uname -a (id reported as identity evidence only)", "id; pwd; uname -a", ok,
+                    ev + " — identity note: the aMiNo service runs as the Android shell user (uid 2000); " +
+                        "inside the container PRoot may map that identity (fake-root). This is Debian " +
+                        "USERSPACE — never real root, no system privileges.",
                     o.exitCode)
             }
 

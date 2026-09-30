@@ -116,7 +116,7 @@ object TerminalEngine {
         run {
             val (ok, why) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.discoveryInfo(ctx)
             val notes = when {
-                ok -> "persistent sessions, bash/apt/dpkg inside; PRoot fakeroot only — the host identity stays shell uid 2000; " +
+                ok -> "persistent sessions, bash/apt/dpkg inside; Debian USERSPACE under the Android shell identity (uid 2000) — no root; " +
                     "files exchanged via /shared (app private)"
                 else -> "separate from ADB/Termux/local — installing it requires the aMiNo service (no root needed)"
             }
@@ -124,7 +124,7 @@ object TerminalEngine {
                 backend = TermBackend.LINUX_USERSPACE, available = ok,
                 status = why,
                 path = if (ok) "/root (in ${moe.shizuku.manager.terminal.linux.LinuxEnvManager.ROOTFS})" else "-",
-                identity = if (ok) "fakeroot uid=0 INSIDE the container · shell uid 2000 on the host" else "-",
+                identity = if (ok) "Debian userspace via PRoot · host identity: Android shell UID 2000 (not root)" else "-",
                 notes = notes
             ))
         }
@@ -190,7 +190,9 @@ object TerminalEngine {
             "termux" -> discover(ctx).first { it.backend == TermBackend.TERMUX }
             "linux", "linux_userspace", "proot", "debian" -> {
                 // REAL probe: spawn PRoot once through the service and require
-                // uid=0 (fakeroot) + Debian os-release. No shortcut, no assumption.
+                // Debian's own artifacts (os-release + bash + apt). `id` is
+                // evidence only — the shell UID may not exist in the Debian
+                // passwd database (r1390). No shortcut, no assumption.
                 val st = moe.shizuku.manager.terminal.linux.LinuxEnvManager.currentState(ctx)
                 if (st != moe.shizuku.manager.terminal.linux.LinuxEnvManager.State.READY) {
                     val (ok2, why2) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.discoveryInfo(ctx)
@@ -201,7 +203,7 @@ object TerminalEngine {
                 if (ok) EnvironmentInfo(TermBackend.LINUX_USERSPACE, true,
                     "VERIFIED: ${evidence.replace("\n", " · ").take(140)}",
                     "/root (in ${moe.shizuku.manager.terminal.linux.LinuxEnvManager.ROOTFS})",
-                    "fakeroot uid=0 inside · shell uid 2000 on host",
+                    "Debian userspace via PRoot · host identity: Android shell UID 2000 (not root)",
                     "ready for persistent sessions (bash/apt/dpkg)")
                 else EnvironmentInfo(TermBackend.LINUX_USERSPACE, false,
                     "probe failed: ${evidence.take(180)}", "-", "-",

@@ -30,9 +30,11 @@ import java.util.Locale
  *
  * Everything shown here is REAL: the pre-flight checks query the actual device,
  * the install progress reports actual stages, and the state flips to READY only
- * after the verification probe (id + /etc/os-release through PRoot) succeeded.
- * The screen also makes the honesty contract visible to the user: PRoot gives a
- * FAKEROOT inside the container, never real system privileges.
+ * after the verification probe (os-release + bash + apt through PRoot) passed.
+ * The screen also makes the honesty contract visible to the user: this is a
+ * Debian USERSPACE running under the Android shell identity (uid 2000) — PRoot
+ * may map it to root inside the container, but it never grants real system
+ * privileges.
  */
 class LinuxEnvActivity : AppActivity() {
 

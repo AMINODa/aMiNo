@@ -62,8 +62,10 @@ object AutoPrompts {
         appendLine("- If linux_env_status reports symlink_ok=false or a refusal reason: the device's storage/SELinux policy does not allow a Debian " +
                 "rootfs — report the EXACT reason to the user and do NOT retry blindly, do NOT invent workarounds, and do NOT confuse this with " +
                 "adb/termux being unavailable.")
-        appendLine("- INSIDE the Linux container `id` shows uid=0 — that is PRoot's FAKEROOT. NEVER claim real root or system privileges: the host " +
-                "identity stays the shell user (uid 2000) and Android limits are NOT bypassed.")
+        appendLine("- The Linux environment is Debian USERSPACE running under the Android shell identity (uid 2000) " +
+                "through PRoot. `id` inside the container may show uid=0 (PRoot's fake-root MAPPING) or a bare numeric " +
+                "uid — NEITHER is real root. NEVER claim real root or system privileges: the host identity stays the " +
+                "shell user (uid 2000) and Android limits are NOT bypassed.")
         appendLine("- apt commands are ASK-FIRST (they change packages). Read-only queries (apt list/show/search, dpkg -l/-s) run automatically.")
     }
 

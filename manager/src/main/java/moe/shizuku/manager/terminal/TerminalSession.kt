@@ -206,7 +206,7 @@ class TerminalSession(
         while (alive && !ready && System.currentTimeMillis() < deadline) Thread.sleep(80)
         if (ready) {
             cwd = startDir
-            addSys("session ready — env: ${backend.title} (Debian 12 · PRoot fakeroot — shell uid on the host, NOT real root)")
+            addSys("session ready — env: ${backend.title} (Debian 12 userspace via PRoot — host identity: Android shell UID 2000, NOT real root)")
         } else {
             addSys("session init timed out — the environment did not answer")
         }

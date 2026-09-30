@@ -560,6 +560,6 @@
     <string name="linux_remove_confirm">إزالة بيئة Linux بالكامل؟\n\nسيُحذف: شجرة التشغيل /data/local/tmp/amino-linux وأرشيف Rootfs من مساحة aMiNo الخاصة. لن يُلمس ADB أو Termux أو شل التطبيق.</string>
     <string name="linux_tests_pass">اختبارات القبول: كلها ناجحة</string>
     <string name="linux_tests_fail">اختبارات القبول: فشل (الأدلة أدناه)</string>
-    <string name="linux_note_honest">ملاحظات صراحة: يمنح PRoot حساب Root وهمياً داخل Debian (يُظهر id ‏uid=0) — لا يمنح أي صلاحيات نظام حقيقية ولا يتجاوز قيود أندرويد. البيئة منفصلة تماماً عن ADB وTermux وشل التطبيق. تعيش شجرة التشغيل في /data/local/tmp لأن أندرويد 10+ يمنع تنفيذ الملفات التنفيذية من مساحة التطبيق الخاصة؛ يبقى الأرشيف في مساحة aMiNo الخاصة ويُنفّذ التثبيت كله عبر خدمة aMiNo (معرّف shell بدون Root). لا يُعلن أي نجاح قبل نجاح مسح حقيقي (id + /etc/os-release).</string>
+    <string name="linux_note_honest">ملاحظات صراحة: هذه Debian في فضاء المستخدم تعمل بهوية shell الخاصة بأندرويد (uid 2000) عبر PRoot — لا تمنح أي صلاحيات نظام حقيقية ولا تتجاوز قيود أندرويد. داخل الحاوية قد يعيد PRoot تخطيط الهوية إلى root للتوافق؛ هذا تخطيط وليس Root حقيقياً. البيئة منفصلة تماماً عن ADB وTermux وشل التطبيق. تعيش شجرة التشغيل في /data/local/tmp لأن أندرويد 10+ يمنع تنفيذ الملفات التنفيذية من مساحة التطبيق الخاصة؛ يبقى الأرشيف في مساحة aMiNo الخاصة ويُنفّذ التثبيت كله عبر خدمة aMiNo (معرّف shell بدون Root). لا يُعلن أي نجاح قبل نجاح مسح حقيقي (os-release + bash + apt).</string>
 
 </resources>
