@@ -56,8 +56,12 @@ object AutoPrompts {
                 "Debian package universe — the BEST place for Linux tools (nmap, jq, python, ...). It is a SEPARATE environment from adb/termux/local; " +
                 "pick it explicitly with environment=linux in the terminal_* tools.")
         appendLine("- Before planning Linux work: call linux_env_status. If state != READY: call linux_env_install WITHOUT confirm first to show the " +
-                "user the REAL pre-flight checks (arch/storage/network/service), then WITH confirm=true to install (it verifies with a real probe — " +
-                "never claim success before that probe). linux_env_update / linux_env_reset / linux_env_remove also require confirm=true.")
+                "user the REAL pre-flight checks (arch/storage/network/service/symlink-support), then WITH confirm=true to install (it extracts with the " +
+                "bundled symlink-safe tar, audits the tree, and verifies by booting Debian through PRoot — never claim success before that). " +
+                "linux_env_update / linux_env_reset / linux_env_remove also require confirm=true.")
+        appendLine("- If linux_env_status reports symlink_ok=false or a refusal reason: the device's storage/SELinux policy does not allow a Debian " +
+                "rootfs — report the EXACT reason to the user and do NOT retry blindly, do NOT invent workarounds, and do NOT confuse this with " +
+                "adb/termux being unavailable.")
         appendLine("- INSIDE the Linux container `id` shows uid=0 — that is PRoot's FAKEROOT. NEVER claim real root or system privileges: the host " +
                 "identity stays the shell user (uid 2000) and Android limits are NOT bypassed.")
         appendLine("- apt commands are ASK-FIRST (they change packages). Read-only queries (apt list/show/search, dpkg -l/-s) run automatically.")

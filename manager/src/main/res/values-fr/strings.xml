@@ -495,6 +495,7 @@
     <string name="linux_pf_data">/data libre : %1$d Mo (≥ 800 requis)</string>
     <string name="linux_pf_net">Réseau : %1$s</string>
     <string name="linux_pf_service">Service aMiNo (PRoot passe par lui, sans root) : %1$s</string>
+    <string name="linux_pf_fs">Stockage d'exécution (type %1$s) : liens symboliques %2$s %3$s</string>
     <string name="linux_pf_problems">Problèmes bloquants actuellement :</string>
     <string name="linux_update_confirm">Lancer apt-get update + upgrade DANS l\'environnement Debian ?\n\nSeul le conteneur est touché — Android n\'est jamais modifié. Sortie réelle affichée.</string>
     <string name="linux_reset_confirm">Réinitialiser l\'environnement Linux vers un Debian 12 neuf ?\n\nL\'arborescence est effacée puis ré-extraite de l\'archive vérifiée. Les paquets installés via apt sont PERDUS. Une vérification réelle suit.</string>

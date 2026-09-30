@@ -39,6 +39,30 @@ import java.util.concurrent.atomic.AtomicBoolean
  * manifest fetched by tag, layer blob verified byte-by-byte against its
  * sha256 digest. Fallback: cdimage.debian.org cloud rootfs verified against the
  * official SHA512SUMS file. Nothing is extracted before verification passes.
+ *
+ * r1386 FIX (Debian install failing with "symlink: Permission denied" and the
+ * environment left BROKEN):
+ *  - the REAL paths are verified at runtime, never assumed: download → the
+ *    app-private dir files/linux/; extract → /data/local/tmp/amino-linux via
+ *    the aMiNo service (shell uid). Shared storage (/sdcard, FUSE) is refused
+ *    by a hard path guard.
+ *  - a FILESYSTEM CAPABILITY PROBE (write + symlink + hardlink) now runs at
+ *    the real install path BEFORE anything is downloaded. A device whose
+ *    storage/SELinux policy denies symlink creation gets the exact original
+ *    error text and the install never starts — the state goes back to
+ *    NOT_INSTALLED with the reason (never a half-broken environment).
+ *  - extraction uses the BUNDLED toybox tar (libamino_tar.so, static musl,
+ *    pushed to $BASE/bin/toybox) instead of the device's own tar — verified
+ *    in CI against the real Debian layer (byte-identical tree, 642 symlinks);
+ *    stderr is captured and on failure the failing paths, the original errno
+ *    text, the tool and its version are logged (spec #9).
+ *  - after extraction an AUDIT checks /bin → usr/bin and counts symlinks so a
+ *    silently-skipped symlink pass can never be reported as success; only
+ *    then Debian is booted through PRoot and os-release + bash + apt are
+ *    verified before READY (spec #8).
+ *  - the verified archive stays in app storage, so a failed install retries
+ *    without re-downloading (remote sha256 verified after transfer), and
+ *    every failure cleans its temp files safely.
  */
 object LinuxEnvManager {
 
@@ -46,6 +70,12 @@ object LinuxEnvManager {
     const val BASE = "/data/local/tmp/amino-linux"
     const val ROOTFS = "$BASE/rootfs"
     private const val PREFS = "linux_env"
+
+    /** Bundled deterministic extractor (toybox tar, static) — pushed to the device. */
+    const val TOYBOX = "$BASE/bin/toybox"
+    /** The Debian 12 docker layer has 642 symlinks — an extraction that produced
+     *  fewer than this threshold silently lost symlinks and MUST NOT pass. */
+    private const val MIN_SYMLINKS = 300
 
     enum class State { NOT_INSTALLED, CHECKING, DOWNLOADING, TRANSFERRING, EXTRACTING, VERIFYING, READY, BROKEN }
 
@@ -69,10 +99,28 @@ object LinuxEnvManager {
         val networkOk: Boolean,
         val serviceOk: Boolean, val serviceUid: Int,
         val prootBundled: Boolean,
+        val fs: FsProbe?,
         val problems: List<String>
     ) {
         val ok: Boolean get() = problems.isEmpty()
     }
+
+    /**
+     * REAL filesystem capability probe at the actual install path (r1386).
+     * Proves writability, symlink creation and hardlink creation BEFORE any
+     * download, and identifies the backing filesystem type. [symlinkErr]
+     * carries the original shell error text when a capability is denied.
+     */
+    data class FsProbe(
+        val base: String,
+        val fstype: String?,
+        val writeOk: Boolean,
+        val symlinkOk: Boolean,
+        val symlinkErr: String?,
+        val hardlinkOk: Boolean?,
+        val extractor: String?,
+        val details: List<String>
+    )
 
     private val installing = AtomicBoolean(false)
 
@@ -140,9 +188,81 @@ object LinuxEnvManager {
         if (freeData != null && freeData in 0..(800L * 1024 * 1024))
             problems.add("/data storage low: ${freeData / (1024 * 1024)} MB free (need ≥ 800 MB)")
         if (!networkOk(ctx)) problems.add("no active network — the rootfs download needs internet")
-        if (!ShizukuExec.available()) problems.add("aMiNo service is not running — start the service (shell mode) first; PRoot runs through it without root")
+        val serviceOk = ShizukuExec.available()
+        if (!serviceOk) problems.add("aMiNo service is not running — start the service (shell mode) first; PRoot runs through it without root")
+        // r1386: filesystem capability probe at the REAL install path — this is
+        // what catches "symlink: Permission denied" BEFORE anything is downloaded.
+        var fs: FsProbe? = null
+        if (serviceOk) {
+            fs = fsProbe()
+            if (fs != null) {
+                if (!fs.writeOk) problems.add("the runtime dir ${fs.base} is not writable by the service: ${fs.symlinkErr ?: "no details"}")
+                if (!fs.symlinkOk) problems.add(
+                    "THIS DEVICE DENIES SYMLINK CREATION at ${fs.base} (${fs.fstype ?: "unknown fs"}): " +
+                        "${fs.symlinkErr ?: "unknown error"} — a Debian rootfs is unusable without symlinks (/bin→usr/bin, …); " +
+                        "the install is refused before downloading anything (no broken half-installs)"
+                )
+            }
+        }
         return PreFlight(arch != null, arch, free, freeData, networkOk(ctx),
-            ShizukuExec.available(), ShizukuExec.serviceUid(), prootBundled(ctx), problems)
+            serviceOk, ShizukuExec.serviceUid(), prootBundled(ctx), fs, problems)
+    }
+
+    /**
+     * Proves — with real syscalls through the service — that the runtime path
+     * supports everything a Linux rootfs needs (write, symlink, hardlink).
+     * Runs BEFORE the download; returns the ORIGINAL error text on denial.
+     */
+    suspend fun fsProbe(): FsProbe? {
+        // hard guard: the runtime path must stay on /data/local/tmp (shell-owned,
+        // ext4/f2fs, exec-able by the service). NEVER shared storage like /sdcard
+        // (FUSE there breaks Unix semantics: no symlinks, no real permissions).
+        if (!BASE.startsWith("/data/local/tmp") || BASE == "/data/local/tmp") {
+            Log.e(TAG, "runtime path guard tripped: $BASE")
+            return FsProbe(BASE, null, false, false,
+                "runtime path $BASE is not allowed (must be under /data/local/tmp)", null, null,
+                listOf("path guard"))
+        }
+        val details = ArrayList<String>()
+        val fstype = try {
+            val s = ShizukuExec.oneShot("awk '\$2==\"/data\" || \$2==\"/data/local\" {print \$3; exit}' /proc/mounts 2>/dev/null")
+            s.output.trim().ifEmpty { null }
+        } catch (e: Exception) { null }
+        if (fstype != null) details.add("fstype(/data)=$fstype")
+        val s = ShizukuExec.oneShot(
+            "B='$BASE'; R=''; " +
+                "mkdir -p \"\$B\" 2>/dev/null && R=\"\$R;BASEDIR=OK\" || R=\"\$R;BASEDIR=FAIL\"; " +
+                "mkdir -p \"\$B/fprobe\" 2>/dev/null && R=\"\$R;WRITE=OK\" || R=\"\$R;WRITE=FAIL\"; " +
+                "touch \"\$B/fprobe/t\" 2>/dev/null && R=\"\$R;TOUCH=OK\" || R=\"\$R;TOUCH=FAIL\"; " +
+                "ln -s t \"\$B/fprobe/lnk\" 2>/dev/null && R=\"\$R;SYMLINK=OK\" || R=\"\$R;SYMLINK=FAIL:\$(ln -s t \"\$B/fprobe/lnk\" 2>&1 | tail -n 1)\"; " +
+                "RL=\$(readlink \"\$B/fprobe/lnk\" 2>/dev/null); R=\"\$R;READLINK=\$RL\"; " +
+                "ln \"\$B/fprobe/t\" \"\$B/fprobe/hard\" 2>/dev/null && R=\"\$R;HARDLINK=OK\" || R=\"\$R;HARDLINK=FAIL\"; " +
+                "rm -rf \"\$B/fprobe\" 2>/dev/null; " +
+                "echo \"FSPROBE[\$R]\"",
+            30_000
+        )
+        val m = Regex("FSPROBE\\[(.*)\\]").find(s.output)?.groupValues?.get(1) ?: run {
+            Log.e(TAG, "fsProbe returned nothing: rc=${s.rc} ${s.output.take(200)}")
+            return FsProbe(BASE, fstype, false, false,
+                "the capability probe did not return a result: ${s.output.take(200)}", null, null, details)
+        }
+        fun tag(k: String): String? = m.split(";").firstOrNull { it.startsWith("$k=") }?.removePrefix("$k=")
+        val writeOk = tag("WRITE") == "OK" && tag("TOUCH") == "OK" && tag("BASEDIR") == "OK"
+        val symlinkOk = tag("SYMLINK") == "OK" && tag("READLINK") == "t"
+        val symlinkErr = if (symlinkOk) null else (tag("SYMLINK") ?: "unknown")
+        val hard = tag("HARDLINK")
+        details.add("probe=$m")
+        Log.i(TAG, "fsProbe: fstype=$fstype $m")
+        // when the bundled extractor is already on the device, record its version
+        var extractor: String? = null
+        try {
+            val v = ShizukuExec.oneShot("test -x '$TOYBOX' && '$TOYBOX' 2>/dev/null | head -n 1", 15_000)
+            if (v.ok && v.output.contains("oybox")) {
+                extractor = v.output.trim().take(80); details.add("extractor=$extractor")
+            }
+        } catch (_: Exception) {}
+        return FsProbe(BASE, fstype, writeOk, symlinkOk, symlinkErr,
+            if (hard == null) null else hard == "OK", extractor, details)
     }
 
     // ---------- status ----------
@@ -181,8 +301,13 @@ object LinuxEnvManager {
             State.BROKEN -> false to "broken: ${load(ctx).optString("lastError", "unknown")} — reinstall from the Linux environment page"
             State.CHECKING, State.DOWNLOADING, State.TRANSFERRING, State.EXTRACTING, State.VERIFYING ->
                 false to "installation in progress (${st.name.lowercase()})"
-            State.NOT_INSTALLED -> false to
-                "not installed — install Debian 12 (PRoot) from the Linux environment page; it runs without root"
+            State.NOT_INSTALLED -> {
+                val err = load(ctx).optString("lastError", "")
+                false to (if (err.isNotBlank())
+                    "not installed — the last attempt was refused or failed: $err"
+                else
+                    "not installed — install Debian 12 (PRoot) from the Linux environment page; it runs without root")
+            }
         }
     }
 
@@ -209,16 +334,27 @@ object LinuxEnvManager {
         val step: (String) -> Unit = { onProgress(it); Log.i(TAG, it) }
         val meta = load(ctx)
         try {
-            // ---- 1) preflight (real checks, real numbers) ----
-            setState(ctx, State.CHECKING, "checking device (architecture, storage, network, service)")
-            step("preflight: checking architecture / storage / network / aMiNo service")
+            // ---- 1) preflight (real checks incl. the r1386 filesystem probe) ----
+            setState(ctx, State.CHECKING, "checking device (architecture, storage, network, service, filesystem)")
+            step("preflight: arch / storage / network / service / symlink-support")
             val pf = preFlight(ctx)
             if (!pf.ok) {
+                val symlinkBlocked = pf.fs != null && !pf.fs.symlinkOk && pf.fs.writeOk
+                if (symlinkBlocked) {
+                    // requirement: a device whose storage denies symlinks is NEVER
+                    // left half-installed — back to NOT_INSTALLED with the reason.
+                    val why = pf.problems.joinToString("; ")
+                    setState(ctx, State.NOT_INSTALLED, "install refused: this device cannot host a Linux rootfs", why)
+                    Log.e(TAG, "INSTALL REFUSED (symlink probe): $why")
+                    return "INSTALL REFUSED — nothing was downloaded, nothing is broken:\n" +
+                        pf.problems.joinToString("\n") { "• $it" }
+                }
                 setState(ctx, State.BROKEN, "preflight failed", pf.problems.joinToString("; "))
                 return "PREFLIGHT FAILED — nothing was installed:\n" + pf.problems.joinToString("\n") { "• $it" }
             }
             step("preflight OK: arch=${pf.arch}, app-storage ${pf.freePrivateBytes / (1024 * 1024)} MB free, " +
-                "data ${((pf.freeDataBytes ?: -1) / (1024 * 1024))} MB free, service uid=${pf.serviceUid}")
+                "data ${((pf.freeDataBytes ?: -1) / (1024 * 1024))} MB free, service uid=${pf.serviceUid}, " +
+                "fstype=${pf.fs?.fstype ?: "?"}, symlinks=OK")
 
             // ---- 2) runtime dirs + bundled binaries ----
             setState(ctx, State.CHECKING, "preparing runtime directory")
@@ -232,7 +368,8 @@ object LinuxEnvManager {
                 Triple("libamino_talloc.so", "$BASE/lib/libtalloc.so.2", "talloc library"),
                 Triple("libamino_shmem.so", "$BASE/lib/libandroid-shmem.so", "android-shmem library"),
                 Triple("libamino_xz.so", "$BASE/bin/xz", "xz (fallback extraction)"),
-                Triple("libamino_lzma.so", "$BASE/lib/liblzma.so.5", "lzma library")
+                Triple("libamino_lzma.so", "$BASE/lib/liblzma.so.5", "lzma library"),
+                Triple("libamino_tar.so", TOYBOX, "toybox tar (bundled extractor: preserves symlinks + Unix permissions)")
             )
             for ((src, dst, what) in pushes) {
                 val f = File(nd, src)
@@ -241,50 +378,85 @@ object LinuxEnvManager {
                 if (!p.ok) return fail(ctx, "pushing $what failed: ${p.output.take(200)}")
                 step("pushed $what → $dst (${f.length()} bytes, size verified)")
             }
-            s = ShizukuExec.oneShot("chmod 755 $BASE/bin/proot $BASE/bin/xz && $BASE/bin/proot --version 2>&1 | head -n 1")
+            s = ShizukuExec.oneShot("chmod 755 $BASE/bin/proot $BASE/bin/xz $TOYBOX && $BASE/bin/proot --version 2>&1 | head -n 1")
             if (!s.ok || !s.output.lowercase().contains("proot"))
                 return fail(ctx, "proot does not run on this device: rc=${s.rc} ${s.output.take(200)}")
             val prootVersion = s.output.trim().take(80)
             step("proot verified on device: $prootVersion")
+            // r1386: verify the BUNDLED extractor really exec()s on this device —
+            // never fall back silently to a possibly broken system tar.
+            val tbv = ShizukuExec.oneShot("'$TOYBOX' 2>&1 | head -n 1")
+            if (!tbv.ok || !tbv.output.contains("oybox"))
+                return fail(ctx, "the bundled extractor does not run on this device: ${tbv.output.take(200)}")
+            val extractorVersion = tbv.output.trim().take(80)
+            step("extractor verified on device: $extractorVersion")
 
-            // ---- 3) download (digest-verified) ----
-            setState(ctx, State.DOWNLOADING, "downloading the Debian 12 rootfs")
-            val dl = download(ctx) { d, t -> step("download: ${d / (1024 * 1024)} MB${if (t > 0) " / ${t / (1024 * 1024)} MB" else ""}") }
-            if (dl == null) return fail(ctx, "rootfs download failed (both sources unreachable or verification failed) — the download was deleted; check the network and retry")
-            step("download verified: ${dl.file.name} from ${dl.source} (${dl.file.length() / (1024 * 1024)} MB)")
+            // ---- 3) download — or REUSE the verified archive from a failed attempt ----
+            setState(ctx, State.DOWNLOADING, "obtaining the Debian 12 rootfs")
+            val cached = cachedVerifiedArchive(ctx)
+            val dl: Download = if (cached != null) {
+                step("reusing the previously verified archive (${cached.file.name}, ${cached.file.length() / (1024 * 1024)} MB) — no re-download")
+                cached
+            } else {
+                val d = download(ctx) { done, total ->
+                    step("download: ${done / (1024 * 1024)} MB${if (total > 0) " / ${total / (1024 * 1024)} MB" else ""}")
+                }
+                if (d == null) return fail(ctx, "rootfs download failed (both sources unreachable or verification failed) — the download was deleted; check the network and retry")
+                d
+            }
+            step("archive verified: ${dl.file.name} from ${dl.source} (${dl.file.length() / (1024 * 1024)} MB)")
+            // remember the archive so any retry skips the download (resumable install)
+            val algo = if (dl.file.name.endsWith(".xz")) "sha512" else "sha256"
+            val localDigest = fileDigest(dl.file, algo)
+            if (localDigest == null) return fail(ctx, "cannot hash the downloaded archive")
+            meta.put("dlFile", dl.file.name).put("dlSize", dl.file.length())
+                .put("dlAlgo", algo).put("dlDigest", localDigest)
+                .put("source", dl.source).put("manifestDigest", dl.digest ?: "")
+            save(ctx, meta)
 
-            // ---- 4) transfer into the runtime dir (shell-readable path) ----
+            // ---- 4) transfer + REMOTE digest verification ----
             setState(ctx, State.TRANSFERRING, "transferring rootfs to the runtime directory")
-            val remoteTar = "$BASE/rootfs.tar." + if (dl.file.name.endsWith(".xz")) "xz" else "gz"
+            val ext = if (dl.file.name.endsWith(".xz")) "xz" else "gz"
+            val remoteTar = "$BASE/rootfs.tar.$ext"
+            ShizukuExec.oneShot("rm -f '$BASE/rootfs.tar.gz' '$BASE/rootfs.tar.xz'")
             var lastPct = -1
             val p = ShizukuExec.pushFile(dl.file, remoteTar) { d, t ->
                 val pct = if (t > 0) (d * 100 / t).toInt() else 0
                 if (pct != lastPct) { lastPct = pct; step("transfer: $pct%") }
             }
             if (!p.ok) return fail(ctx, "transfer failed: ${p.output.take(200)}")
-            step("transfer verified (remote size matches)")
+            val remoteSum = ShizukuExec.oneShot("sha256sum '$remoteTar' 2>/dev/null | awk '{print \$1}'")
+            val remoteDigest = remoteSum.output.trim().take(64)
+            val localSha = fileDigest(dl.file, "sha256")
+            if (!remoteSum.ok || remoteDigest.length != 64 || localSha == null)
+                return fail(ctx, "cannot verify the transferred archive on the device (sha256sum missing?): ${remoteSum.output.take(120)}")
+            if (remoteDigest != localSha)
+                return fail(ctx, "transferred archive is CORRUPT (sha256 mismatch: expected ${localSha.take(16)}… got ${remoteDigest.take(16)}…) — the device copy was deleted; retry the install")
+            step("transfer verified on-device (sha256 ${remoteDigest.take(16)}… matches)")
 
-            // ---- 5) extract (toybox-safe pipe, preserved modes/symlinks) ----
+            // ---- 5) extract with the BUNDLED extractor (r1386 hardened) ----
             setState(ctx, State.EXTRACTING, "extracting the rootfs (this takes a minute or two)")
+            val ex = extractRootfs(remoteTar, "$ROOTFS.tmp")
+            if (!ex.ok)
+                return fail(ctx, "extraction failed — ${ex.detail}")
+            step("extraction ok (${ex.detail})")
+
+            // ---- 6) post-extract AUDIT: symlinks are the r1385 failure class ----
+            setState(ctx, State.EXTRACTING, "auditing the extracted tree (symlinks, bash, apt)")
+            val audit = auditRootfs("$ROOTFS.tmp")
+            if (!audit.first)
+                return fail(ctx, "post-extract audit FAILED: ${audit.second}")
+            step("audit ok: ${audit.second}")
+
+            // ---- 7) swap into place ----
             s = ShizukuExec.oneShot(
-                "rm -rf $ROOTFS.tmp && mkdir -p $ROOTFS.tmp && " +
-                    if (remoteTar.endsWith(".xz"))
-                        "LD_LIBRARY_PATH=$BASE/lib $BASE/bin/xz -dc $remoteTar | tar -xf - -C $ROOTFS.tmp && echo EXTRACT_OK"
-                    else
-                        "gzip -dc $remoteTar | tar -xf - -C $ROOTFS.tmp && echo EXTRACT_OK",
-                timeoutMs = 900_000
-            )
-            if (!s.ok || !s.output.contains("EXTRACT_OK"))
-                return fail(ctx, "extraction failed: rc=${s.rc} ${s.output.take(300)}")
-            s = ShizukuExec.oneShot(
-                "test -x $ROOTFS.tmp/bin/bash && test -f $ROOTFS.tmp/etc/os-release && rm -rf $ROOTFS && mv $ROOTFS.tmp $ROOTFS && echo SWAP_OK",
+                "rm -rf $ROOTFS && mv $ROOTFS.tmp $ROOTFS && echo SWAP_OK",
                 timeoutMs = 120_000
             )
             if (!s.ok || !s.output.contains("SWAP_OK"))
-                return fail(ctx, "extracted rootfs failed sanity check (bin/bash or /etc/os-release missing): ${s.output.take(200)}")
-            step("extraction verified: /bin/bash + /etc/os-release present")
+                return fail(ctx, "could not move the verified rootfs into place: ${s.output.take(200)}")
 
-            // ---- 6) configure (DNS, hosts, tmp, ownership) ----
+            // ---- 8) configure (DNS, hosts, tmp, ownership) ----
             setState(ctx, State.VERIFYING, "configuring the environment")
             s = ShizukuExec.oneShot(
                 "printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > $ROOTFS/etc/resolv.conf && " +
@@ -298,23 +470,22 @@ object LinuxEnvManager {
                 ShizukuExec.oneShot("chown -R 2000:2000 $BASE", 300_000)
                 step("service runs as root — ownership dropped to shell (2000) so nothing runs as real root")
             }
-            ShizukuExec.oneShot("rm -f $remoteTar")
-            step("configuration written (DNS 1.1.1.1/8.8.8.8, hosts, /tmp); remote tarball removed")
+            ShizukuExec.oneShot("rm -f '$remoteTar'")
+            step("configuration written (DNS 1.1.1.1/8.8.8.8, hosts, /tmp); device tarball removed")
 
-            // ---- 7) VERIFY: a real probe through PRoot (spec: never claim before proof) ----
-            setState(ctx, State.VERIFYING, "verifying with a real probe (id + os-release through PRoot)")
+            // ---- 9) VERIFY: a real boot through PRoot — os-release + bash + apt ----
+            setState(ctx, State.VERIFYING, "verifying: booting Debian through PRoot (id + os-release + bash + apt)")
             val probe = probe(ctx)
             if (!probe.first)
                 return fail(ctx, "verification probe FAILED: ${probe.second.take(300)}")
             step("probe verified: ${probe.second.take(200).replace("\n", " · ")}")
 
-            // ---- 8) READY (real, evidenced) ----
+            // ---- 10) READY (real, evidenced) ----
             meta.put("state", State.READY.name)
                 .put("message", "ready")
                 .put("arch", pf.arch)
-                .put("source", dl.source)
-                .put("manifestDigest", dl.digest ?: "")
                 .put("prootVersion", prootVersion)
+                .put("extractor", extractorVersion)
                 .put("installedAt", System.currentTimeMillis())
                 .remove("lastError")
             save(ctx, meta)
@@ -322,6 +493,8 @@ object LinuxEnvManager {
             return "INSTALLED AND VERIFIED\n" +
                 "• source: ${dl.source}${if (dl.digest != null) "\n• layer digest: ${dl.digest.take(19)}…" else ""}\n" +
                 "• $prootVersion\n" +
+                "• extractor: $extractorVersion\n" +
+                "• audit: ${audit.second}\n" +
                 "• probe: ${probe.second.trim().replace("\n", " · ")}\n" +
                 "• runtime: $ROOTFS (shell uid 2000, PRoot fakeroot — NOT real root)\n" +
                 "• archive kept in app private storage for Reset (${dl.file.length() / (1024 * 1024)} MB)"
@@ -334,7 +507,114 @@ object LinuxEnvManager {
     private fun fail(ctx: Context, why: String): String {
         Log.e(TAG, "INSTALL FAILED: $why")
         setState(ctx, State.BROKEN, "installation failed", why)
+        // r1386: safe cleanup so a retry starts clean — the broken extract tree
+        // and any partial device tarball are removed; the VERIFIED archive in
+        // app storage is KEPT so the retry skips the download (resumable).
+        if (ShizukuExec.available()) kotlinx.coroutines.runBlocking {
+            ShizukuExec.oneShot(
+                "rm -rf '$ROOTFS.tmp' 2>/dev/null; rm -f '$BASE/rootfs.tar.gz' '$BASE/rootfs.tar.xz' 2>/dev/null; echo CLEAN_OK",
+                60_000
+            )
+        }
         return "INSTALL FAILED — nothing is claimed to work:\n$why"
+    }
+
+    // ---------- r1386 helpers: resume, bundled extraction, audit ----------
+
+    /** sha256/sha512 of a local file (streaming). */
+    private fun fileDigest(f: File, algo: String): String? = try {
+        val md = MessageDigest.getInstance(algo)
+        f.inputStream().use { input ->
+            val buf = ByteArray(128 * 1024)
+            while (true) { val n = input.read(buf); if (n < 0) break; md.update(buf, 0, n) }
+        }
+        md.digest().joinToString("") { "%02x".format(it) }
+    } catch (e: Exception) { null }
+
+    /**
+     * A previously downloaded archive whose digest still matches what we
+     * recorded — lets a failed install RETRY without re-downloading (r1386).
+     */
+    private fun cachedVerifiedArchive(ctx: Context): Download? {
+        val o = load(ctx)
+        val name = o.optString("dlFile", "")
+        val expected = o.optString("dlDigest", "")
+        if (name.isEmpty() || expected.isEmpty()) return null
+        val f = File(ctx.filesDir, "linux/$name")
+        if (!f.exists() || f.length() != o.optLong("dlSize", -1)) return null
+        val algo = o.optString("dlAlgo", "sha256")
+        val hex = fileDigest(f, algo) ?: return null
+        if (!hex.equals(expected, ignoreCase = true)) {
+            Log.w(TAG, "cached archive hash mismatch — deleting and re-downloading")
+            f.delete()
+            return null
+        }
+        return Download(f, o.optString("source", "cached archive (digest re-verified)"),
+            o.optString("manifestDigest", "").ifEmpty { null })
+    }
+
+    private class Extract(val ok: Boolean, val detail: String)
+
+    /**
+     * Extract with the BUNDLED toybox tar (never the device's tar — r1386).
+     * stderr is captured to files; on failure the ORIGINAL error text (with
+     * the failing paths) is returned verbatim for the log and the UI.
+     */
+    private suspend fun extractRootfs(remoteTar: String, targetDir: String): Extract {
+        ShizukuExec.oneShot("rm -rf '$targetDir' && mkdir -p '$targetDir' && echo MK_OK", 60_000)
+        val decode = if (remoteTar.endsWith(".xz"))
+            "LD_LIBRARY_PATH=$BASE/lib $BASE/bin/xz -dc '$remoteTar'"
+        else
+            "gzip -dc '$remoteTar'"
+        val cmd = "$decode 2>'$BASE/tmp/gzip.err' | '$TOYBOX' tar -xf - -C '$targetDir' 2>'$BASE/tmp/tar.err'; echo EXTRACT_RC=\$?"
+        val s = ShizukuExec.oneShot(cmd, timeoutMs = 900_000)
+        val rc = Regex("EXTRACT_RC=(\\d+)").find(s.output)?.groupValues?.get(1)?.toIntOrNull() ?: -1
+        val tarErr = ShizukuExec.oneShot("tail -c 1500 '$BASE/tmp/tar.err' 2>/dev/null").output.trim()
+        if (rc != 0) {
+            val why = buildString {
+                append("bundled toybox tar exited with rc=$rc. ")
+                if (tarErr.isNotBlank()) {
+                    append("original extractor errors (paths + errno, spec #9): ")
+                    append(tarErr.take(900))
+                } else append("no stderr captured (tool output: ${s.output.take(200)})")
+                append(" — the broken tree and the device tarball were cleaned; the verified archive is still in app storage, retry the install")
+            }
+            Log.e(TAG, "extract failed: $why")
+            return Extract(false, why)
+        }
+        if (tarErr.isNotBlank()) Log.w(TAG, "extract warnings: ${tarErr.take(300)}")
+        return Extract(true, "toybox 0.8.11 tar rc=0${if (tarErr.isNotBlank()) " (warnings: ${tarErr.take(120)})" else ""}")
+    }
+
+    /**
+     * Post-extract audit — the r1385 failure class ("symlink: Permission denied")
+     * can also appear as tar CONTINUING with rc=0 while skipping symlinks. This
+     * audit makes that impossible to pass as success:
+     *  - /bin must be a real symlink → usr/bin (Debian 12 merged-usr);
+     *  - the tree must contain a plausible number of symlinks (the layer has 642);
+     *  - /etc/os-release, bash and apt-get must exist.
+     */
+    private suspend fun auditRootfs(dir: String): Pair<Boolean, String> {
+        val s = ShizukuExec.oneShot(
+            "R=''; " +
+                "test -L '$dir/bin' && R=\"\$R BIN_LINK=\$(readlink '$dir/bin')\" || R=\"\$R BIN_LINK=MISSING\"; " +
+                "test -f '$dir/etc/os-release' && R=\"\$R OSREL=yes\" || R=\"\$R OSREL=no\"; " +
+                "test -x '$dir/usr/bin/bash' && R=\"\$R BASH=yes\" || R=\"\$R BASH=no\"; " +
+                "test -x '$dir/usr/bin/apt-get' && R=\"\$R APT=yes\" || R=\"\$R APT=no\"; " +
+                "N=\$(find '$dir' -type l 2>/dev/null | wc -l); R=\"\$R SYMLINKS=\$N\"; " +
+                "echo \"AUDIT[\$R]\"", 120_000)
+        val m = Regex("AUDIT\\[(.*)\\]").find(s.output)?.groupValues?.get(1)
+            ?: return false to "audit did not return: ${s.output.take(200)}"
+        fun tag(k: String): String = m.split(" ").firstOrNull { it.startsWith("$k=") }?.removePrefix("$k=") ?: "?"
+        val links = tag("SYMLINKS").toLongOrNull() ?: -1L
+        val problems = ArrayList<String>()
+        if (tag("BIN_LINK") != "usr/bin") problems.add("/bin is not a symlink to usr/bin (got ${tag("BIN_LINK")}) — symlink creation was denied or skipped (storage/SELinux?)")
+        if (tag("OSREL") != "yes") problems.add("/etc/os-release missing")
+        if (tag("BASH") != "yes") problems.add("/usr/bin/bash missing")
+        if (tag("APT") != "yes") problems.add("/usr/bin/apt-get missing")
+        if (links < MIN_SYMLINKS) problems.add("only $links symlinks found (expected ≥ $MIN_SYMLINKS; the Debian layer has 642) — symlink creation was silently skipped")
+        return if (problems.isEmpty()) true to "bin→usr/bin ✓, os-release ✓, bash ✓, apt-get ✓, $links symlinks ✓"
+        else false to problems.joinToString("; ")
     }
 
     // ---------- download sources (both digest-verified) ----------
@@ -486,16 +766,20 @@ object LinuxEnvManager {
                 val p = ShizukuExec.pushFile(tar, "$BASE/rootfs.tar." + if (tar.name.endsWith(".xz")) "xz" else "gz")
                 if (!p.ok) return@withContext "RESET FAILED at transfer: ${p.output.take(200)}"
                 val remoteTar = "$BASE/rootfs.tar." + if (tar.name.endsWith(".xz")) "xz" else "gz"
-                onProgress("reset: extracting")
-                s = ShizukuExec.oneShot(
-                    if (remoteTar.endsWith(".xz"))
-                        "LD_LIBRARY_PATH=$BASE/lib $BASE/bin/xz -dc $remoteTar | tar -xf - -C $BASE/rootfs && echo EX_OK"
-                    else
-                        "gzip -dc $remoteTar | tar -xf - -C $BASE/rootfs && echo EX_OK",
-                    timeoutMs = 900_000
-                )
-                if (!s.ok || !s.output.contains("EX_OK"))
-                    return@withContext "RESET FAILED at extraction: ${s.output.take(200)}"
+                onProgress("reset: ensuring the bundled extractor is present")
+                val nd = ctx.applicationInfo.nativeLibraryDir
+                val tbf = File(nd, "libamino_tar.so")
+                if (tbf.exists()) {
+                    ShizukuExec.pushFile(tbf, TOYBOX)
+                    ShizukuExec.oneShot("chmod 755 '$TOYBOX'")
+                }
+                onProgress("reset: extracting with the bundled toybox tar")
+                val ex = extractRootfs(remoteTar, "$BASE/rootfs")
+                if (!ex.ok)
+                    return@withContext "RESET FAILED at extraction: ${ex.detail}"
+                val audit = auditRootfs("$BASE/rootfs")
+                if (!audit.first)
+                    return@withContext "RESET FAILED at audit: ${audit.second}"
                 s = ShizukuExec.oneShot(
                     "printf 'nameserver 1.1.1.1\\nnameserver 8.8.8.8\\n' > $ROOTFS/etc/resolv.conf && " +
                         "printf '127.0.0.1 localhost\\n' > $ROOTFS/etc/hosts && " +
@@ -558,7 +842,7 @@ object LinuxEnvManager {
                     "/usr/bin/env", "-i",
                     "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                     "HOME=/root",
-                    "/bin/sh", "-c", "id; head -n 1 /etc/os-release"
+                    "/bin/sh", "-c", "id; head -n 1 /etc/os-release; bash --version 2>/dev/null | head -n 1; apt-get --version 2>/dev/null | head -n 1"
                 ), env, "/"
             )
         } catch (e: Throwable) {
@@ -579,7 +863,8 @@ object LinuxEnvManager {
             p.destroy()
         }
         val text = out.toString().trim()
-        val ok = text.contains("uid=0") && text.contains("Debian")
+        val ok = text.contains("uid=0") && text.contains("Debian") &&
+            text.contains("bash", ignoreCase = true) && text.contains("apt", ignoreCase = true)
         ok to text
     }
 

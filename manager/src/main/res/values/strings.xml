@@ -579,6 +579,7 @@
     <string name="linux_pf_data">/data free: %1$d MB (need ≥ 800)</string>
     <string name="linux_pf_net">Network: %1$s</string>
     <string name="linux_pf_service">aMiNo service (PRoot runs through it, no root): %1$s</string>
+    <string name="linux_pf_fs">Runtime storage (fstype %1$s): symlinks %2$s %3$s</string>
     <string name="linux_pf_problems">Problems that block the install right now:</string>
     <string name="linux_update_confirm">Run apt-get update + upgrade INSIDE the Debian environment?\n\nOnly the container is touched — Android itself is never modified. Real output will be shown.</string>
     <string name="linux_reset_confirm">Reset the Linux environment to a fresh Debian 12?\n\nThe runtime tree is wiped and re-extracted from the verified archive. Packages you installed with apt are LOST. A real verification runs afterwards.</string>

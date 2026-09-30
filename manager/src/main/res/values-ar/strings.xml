@@ -553,6 +553,7 @@
     <string name="linux_pf_data">المساحة الحرة في /data: %1$d MB (المطلوب ≥ 800)</string>
     <string name="linux_pf_net">الشبكة: %1$s</string>
     <string name="linux_pf_service">خدمة aMiNo (يعمل PRoot عبرها، بدون Root): %1$s</string>
+    <string name="linux_pf_fs">تخزين بيئة التشغيل (نوع النظام %1$s): الروابط الرمزية %2$s %3$s</string>
     <string name="linux_pf_problems">مشاكل تمنع التثبيت الآن:</string>
     <string name="linux_update_confirm">تشغيل apt-get update + upgrade داخل بيئة Debian؟\n\nسيُلمس الحاوية فقط — لن يُعدّل أي شيء في أندرويد نفسه، وسيُعرض المخرجات الحقيقية.</string>
     <string name="linux_reset_confirm">إعادة تهيئة بيئة Linux إلى Debian 12 نظيفة؟\n\nسيُمسح شجرة التشغيل ويُعاد فكّ الأرشيف المتحقق منه. الحزم التي ثبّتها بـ apt ستُفقد. يُجرى تحقق حقيقي بعدها.</string>

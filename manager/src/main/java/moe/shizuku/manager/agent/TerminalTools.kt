@@ -386,6 +386,14 @@ object TerminalTools {
                 .put("network", pf.networkOk)
                 .put("service", if (pf.serviceOk) "running (uid ${pf.serviceUid})" else "not running")
                 .put("runtime_path", LinuxEnvManager.ROOTFS)
+                .put("fs_probe", JSONObject()
+                    .put("path", pf.fs?.base ?: LinuxEnvManager.BASE)
+                    .put("fstype", pf.fs?.fstype ?: JSONObject.NULL)
+                    .put("write_ok", pf.fs?.writeOk ?: false)
+                    .put("symlink_ok", pf.fs?.symlinkOk ?: false)
+                    .put("symlink_error", pf.fs?.symlinkErr ?: JSONObject.NULL)
+                    .put("hardlink_ok", pf.fs?.hardlinkOk ?: JSONObject.NULL)
+                    .put("bundled_extractor", pf.fs?.extractor ?: JSONObject.NULL))
                 .put("last_error", st.lastError ?: JSONObject.NULL)
                 .toString(2))
         } catch (e: Exception) {
@@ -411,10 +419,12 @@ object TerminalTools {
                         .put("app storage free: ${pf.freePrivateBytes / (1024 * 1024)} MB (need ≥ 700)")
                         .put("data free: ${pf.freeDataBytes?.div(1024 * 1024) ?: "?"} MB (need ≥ 800)")
                         .put("network: ${pf.networkOk}")
-                        .put("aMiNo service: ${if (pf.serviceOk) "running (uid ${pf.serviceUid})" else "NOT running — required (no root needed)"}"))
+                        .put("aMiNo service: ${if (pf.serviceOk) "running (uid ${pf.serviceUid})" else "NOT running — required (no root needed)"}")
+                        .put("filesystem at ${pf.fs?.base ?: LinuxEnvManager.BASE}: fstype ${pf.fs?.fstype ?: "?"}, writable ${pf.fs?.writeOk}, symlinks ${pf.fs?.symlinkOk}${if (pf.fs?.symlinkErr != null) " (original error: ${pf.fs.symlinkErr})" else ""}"))
                     .put("problems", JSONArray(pf.problems))
-                    .put("plan", "download Debian 12 rootfs (digest-verified) → push bundled proot → " +
-                        "extract into ${LinuxEnvManager.BASE} → verify with a real probe (id + os-release)")
+                    .put("plan", "download Debian 12 rootfs (digest-verified) → push bundled proot + bundled symlink-safe tar → " +
+                        "extract into ${LinuxEnvManager.BASE} → audit symlinks (bin→usr/bin, count ≥ 300) + bash + apt → " +
+                        "verify by booting Debian through PRoot (id + os-release + bash + apt)")
                     .toString(2))
             }
             if (!pf.ok) return ToolResult(false,

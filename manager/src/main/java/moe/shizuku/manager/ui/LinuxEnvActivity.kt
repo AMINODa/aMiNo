@@ -146,6 +146,10 @@ class LinuxEnvActivity : AppActivity() {
                 append("\n• ").append(getString(R.string.linux_pf_data, pf.freeDataBytes?.div(1024 * 1024) ?: -1))
                 append("\n• ").append(getString(R.string.linux_pf_net, if (pf.networkOk) "✓" else "✗"))
                 append("\n• ").append(getString(R.string.linux_pf_service, if (pf.serviceOk) "✓ (uid ${pf.serviceUid})" else "✗"))
+                append("\n• ").append(getString(R.string.linux_pf_fs,
+                    pf.fs?.fstype ?: "?",
+                    if (pf.fs?.symlinkOk == true) "✓" else "✗",
+                    (pf.fs?.symlinkErr ?: "").ifBlank { "" }.take(120)))
                 if (pf.problems.isNotEmpty()) {
                     append("\n\n").append(getString(R.string.linux_pf_problems))
                     pf.problems.forEach { append("\n• ").append(it) }
