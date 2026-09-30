@@ -706,12 +706,37 @@ object LinuxEnvManager {
             setState(ctx, State.CHECKING, "PRoot smoke test on a minimal userspace rootfs (no Debian involved yet)")
             val MINI = "$BASE/miniroot"
 
-            // 2c-1) clean previous state — VERIFIED removal (never build over debris)
-            val mrClean = runStep("smoke rootfs: remove any previous attempt",
-                "rm -rf '$MINI' && test ! -e '$MINI' && echo CLEAN_OK")
-            if (mrClean.rc != 0 || !mrClean.stdout.contains("CLEAN_OK"))
-                return runtimeFail(ctx, smokeFailMsg(mrClean, MINI,
-                    "the previous smoke rootfs could not be removed at $MINI"), "smoke rootfs build")
+            // 2c-1) KEEP, don't delete (r1391, user req #6): the diagnostic
+            // rootfs is EVIDENCE — an existing tree is validated and REUSED
+            // whenever it is sound; only an INVALID/partial tree is removed
+            // (the reason is logged first) and rebuilt. Debian is still gated
+            // behind the smoke test, so nothing is downloaded on top of an
+            // unisolated failure either.
+            val mrReuse = runStep("smoke rootfs: validate any existing tree (keep instead of delete)",
+                "if [ ! -e '$MINI/usr/bin/toybox' ]; then echo MR_ABSENT; " +
+                    "elif '$MINI/usr/bin/toybox' --version >/dev/null 2>&1 && " +
+                    "[ \"\$('$TOYBOX' readlink '$MINI/bin' 2>&1)\" = usr/bin ] && " +
+                    "[ \"\$('$TOYBOX' readlink -f '$MINI/bin/cat' 2>&1)\" = \"\$('$TOYBOX' readlink -f '$MINI/usr/bin/toybox' 2>&1)\" ] && " +
+                    "grep -q 'AMINO userspace smoke rootfs' '$MINI/etc/os-release' 2>/dev/null; then echo MR_VALID; " +
+                    "else echo MR_INVALID; fi")
+            val reuseTree = mrReuse.rc == 0 && mrReuse.stdout.contains("MR_VALID")
+            if (reuseTree) {
+                step("smoke rootfs: REUSING the existing diagnostic tree at $MINI (kept per req #6 — never deleted just to rebuild); it is re-verified canonically below")
+            } else {
+                val absent = mrReuse.stdout.contains("MR_ABSENT")
+                if (!absent)
+                    step("smoke rootfs: existing tree is INVALID (${mrReuse.stdout.take(120)}) — removing it WITH THIS LOGGED REASON (the only permitted deletion); then rebuilding")
+                val mrClean = runStep(
+                    if (absent) "smoke rootfs: no previous tree — build fresh"
+                    else "smoke rootfs: remove the INVALID tree (verified removal, reason logged above)",
+                    "rm -rf '$MINI' && test ! -e '$MINI' && echo CLEAN_OK")
+                if (mrClean.rc != 0 || !mrClean.stdout.contains("CLEAN_OK"))
+                    return runtimeFail(ctx, smokeFailMsg(mrClean, MINI,
+                        "the previous smoke rootfs could not be removed at $MINI"), "smoke rootfs build")
+            }
+            // (the tree build below is skipped entirely when an existing valid
+            // tree is reused — 2c-8 re-verifies it canonically either way)
+            if (!reuseTree) {
 
             // 2c-2) directory tree — merged-/usr: /usr/bin FIRST (Debian 12 layout)
             val mrDirs = runStep("smoke rootfs: create directory tree (merged-/usr: usr/bin first)",
@@ -772,6 +797,7 @@ object LinuxEnvManager {
             if (mrOsr.rc != 0 || !mrOsr.stdout.contains("OSR_OK"))
                 return runtimeFail(ctx, smokeFailMsg(mrOsr, MINI,
                     "could not write/read the smoke rootfs's /etc/os-release"), "smoke rootfs build")
+            } // end of "build fresh tree" (skipped when a valid tree was reused)
 
             // 2c-8) post-setup verification BEFORE proot (r1390, user reqs #3/#4):
             //   • /bin/cat exists + executable through the /bin -> usr/bin chain
@@ -816,6 +842,62 @@ object LinuxEnvManager {
                 else "Android shell UID $uidNum — Debian userspace, NOT root"
             step("service identity (evidence only): $uidLabel")
 
+            // 2c-8c) EXEC-RUNTIME DIAGNOSTICS (r1391, reqs #1/#2) — READ-ONLY
+            // evidence gathered on the EXACT canonical host path PRoot must
+            // execve, BEFORE the smoke run: stat (mode/owner/group/size), the
+            // SELinux label, the service's own domain + enforcing state, the
+            // ptrace policy, the containing filesystem's DEVICE + MOUNT
+            // OPTIONS (noexec would explain everything), the ELF
+            // class/machine bytes of the file itself, any stale proot loader
+            // files in $BASE/tmp, and a DIRECT exec OUTSIDE PRoot with stderr
+            // and rc captured SEPARATELY. Nothing here changes the system:
+            // no chmod, no setenforce, no remount (req #5). This step is
+            // evidence-only and never gates the install by itself.
+            val diag = runStep("exec-runtime diagnostics (read-only): stat/SELinux/mounts/ELF + direct exec outside PRoot",
+                "CP=\$('$TOYBOX' readlink -f '$MINI/usr/bin/toybox' 2>/dev/null); echo \"CANON=\$CP\"; " +
+                    "stat -c 'STAT=%A (%a) owner=%u:%g size=%s' \"\$CP\" 2>/dev/null; " +
+                    "LBL=\$(stat -c '%C' \"\$CP\" 2>/dev/null | head -n 1); echo \"SELABEL=\${LBL:-unavailable}\"; " +
+                    "echo \"DOMAIN=\$(cat /proc/self/attr/current 2>/dev/null || echo unknown)\"; " +
+                    "echo \"ENFORCE=\$(getenforce 2>/dev/null || echo unknown)\"; " +
+                    "echo \"YAMA=\$(cat /proc/sys/kernel/yama/ptrace_scope 2>/dev/null || echo unavailable)\"; " +
+                    "echo \"ELFM=\$(head -c 20 \"\$CP\" 2>/dev/null | od -An -tx1 -v | tr -d ' \\n')\"; " +
+                    "DEV=\$(df -P \"\$CP\" 2>/dev/null | tail -n 1 | awk '{print \$1}'); echo \"DEVICE=\$DEV\"; " +
+                    "echo MOUNTS_BEGIN; if [ -n \"\$DEV\" ] && [ \"\$DEV\" != '-' ]; then grep -F \"\$DEV\" /proc/mounts 2>/dev/null | head -n 4; " +
+                    "else grep -E ' (/data|/data/local/tmp) ' /proc/mounts 2>/dev/null | head -n 4; fi; echo MOUNTS_END; " +
+                    "echo TMPDIRLS_BEGIN; ls -la '$BASE/tmp' 2>/dev/null | head -n 8; echo TMPDIRLS_END; " +
+                    "\"\$CP\" --version 2>'$BASE/tmp/dexec.err'; echo \"DIRECT_RC=\$?\"; " +
+                    "echo DIRECT_ERR_BEGIN; cat '$BASE/tmp/dexec.err' 2>/dev/null; echo DIRECT_ERR_END",
+                30_000)
+            fun dTag(k: String) = Regex("$k=(.*)").find(diag.stdout)?.groupValues?.get(1)?.trim()
+            val canonDiag = dTag("CANON") ?: "(unavailable)"
+            val directRc = dTag("DIRECT_RC")?.toIntOrNull() ?: -1
+            val directErr = Regex("DIRECT_ERR_BEGIN\\n?([\\s\\S]*?)\\n?DIRECT_ERR_END")
+                .find(diag.stdout)?.groupValues?.get(1)?.trim().orEmpty()
+            val mountEv = Regex("MOUNTS_BEGIN\\n?([\\s\\S]*?)\\n?MOUNTS_END")
+                .find(diag.stdout)?.groupValues?.get(1)?.trim().orEmpty()
+            val tmpDirLs = Regex("TMPDIRLS_BEGIN\\n?([\\s\\S]*?)\\n?TMPDIRLS_END")
+                .find(diag.stdout)?.groupValues?.get(1)?.trim().orEmpty()
+            val elfHex = dTag("ELFM").orEmpty()
+            val elfMachine = when {
+                elfHex.length >= 40 && elfHex.substring(36, 40) == "b700" -> "aarch64"
+                elfHex.length >= 40 && elfHex.substring(36, 40) == "3e00" -> "x86_64"
+                elfHex.isBlank() -> "unknown"
+                else -> "unrecognized"
+            }
+            val devAbi = archTag()
+            val abiMismatch = (devAbi == "arm64" && elfMachine == "x86_64") ||
+                (devAbi == "amd64" && elfMachine == "aarch64")
+            val diagSummary = "canonical=$canonDiag | stat=${dTag("STAT") ?: "?"} | " +
+                "selabel=${dTag("SELABEL") ?: "unavailable"} | domain=${dTag("DOMAIN") ?: "?"} | " +
+                "enforce=${dTag("ENFORCE") ?: "?"} | yama=${dTag("YAMA") ?: "?"} | " +
+                "elf=$elfMachine | device=${dTag("DEVICE") ?: "?"} | " +
+                "DIRECT-EXEC-OUTSIDE-PROOT rc=$directRc" +
+                (if (directErr.isNotBlank()) " stderr=${directErr.take(160)}" else " (no stderr)")
+            step("exec-runtime diagnostics: $diagSummary")
+            if (mountEv.isNotBlank()) step("mount options of the containing fs: ${mountEv.take(400)}")
+            if (tmpDirLs.isNotBlank()) step("PROOT_TMP_DIR listing (stale loader files?): ${tmpDirLs.take(400)}")
+            if (abiMismatch) step("BINARY COMPATIBILITY ALERT: the file is $elfMachine but this device reports $devAbi")
+
             // 2c-9) THE SMOKE RUN — a DEBIAN USERSPACE SMOKE TEST (user req #4);
             // proot execs the applets DIRECTLY (no shell: the bundled toybox has
             // no sh applet). Two INDEPENDENT checks, each with its OWN rc marker
@@ -824,44 +906,119 @@ object LinuxEnvManager {
             //            chroot proof, identity-free (rc=0 + "usage: toybox")
             //   CHECK 2: `/bin/cat /etc/os-release` through the merged-/usr
             //            chain — rc=0 + the exact written content must return
-            // `-0` is kept because it is what the real session uses (fakeroot
-            // mapping INSIDE the container only); NOTHING here asserts a uid.
-            val smoke = runStep("PRoot smoke run (toybox --help + cat os-release inside the minimal rootfs)",
-                "PROOT_TMP_DIR=$BASE/tmp LD_LIBRARY_PATH=$BASE/lib $BASE/bin/proot --kill-on-exit " +
-                    "-0 -r '$MINI' -w /root /usr/bin/toybox --help; echo \"SMOKE_RC1=\$?\"; " +
-                    "PROOT_TMP_DIR=$BASE/tmp LD_LIBRARY_PATH=$BASE/lib $BASE/bin/proot --kill-on-exit " +
-                    "-0 -r '$MINI' -w /root /bin/cat /etc/os-release; echo \"SMOKE_RC2=\$?\"",
-                60_000)
-            val rc1 = Regex("SMOKE_RC1=(\\d+)").find(smoke.stdout)?.groupValues?.get(1)?.toIntOrNull() ?: -1
-            val rc2 = Regex("SMOKE_RC2=(\\d+)").find(smoke.stdout)?.groupValues?.get(1)?.toIntOrNull() ?: -1
-            val helpOut = smoke.stdout.substringBefore("SMOKE_RC1=").trim()
-            val catOut = smoke.stdout.substringAfter("SMOKE_RC1=").substringBefore("SMOKE_RC2=").trim()
-            // each check verified INDEPENDENTLY (user req #4) and named in the report
-            val helpOk = rc1 == 0 && helpOut.contains("usage: toybox")
-            val catOk = rc2 == 0 && catOut.contains("AMINO userspace smoke rootfs")
-            if (!helpOk || !catOk) {
-                val why = buildString {
-                    append("PRoot could not run the minimal userspace rootfs — installing Debian would fail the same way\n")
-                    append("• CHECK 1 (toybox --help inside the rootfs): " +
-                        if (helpOk) "PASSED (rc=0, usage token present)\n"
-                        else "FAILED — rc=$rc1, output=${helpOut.take(200)}\n")
-                    append("• CHECK 2 (cat /etc/os-release through the merged-/usr chain): " +
-                        if (catOk) "PASSED (rc=0, content matches)\n"
-                        else "FAILED — rc=$rc2, output=${catOut.take(200)}\n")
-                    if (smoke.stderr.isNotBlank()) append("• stderr: ${smoke.stderr.take(400)}\n")
-                    append(smoke.render())
-                    append("• service identity: the aMiNo service runs as $uidLabel; this test never uses or claims root\n")
-                    append("→ the EXACT failed check is named above; pushed binaries and any previously verified archive are PRESERVED\n")
-                    append("→ update aMiNo and retry; use Remove on this page to clear $BASE")
+            // r1391 WRAPPER FIX (req #7): the payload's LAST command IS the
+            // smoke verdict — `[ $RC1 -eq 0 ] && [ $RC2 -eq 0 ]` — so the
+            // wrapper's reported rc is the smoke test's OWN return code, never
+            // the final echo's 0. The SMOKE_RC markers stay the authoritative
+            // per-check evidence and are cross-checked against the wrapper rc.
+            // r1391 ISOLATION MATRIX (reqs #3/#4): if the baseline config fails,
+            // the SAME smoke test is re-run under controlled single-variable
+            // variants BEFORE declaring failure and BEFORE any Debian download:
+            //   NO_SECCOMP          — proot's seccomp filter disabled
+            //                         (PROOT_NO_SECCOMP=1; known device-specific
+            //                         execve interaction in termux proot)
+            //   FRESH_TMP           — a clean PROOT_TMP_DIR (a stale loader file
+            //                         in the shared tmp dir cannot poison it)
+            //   PROOT_DISTRO_BINDS  — -b /dev -b /proc -b /sys, exactly what
+            //                         proot-distro passes on every run
+            //   NO_FAKEROOT         — the -0 fakeroot mapping removed
+            //   HOST_PATH           — the HOST path exec'd directly (guest-path
+            //                         translation bypassed for the initial exec)
+            //   NO_WORKDIR          — no -w /root (cwd translation removed)
+            // A variant that passes BOTH checks is recorded (prefs "prootFix")
+            // and applied to probe() and the Linux sessions, so the Debian stage
+            // runs under the EXACT configuration the smoke test proved.
+            fun smokePayload(mode: String): String {
+                val tmp = if (mode == "FRESH_TMP") "$BASE/tmp2" else "$BASE/tmp"
+                val seccomp = if (mode == "NO_SECCOMP") "PROOT_NO_SECCOMP=1 " else ""
+                val proot = buildString {
+                    append("$BASE/bin/proot --kill-on-exit")
+                    if (mode != "NO_FAKEROOT") append(" -0")
+                    if (mode == "PROOT_DISTRO_BINDS") append(" -b /dev -b /proc -b /sys")
+                    append(" -r '$MINI'")
+                    if (mode != "NO_WORKDIR") append(" -w /root")
+                }.toString()
+                val exe = if (mode == "HOST_PATH") "'$MINI/usr/bin/toybox'" else "/usr/bin/toybox"
+                val pre = if (mode == "FRESH_TMP") "mkdir -p '$tmp'; " else ""
+                val p1 = "${pre}PROOT_TMP_DIR='$tmp' LD_LIBRARY_PATH=$BASE/lib $seccomp$proot $exe --help"
+                val p2 = "PROOT_TMP_DIR='$tmp' LD_LIBRARY_PATH=$BASE/lib $seccomp$proot /bin/cat /etc/os-release"
+                return "$p1; SMOKE_RC1=\$?; echo \"SMOKE_RC1=\$SMOKE_RC1\"; " +
+                    "$p2; SMOKE_RC2=\$?; echo \"SMOKE_RC2=\$SMOKE_RC2\"; " +
+                    "[ \"\$SMOKE_RC1\" -eq 0 ] && [ \"\$SMOKE_RC2\" -eq 0 ]"
+            }
+            fun parseSmoke(inv: Inv): Triple<Int, Int, Boolean> {
+                val r1 = Regex("SMOKE_RC1=(\\d+)").find(inv.stdout)?.groupValues?.get(1)?.toIntOrNull() ?: -1
+                val r2 = Regex("SMOKE_RC2=(\\d+)").find(inv.stdout)?.groupValues?.get(1)?.toIntOrNull() ?: -1
+                return Triple(r1, r2, r1 >= 0 && r2 >= 0)
+            }
+            fun contentOk(inv: Inv, r1: Int, r2: Int): Boolean {
+                val helpOut = inv.stdout.substringBefore("SMOKE_RC1=").trim()
+                val catOut = inv.stdout.substringAfter("SMOKE_RC1=").substringBefore("SMOKE_RC2=").trim()
+                return r1 == 0 && r2 == 0 && helpOut.contains("usage: toybox") &&
+                    catOut.contains("AMINO userspace smoke rootfs")
+            }
+            setState(ctx, State.CHECKING, "PRoot userspace smoke test (Debian is NOT downloaded until this passes)")
+            val smokeInv = runStep("PRoot smoke run (baseline config: toybox --help + cat os-release)",
+                smokePayload("BASELINE"), 90_000, "$BASE/tmp/smoke.err")
+            val (rc1, rc2, markersOk) = parseSmoke(smokeInv)
+            val baselineOk = contentOk(smokeInv, rc1, rc2)
+            var winner: String? = if (baselineOk) "BASELINE" else null
+            val matrix = ArrayList<Triple<String, Int, Int>>()
+            if (winner == null) {
+                step("smoke FAILED on the baseline config (rc1=$rc1 rc2=$rc2, wrapper rc=${smokeInv.rc}) — running the single-variable isolation matrix; nothing is downloaded and nothing is modified")
+                val variants = listOf(
+                    "NO_SECCOMP" to "PROOT_NO_SECCOMP=1 (proot's seccomp execve handling off)",
+                    "FRESH_TMP" to "clean PROOT_TMP_DIR (rules out a stale proot loader file)",
+                    "PROOT_DISTRO_BINDS" to "-b /dev -b /proc -b /sys (the exact proot-distro flags)",
+                    "NO_FAKEROOT" to "no -0 (the fakeroot mapping removed)",
+                    "HOST_PATH" to "the HOST path exec'd directly (guest-path translation bypassed)",
+                    "NO_WORKDIR" to "no -w /root (the cwd translation removed)")
+                for ((mode, desc) in variants) {
+                    val inv = runStep("PRoot smoke variant $mode — $desc", smokePayload(mode), 90_000, "$BASE/tmp/smoke.err")
+                    val (r1, r2, _) = parseSmoke(inv)
+                    matrix.add(Triple(mode, r1, r2))
+                    Log.i(TAG, "smoke variant $mode: rc1=$r1 rc2=$r2 stderr=${inv.stderr.take(200)}")
+                    if (contentOk(inv, r1, r2)) { winner = mode; break }
                 }
-                Log.e(TAG, "PROOT SMOKE TEST FAILED: rc1=$rc1 rc2=$rc2 ${smoke.stdout.take(300)}")
+            }
+            if (winner == null) {
+                val execDenied = Regex("(?i)permission denied|execve|exec format")
+                    .containsMatchIn(smokeInv.stderr + smokeInv.stdout) || rc1 == 126 || rc2 == 126
+                val why = buildString {
+                    append("PRoot could not exec the toybox binary inside the minimal userspace rootfs — Debian was NOT downloaded (the runtime failure must be isolated first)\n")
+                    if (execDenied) append("• classification: EXEC DENIAL — this is NOT a missing /etc/os-release: that file was written AND read back during setup, and /bin/cat resolves to the SAME toybox executable through the merged-/usr chain — every failed check here is the SAME single exec denial\n")
+                    append("• CHECK 1 (toybox --help inside the rootfs): rc=$rc1\n")
+                    append("• CHECK 2 (cat /etc/os-release through the merged-/usr chain): rc=$rc2\n")
+                    append("• stderr: ${(smokeInv.stderr.ifBlank { "(empty)" }).take(400)}\n")
+                    if (!markersOk) append("• wrapper: SMOKE_RC markers ABSENT — the payload itself broke before the checks completed (wrapper rc=${smokeInv.rc})\n")
+                    else append("• wrapper rc=${smokeInv.rc} — the smoke verdict itself (both checks must exit 0); no longer the final echo's rc (req #7)\n")
+                    append("• exec-runtime diagnostics (read-only): $diagSummary\n")
+                    if (mountEv.isNotBlank()) append("• mount options: ${mountEv.take(280)}\n")
+                    if (abiMismatch) append("• BINARY COMPATIBILITY: the executable is $elfMachine but this device reports $devAbi\n")
+                    if (matrix.isNotEmpty()) {
+                        append("• isolation matrix (each run's full command/rc/stdout/stderr is in the install log):\n")
+                        for ((m, mr1, mr2) in matrix) append("   - $m: CHECK1 rc=$mr1, CHECK2 rc=$mr2\n")
+                        append("→ no variant passed: the denial is not explained by proot's seccomp handling, a stale loader in PROOT_TMP_DIR, missing proot-distro binds, the fakeroot mapping, the cwd, or the exec-path form ALONE\n")
+                    }
+                    append("→ left unchanged: no chmod, no setenforce, no SELinux/policy change, no remount (req #5)\n")
+                    append("• service identity: the aMiNo service runs as $uidLabel; this test never uses or claims root\n")
+                    append("• PRESERVED: the pushed binaries, the diagnostic rootfs at $MINI (kept for inspection), and any previously verified rootfs archive in app storage\n")
+                    append(smokeInv.render())
+                }
+                Log.e(TAG, "PROOT SMOKE FAILED (no variant passed): rc1=$rc1 rc2=$rc2 diag=[$diagSummary]")
                 return runtimeFail(ctx, why, "PRoot smoke test")
             }
-            val smokeEvidence = "Debian userspace smoke test passed: toybox --help + cat /etc/os-release ran inside " +
-                "the minimal rootfs through PRoot (both rc=0, verified independently); service identity: $uidLabel — no root claims"
-            step("smoke test PASSED (Debian userspace smoke test): toybox --help rc=0 · cat /etc/os-release rc=0 " +
+            if (winner != "BASELINE") {
+                meta.put("prootFix", winner)
+                save(ctx, meta)
+                if (winner == "FRESH_TMP") ShizukuExec.oneShot("mkdir -p '$BASE/tmp2'", 10_000)
+                step("smoke ISOLATED: variant $winner passed BOTH checks — recorded and applied to probe() and Linux sessions so Debian runs under the exact proven configuration")
+            } else {
+                step("smoke PASSED on the baseline config — no invocation change needed")
+            }
+            step("smoke test PASSED (Debian userspace smoke test, mode $winner): toybox --help rc=0 · cat /etc/os-release rc=0 " +
                 "through the merged-/usr chain — PRoot chroot + exec work; service identity: $uidLabel; proceeding to Debian")
-            ShizukuExec.oneShot("rm -rf '$MINI'", 30_000)
+            step("diagnostic rootfs KEPT at $MINI (req #6 — evidence preserved; the next install reuses it instead of rebuilding)")
 
             // ---- 3) download — or REUSE the verified archive from a failed attempt ----
             setState(ctx, State.DOWNLOADING, "obtaining the Debian 12 rootfs")
@@ -953,6 +1110,8 @@ object LinuxEnvManager {
             step("probe verified: ${probe.second.take(200).replace("\n", " · ")}")
 
             // ---- 10) READY (real, evidenced) ----
+            val smokeEvidence = "Debian userspace smoke test passed (mode $winner): toybox --help + cat /etc/os-release ran inside " +
+                "the minimal rootfs through PRoot (both rc=0, verified independently); service identity: $uidLabel — no root claims"
             meta.put("state", State.READY.name)
                 .put("message", "ready")
                 .put("arch", pf.arch)
@@ -1332,23 +1491,30 @@ object LinuxEnvManager {
      */
     suspend fun probe(ctx: Context): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         if (!ShizukuExec.available()) return@withContext false to "aMiNo service is not running"
-        val env = arrayOf(
-            "PROOT_TMP_DIR=$BASE/tmp",
+        // r1391: use EXACTLY the proot invocation mode the smoke-test variant
+        // matrix proved on this device (prefs "prootFix") — the probe must run
+        // under the same configuration the Debian sessions will get.
+        val fix = prootFix(ctx)
+        var env = arrayOf(
+            "PROOT_TMP_DIR=${prootTmpFor(fix)}",
             "LD_LIBRARY_PATH=$BASE/lib",
             "HOME=/root"
         )
+        if (fix == "NO_SECCOMP") env = env + "PROOT_NO_SECCOMP=1"
+        val args = buildList {
+            add("$BASE/bin/proot"); add("--kill-on-exit"); add("--link2symlink")
+            if (fix != "NO_FAKEROOT") add("-0")
+            addAll(listOf("-r", ROOTFS, "-b", "/dev", "-b", "/proc", "-b", "/sys"))
+            add(if (fix == "HOST_PATH") "$ROOTFS/usr/bin/env" else "/usr/bin/env")
+            addAll(listOf(
+                "-i",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "HOME=/root",
+                "/bin/sh", "-c", "id 2>&1 | head -n 1; head -n 1 /etc/os-release; bash --version 2>/dev/null | head -n 1; apt-get --version 2>/dev/null | head -n 1"
+            ))
+        }
         val p = try {
-            ShizukuExec.spawn(
-                listOf(
-                    "$BASE/bin/proot", "--kill-on-exit", "--link2symlink",
-                    "-0", "-r", ROOTFS,
-                    "-b", "/dev", "-b", "/proc", "-b", "/sys",
-                    "/usr/bin/env", "-i",
-                    "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-                    "HOME=/root",
-                    "/bin/sh", "-c", "id 2>&1 | head -n 1; head -n 1 /etc/os-release; bash --version 2>/dev/null | head -n 1; apt-get --version 2>/dev/null | head -n 1"
-                ), env, "/"
-            )
+            ShizukuExec.spawn(args, env, "/")
         } catch (e: Throwable) {
             return@withContext false to "probe spawn failed: ${e.message ?: e.javaClass.simpleName}"
         }
@@ -1376,29 +1542,49 @@ object LinuxEnvManager {
 
     // ---------- session command builder (used by TerminalSession) ----------
 
+    /**
+     * r1391 — the proot invocation mode isolated by the smoke-test variant
+     * matrix (BASELINE, NO_SECCOMP, FRESH_TMP, PROOT_DISTRO_BINDS,
+     * NO_FAKEROOT, HOST_PATH, NO_WORKDIR). Persisted as prefs "prootFix" when
+     * the smoke test finds a mode that passes where the baseline failed.
+     */
+    private fun prootFix(ctx: Context): String = try {
+        load(ctx).optString("prootFix", "BASELINE")
+    } catch (e: Exception) { "BASELINE" }
+
+    private fun prootTmpFor(mode: String): String =
+        if (mode == "FRESH_TMP") "$BASE/tmp2" else "$BASE/tmp"
+
     /** The PRoot argv that becomes a persistent bash session inside Debian. */
     fun sessionCommand(ctx: Context): Pair<List<String>, Array<String>> {
+        val fix = prootFix(ctx)
         val binds = ArrayList<String>()
         for (b in listOf("/dev", "/proc", "/sys", "/system", "/vendor"))
             if (java.io.File(b).exists()) { binds.add("-b"); binds.add(b) }
         val shared = File(ctx.filesDir, "linux/shared").apply { mkdirs() }
         binds.add("-b"); binds.add("${shared.absolutePath}:/shared")
-        val cmd = listOf(
-            "$BASE/bin/proot", "--kill-on-exit", "--link2symlink",
-            "-0", "-r", ROOTFS, "-w", "/root"
-        ) + binds + listOf(
-            "/usr/bin/env", "-i",
-            "HOME=/root", "USER=root", "SHELL=/bin/bash",
-            "TERM=xterm-256color", "LANG=C.UTF-8",
-            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-            "TMPDIR=/tmp",
-            "/bin/bash"
-        )
-        val env = arrayOf(
-            "PROOT_TMP_DIR=$BASE/tmp",
+        val cmd = buildList {
+            add("$BASE/bin/proot"); add("--kill-on-exit"); add("--link2symlink")
+            if (fix != "NO_FAKEROOT") add("-0")
+            add("-r"); add(ROOTFS)
+            if (fix != "NO_WORKDIR") { add("-w"); add("/root") }
+            addAll(binds)
+            add(if (fix == "HOST_PATH") "$ROOTFS/usr/bin/env" else "/usr/bin/env")
+            addAll(listOf(
+                "-i",
+                "HOME=/root", "USER=root", "SHELL=/bin/bash",
+                "TERM=xterm-256color", "LANG=C.UTF-8",
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                "TMPDIR=/tmp",
+                "/bin/bash"
+            ))
+        }
+        var env = arrayOf(
+            "PROOT_TMP_DIR=${prootTmpFor(fix)}",
             "LD_LIBRARY_PATH=$BASE/lib",
             "HOME=/root"
         )
+        if (fix == "NO_SECCOMP") env = env + "PROOT_NO_SECCOMP=1"
         return cmd to env
     }
 
