@@ -272,8 +272,18 @@ object TerminalEngine {
         )
         val started = s.start()
         if (!started || !s.ready) {
+            // r1395 — observable launch: the failed session holds the REAL
+            // failing stage (service / preflight / spawn / init / guest death).
+            // Preserve that evidence in the exception instead of destroying it
+            // with a close() and throwing a generic message.
+            val diag = s.lastLaunch
+            val tail = s.sysTail()
             runCatching { s.close() }
-            throw IllegalStateException("could not start a ${backend.title} session on this device right now")
+            throw IllegalStateException(
+                "could not start a ${backend.title} session" +
+                    (diag?.let { " — failed stage: ${it.failedStage ?: "?"} — ${it.summary.take(400)}" } ?: "") +
+                    (if (tail.isNotBlank()) " · session log: ${tail.take(400)}" else "")
+            )
         }
         sessions[id] = s
         return s

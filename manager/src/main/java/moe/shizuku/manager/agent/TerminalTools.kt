@@ -82,6 +82,12 @@ object TerminalTools {
                 .put("name", s.displayName)
                 .put("cwd", s.cwd)
                 .put("agent_session", s.isAgentSession)
+                // r1395 (user Task 4): state the identity chain as FACT so no
+                // "no root" diagnosis can be invented — PRoot exists precisely
+                // to run Linux userspace WITHOUT real root.
+                .put("identity", if (s.backend == TermBackend.LINUX_USERSPACE)
+                    "host: Android shell uid 2000 (aMiNo service) · guest: PRoot fake uid 0 inside the container only · real Android root: NOT used and NOT required"
+                    else JSONObject.NULL)
                 .put("note", "persistent session — cwd/env survive between commands")
                 .toString(2))
         } catch (e: Exception) {
@@ -386,6 +392,7 @@ object TerminalTools {
                 .put("network", pf.networkOk)
                 .put("service", if (pf.serviceOk) "running (uid ${pf.serviceUid})" else "not running")
                 .put("runtime_path", LinuxEnvManager.ROOTFS)
+                .put("stage_board", LinuxEnvManager.stageBoard(context))   // r1395: exact proven/failing stage
                 .put("fs_probe", JSONObject()
                     .put("path", pf.fs?.base ?: LinuxEnvManager.BASE)
                     .put("fstype", pf.fs?.fstype ?: JSONObject.NULL)

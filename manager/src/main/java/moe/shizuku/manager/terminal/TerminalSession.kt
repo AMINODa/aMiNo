@@ -106,6 +106,9 @@ class TerminalSession(
     // --- session state ---
     @Volatile var alive = false; private set
     @Volatile var ready = false; private set
+
+    /** r1395 — the launch diagnostic of the LAST start attempt (observable launch). */
+    var lastLaunch: LaunchDiagnostic? = null; private set
     @Volatile var busy = false; private set
     @Volatile var cwd: String? = null; private set
     @Volatile var lastExitCode: Int? = null; private set
@@ -164,16 +167,96 @@ class TerminalSession(
      * reader loop as the local backend drive the session.
      */
     private fun startLinux(): Boolean {
+        // r1395 — observable launch: every stage records evidence; the first
+        // failing stage names itself exactly (Task 1 + Task 2).
+        val base = moe.shizuku.manager.terminal.linux.LinuxEnvManager.BASE
+        val rootfs = moe.shizuku.manager.terminal.linux.LinuxEnvManager.ROOTFS
+        val d = LaunchDiagnostic(id)
+        lastLaunch = d
+        d.environmentId = backend.id
+        d.rootfsPath = rootfs
+        d.guestShell = "/bin/bash"
+        d.prootPath = "$base/bin/proot"
+
+        // ---- stage 1: the service (the session is spawned BY the service) ----
+        if (!moe.shizuku.manager.terminal.linux.ShizukuExec.available()) {
+            d.fail("SERVICE_UNAVAILABLE",
+                "aMiNo service binder is not connected — sessions are spawned BY the service. " +
+                "Start the aMiNo service from the home page (wireless debugging) and retry. " +
+                "NOT a root problem: this environment runs as Android shell uid 2000 through PRoot " +
+                "(fake uid 0 inside the container only) and never needs real root.")
+            addSys("launch failed at SERVICE_UNAVAILABLE: ${d.summary}")
+            return false
+        }
+        d.serviceUid = moe.shizuku.manager.terminal.linux.ShizukuExec.serviceUid()
+
+        // ---- stage 2: build the exact command + read-only runtime preflight ----
         val (cmd, env) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.sessionCommand(appContext)
-        val rp = moe.shizuku.manager.terminal.linux.ShizukuExec.spawn(cmd, env, "/")
+        d.commandSanitized = cmd.joinToString(" ")
+        val tmpDir = env.firstOrNull { it.startsWith("PROOT_TMP_DIR=") }?.substringAfter('=') ?: "$base/tmp"
+        // one service roundtrip (read-only): uid, SELinux domain, proot exec bit,
+        // tmp dir writable, loader present, guest shell present, proot version.
+        val pre = kotlinx.coroutines.runBlocking {
+            kotlinx.coroutines.withTimeoutOrNull(6_000) {
+                moe.shizuku.manager.terminal.linux.ShizukuExec.oneShot(
+                    "echo UID=\$(id -u 2>/dev/null); " +
+                    "echo DOMAIN=\$(cat /proc/self/attr/current 2>/dev/null); " +
+                    "test -x $base/bin/proot && echo PROOT_EXEC_OK || echo PROOT_EXEC_MISSING; " +
+                    "mkdir -p '$tmpDir' 2>/dev/null; test -w '$tmpDir' && echo TMP_OK || echo TMP_BAD; " +
+                    "test -f $base/libexec/proot/loader && echo LOADER_OK || echo LOADER_MISSING; " +
+                    "test -x $rootfs/bin/bash && echo BASH_OK || echo BASH_MISSING; " +
+                    "LD_LIBRARY_PATH=$base/lib $base/bin/proot --version 2>&1 | head -n 1",
+                    5_000)
+            }
+        }
+        if (pre == null) {
+            d.fail("PREFLIGHT_TIMEOUT", "the service binder answered but the preflight probe timed out (service busy?)")
+            addSys("launch failed at PREFLIGHT_TIMEOUT: ${d.summary}")
+            return false
+        }
+        Regex("UID=(\\d+)").find(pre.output)?.groupValues?.get(1)?.toIntOrNull()?.let { d.serviceUid = it }
+        Regex("DOMAIN=(\\S+)").find(pre.output)?.groupValues?.get(1)?.let { d.serviceDomain = it }
+        d.prootVersion = pre.output.lineSequence().firstOrNull { it.startsWith("proot") }?.trim()
+        if (pre.output.contains("shizuku_service_unavailable")) {
+            d.fail("SERVICE_UNAVAILABLE", "the binder died between the ping and the preflight probe — restart the aMiNo service")
+            addSys("launch failed at SERVICE_UNAVAILABLE: ${d.summary}")
+            return false
+        }
+        val assetProblems = ArrayList<String>()
+        if (!pre.output.contains("PROOT_EXEC_OK")) assetProblems.add("proot not executable at $base/bin/proot")
+        if (!pre.output.contains("TMP_OK")) assetProblems.add("PROOT_TMP_DIR not writable: $tmpDir")
+        if (!pre.output.contains("LOADER_OK")) assetProblems.add("proot loader missing at $base/libexec/proot/loader")
+        if (!pre.output.contains("BASH_OK")) assetProblems.add("guest shell missing/not executable: $rootfs/bin/bash")
+        if (assetProblems.isNotEmpty()) {
+            d.fail("PREFLIGHT", assetProblems.joinToString("; ") + " · preflight output: ${pre.output.take(300)}")
+            addSys("launch failed at PREFLIGHT: ${d.summary}")
+            return false
+        }
+
+        // ---- stage 3: spawn by the service ----
+        val rp = try {
+            moe.shizuku.manager.terminal.linux.ShizukuExec.spawn(cmd, env, "/")
+        } catch (e: Throwable) {
+            d.fail("SPAWN_FAILED", "${e.message ?: e.javaClass.simpleName}")
+            addSys("launch failed at SPAWN_FAILED: ${d.summary}")
+            throw e
+        }
         remoteProc = rp
         stdin = rp.stdin
         errFile = "/tmp/.amino_err_$id"   // inside the container
+        d.spawned = true
+        d.processAliveAfterSpawn = try { rp.alive() } catch (_: Throwable) { null }
         // native stderr pipe MUST be drained or the child can block on a full pipe.
+        // r1395: drained into a BOUNDED capture too — proot's own error text is
+        // primary evidence and was previously discarded.
+        val errCapture = StringBuilder()
         Thread({
             try { rp.stderr.copyTo(object : java.io.OutputStream() {
-                override fun write(b: Int) {}
-                override fun write(b: ByteArray, off: Int, len: Int) {}
+                var cap = 0
+                override fun write(b: Int) { synchronized(errCapture) { if (cap < 4096) { errCapture.append(b.toChar()); cap++ } } }
+                override fun write(b: ByteArray, off: Int, len: Int) {
+                    synchronized(errCapture) { val take = minOf(len, 4096 - cap); if (take > 0) { errCapture.append(String(b, off, take)); cap += take } }
+                }
             }) } catch (_: Throwable) {}
         }, "amino-linux-errdrain-$id").apply { isDaemon = true; start() }
         Thread({
@@ -186,11 +269,25 @@ class TerminalSession(
         }, "amino-linux-out-$id").apply { isDaemon = true; start() }
         alive = true
         sendLinuxInit()
+        if (ready) {
+            d.summary = "session ready — the PRoot guest shell answered the init marker"
+            addSys("launch diagnostic: ${d.oneLine()}")
+        } else {
+            val aliveNow = try { rp.alive() } catch (_: Throwable) { false }
+            d.stderrTail = errCapture.toString().trim().take(500)
+            d.stdoutTail = synchronized(lock) { outCap.toString() }.trim().take(500)
+            d.fail(
+                if (aliveNow) "INIT_TIMEOUT" else "GUEST_DIED",
+                if (aliveNow) "no init marker (__AMINO_T9_HI_42) within 15s — the guest shell was spawned but never answered"
+                else "the guest shell exited during init — stderr: ${errCapture.toString().trim().take(300).ifBlank { "(empty)" }}"
+            )
+            addSys("launch failed at ${d.failedStage}: ${d.summary}")
+        }
         return true
     }
 
-    /** Linux init: container PATH, per-session stderr file inside /tmp, /root home. */
-    private fun sendLinuxInit() {
+    /** Linux init: container PATH, per-session stderr file inside /tmp, /root home. Returns the init verdict. */
+    private fun sendLinuxInit(): Boolean {
         ready = false
         val init = buildString {
             append("export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n")
@@ -210,6 +307,7 @@ class TerminalSession(
         } else {
             addSys("session init timed out — the environment did not answer")
         }
+        return ready
     }
 
     private fun startLocal(root: Boolean): Boolean {
@@ -576,6 +674,61 @@ class TerminalSession(
         fgPid = if (busy) fgPid else null, restarts = restarts,
         lineCount = synchronized(lock) { lines.size }
     )
+
+    /** r1395 — the last N system lines (launch evidence survives even after the fact). */
+    fun sysTail(n: Int = 6): String = synchronized(lock) {
+        lines.filter { it.kind == TermLine.Kind.SYS }.takeLast(n).joinToString(" | ") { it.text }
+    }
+}
+
+/**
+ * aMiNo r1395 — OBSERVABLE LAUNCH (user Task 2): every Linux launch attempt
+ * records the full stage-by-stage diagnostic — timestamp, environment, rootfs
+ * path, service uid + SELinux domain, proot path/version, guest shell, the
+ * exact sanitized command, spawn result, init outcome, stdout/stderr tails and
+ * the EXACT failing stage. Never swallowed; surfaced in the UI and in the
+ * exception the caller sees.
+ *
+ * Stage ladder (the first failure wins):
+ *   SERVICE_UNAVAILABLE -> PREFLIGHT_TIMEOUT -> PREFLIGHT -> SPAWN_FAILED
+ *   -> INIT_TIMEOUT / GUEST_DIED -> (ok)
+ */
+class LaunchDiagnostic(val sessionId: String) {
+    val timestamp: Long = System.currentTimeMillis()
+    var environmentId: String = ""
+    var rootfsPath: String = ""
+    var serviceUid: Int? = null
+    var serviceDomain: String? = null
+    var prootPath: String = ""
+    var prootVersion: String? = null
+    var guestShell: String = ""
+    var commandSanitized: String = ""
+    var spawned: Boolean = false
+    var processAliveAfterSpawn: Boolean? = null
+    var failedStage: String? = null
+    var summary: String = ""
+    var stdoutTail: String = ""
+    var stderrTail: String = ""
+
+    fun fail(stage: String, why: String) { failedStage = stage; summary = why }
+
+    fun oneLine(): String = buildString {
+        append("ts=").append(timestamp)
+        append(" · env=").append(environmentId)
+        append(" · rootfs=").append(rootfsPath)
+        append(" · serviceUid=").append(serviceUid ?: "?")
+        append(" · domain=").append(serviceDomain ?: "?")
+        append(" · proot=").append(prootPath)
+        prootVersion?.let { append(" (").append(it).append(")") }
+        append(" · guest=").append(guestShell)
+        if (commandSanitized.isNotBlank()) append(" · cmd=").append(commandSanitized.take(220))
+        append(" · spawn=").append(if (spawned) "ok" else "not reached")
+        processAliveAfterSpawn?.let { append(" · aliveAfterSpawn=").append(it) }
+        append(" · stage=").append(failedStage ?: "READY")
+        if (summary.isNotBlank()) append(" — ").append(summary.take(300))
+        if (stderrTail.isNotBlank()) append(" · stderr: ").append(stderrTail.take(200))
+        if (stdoutTail.isNotBlank()) append(" · stdout: ").append(stdoutTail.take(200))
+    }
 }
 
 /** ADB port resolution shared by the engine and sessions. */

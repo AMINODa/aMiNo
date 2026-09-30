@@ -9,8 +9,10 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import moe.shizuku.manager.terminal.TermBackend
+import moe.shizuku.manager.terminal.TerminalEngine
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.security.MessageDigest
@@ -514,6 +516,69 @@ object LinuxEnvManager {
     fun tarballFile(ctx: Context): File {
         val gz = File(ctx.filesDir, "linux/debian-rootfs.tar.gz")
         return if (gz.exists()) gz else File(ctx.filesDir, "linux/debian-rootfs.tar.xz")
+    }
+
+    // ---------- r1395: honest stage board (user Task 5) + acceptance record ----------
+
+    /** Persist the last acceptance run (per-test evidence) for the stage board. */
+    fun recordAcceptance(ctx: Context, pass: Boolean, results: List<LinuxAcceptance.TestResult>) {
+        val arr = JSONArray()
+        for (r in results) arr.put(JSONObject()
+            .put("name", r.name).put("pass", r.pass)
+            .put("rc", r.exitCode ?: -1).put("evidence", r.evidence.take(200)))
+        save(ctx, load(ctx).put("acceptance", JSONObject()
+            .put("ts", System.currentTimeMillis()).put("pass", pass).put("results", arr)))
+    }
+
+    /** The honest stage ladder: what is PROVEN, what is not, and what failed. */
+    fun stageBoard(ctx: Context): String {
+        val o = load(ctx)
+        val installed = o.optString("state") == State.READY.name
+        val sb = StringBuilder()
+        fun line(ok: Boolean?, key: String, detail: String) {
+            sb.append(when (ok) { true -> "✓ "; false -> "✗ "; null -> "• " }).append(key)
+            if (detail.isNotBlank()) sb.append(" — ").append(detail.take(220))
+            sb.append('\n')
+        }
+        if (installed) {
+            val stages = o.optJSONArray("stages")
+            if (stages != null) {
+                for (i in 0 until stages.length()) {
+                    val st = stages.optJSONObject(i) ?: continue
+                    line(st.optBoolean("ok"), st.optString("key"), st.optString("detail"))
+                }
+            } else {
+                // pre-r1395 install: reconstruct from the evidence already in prefs
+                line(o.optString("dlDigest").isNotBlank(), "ARCHIVE_VERIFIED",
+                    "source ${o.optString("source")} · digest ${o.optString("dlDigest").take(16)}…")
+                line(true, "ROOTFS_EXTRACTED", "runtime $ROOTFS")
+                line(o.optString("smoke").isNotBlank(), "ROOTFS_VALIDATED", "audit recorded at install")
+                line(o.optString("smoke").isNotBlank(), "PROOT_RUNTIME_VERIFIED", o.optString("prootVersion"))
+            }
+        } else {
+            val err = o.optString("lastError")
+            line(false, "ARCHIVE_VERIFIED", if (err.isNotBlank()) "last error: ${err.take(160)}" else "install not completed yet")
+            line(false, "ROOTFS_EXTRACTED", ""); line(false, "ROOTFS_VALIDATED", ""); line(false, "PROOT_RUNTIME_VERIFIED", "")
+        }
+        // live session evidence (in-process — no service roundtrip)
+        val live = TerminalEngine.listSessions().any { it.backend == TermBackend.LINUX_USERSPACE && it.alive && it.ready }
+        line(live, "TERMINAL_SESSION_CREATED",
+            if (live) "a live Debian (PRoot) session exists now" else "no live Debian session right now (open the terminal to create one)")
+        // acceptance evidence (persisted per-test)
+        val acc = o.optJSONObject("acceptance")
+        if (acc == null) {
+            line(null, "ACCEPTANCE_TESTS_PASSED", "never run yet")
+        } else {
+            val failed = ArrayList<String>()
+            acc.optJSONArray("results")?.let { rs ->
+                for (i in 0 until rs.length()) { val r = rs.optJSONObject(i) ?: continue; if (!r.optBoolean("pass")) failed.add(r.optString("name")) }
+            }
+            line(acc.optBoolean("pass"), "ACCEPTANCE_TESTS_PASSED",
+                (if (acc.optBoolean("pass")) "all tests passed" else "FAILED: ${failed.joinToString(", ").ifBlank { "runner" }}") +
+                    " · last run " + java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT)
+                        .format(java.util.Date(acc.optLong("ts"))))
+        }
+        return sb.toString().trimEnd()
     }
 
     // ---------- install flow ----------
@@ -1267,12 +1332,24 @@ object LinuxEnvManager {
             // ---- 10) READY (real, evidenced) ----
             val smokeEvidence = "Debian userspace smoke test passed (mode $winner): toybox --help + cat /etc/os-release ran inside " +
                 "the minimal rootfs through PRoot (both rc=0, verified independently); service identity: $uidLabel — no root claims"
+            // r1395 — persist the PROVEN stage ladder (user Task 5): each entry
+            // is recorded at the moment it was actually verified.
+            val stages = JSONArray()
+                .put(JSONObject().put("key", "ARCHIVE_VERIFIED").put("ok", true)
+                    .put("detail", "${dl.file.name} ${dl.file.length() / (1024 * 1024)} MB · $algo ${localDigest.take(16)}… · source: ${dl.source}"))
+                .put(JSONObject().put("key", "ROOTFS_EXTRACTED").put("ok", true)
+                    .put("detail", "extracted to $ROOTFS (${ex.detail.take(140)})"))
+                .put(JSONObject().put("key", "ROOTFS_VALIDATED").put("ok", true)
+                    .put("detail", "post-extract audit: ${audit.second.take(140)}"))
+                .put(JSONObject().put("key", "PROOT_RUNTIME_VERIFIED").put("ok", true)
+                    .put("detail", "probe through PRoot: ${probe.second.trim().replace("\n", " · ").take(140)}"))
             meta.put("state", State.READY.name)
                 .put("message", "ready")
                 .put("arch", pf.arch)
                 .put("prootVersion", prootVersion)
                 .put("extractor", extractorVersion)
                 .put("smoke", smokeEvidence)
+                .put("stages", stages)
                 .put("installedAt", System.currentTimeMillis())
                 .remove("lastError")
             save(ctx, meta)

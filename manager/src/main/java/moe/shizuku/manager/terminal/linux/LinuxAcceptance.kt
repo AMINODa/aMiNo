@@ -31,6 +31,18 @@ object LinuxAcceptance {
         val results = ArrayList<TestResult>()
         var session: moe.shizuku.manager.terminal.TerminalSession? = null
         try {
+            // r1395 — evidence-based precondition: the tests spawn PRoot THROUGH
+            // the aMiNo service. If the binder is down, every test would "fail"
+            // for the same unrelated reason — record that exactly instead.
+            if (!ShizukuExec.available()) {
+                results.add(TestResult("runner", "-", false,
+                "aMiNo service is not connected (binder null) — all 7 tests spawn PRoot through the service. " +
+                    "Start the aMiNo service from the home page (wireless debugging) and re-run. " +
+                    "NOT a root problem: the Linux environment runs as Android shell uid 2000 via PRoot " +
+                    "(fake uid 0 inside the container only) and never requires real root.", null))
+                persistResults(context, false, results)
+                return false to results
+            }
             onProgress("creating a real Linux session…")
             session = TerminalEngine.create(context, TermBackend.LINUX_USERSPACE, "acceptance", isAgentSession = false)
 
@@ -139,13 +151,23 @@ object LinuxAcceptance {
                     after.lastExitCode)
             }
 
+            // r1395 — persist per-test evidence for the stage board (Task 5)
+            persistResults(context, results.all { it.pass }, results)
             return results.all { it.pass } to results
         } catch (e: Throwable) {
+            // r1395 — the exception now carries the REAL failing stage from
+            // TerminalEngine/LaunchDiagnostic; record it verbatim.
             results.add(TestResult("runner", "-", false, "runner error: ${e.message ?: e.javaClass.simpleName}", null))
+            persistResults(context, false, results)
             return false to results
         } finally {
             try { session?.let { TerminalEngine.close(it.id) } } catch (_: Throwable) {}
         }
+    }
+
+    /** r1395 — persist the per-test evidence (never swallow: best-effort only). */
+    private fun persistResults(context: Context, pass: Boolean, results: List<TestResult>) {
+        try { LinuxEnvManager.recordAcceptance(context, pass, results) } catch (_: Throwable) {}
     }
 
     fun report(pass: Boolean, results: List<TestResult>): String = buildString {

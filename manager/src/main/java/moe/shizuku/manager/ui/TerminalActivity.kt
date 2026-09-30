@@ -32,9 +32,15 @@ import moe.shizuku.manager.terminal.TerminalEngine
  */
 class TerminalActivity : AppActivity() {
 
+    companion object {
+        /** r1395 — the session the caller (e.g. the Linux page) wants selected. */
+        const val EXTRA_SESSION_ID = "amino.terminal.SESSION_ID"
+    }
+
     private lateinit var binding: TerminalActivityBindingHolder
     private val adapter = TermAdapter()
     private var currentId: String? = null
+    private var pendingSelectId: String? = null
 
     /** ViewBinding holder without the generated binding class name clash — simple manual holder. */
     class TerminalActivityBindingHolder(
@@ -71,6 +77,12 @@ class TerminalActivity : AppActivity() {
             sendBtn = findViewById(R.id.sendBtn)
         )
         binding = b
+
+        // r1395 — a caller that created a session (Linux page "Ouvrir le terminal",
+        // agent tools) can pin the session this screen must show first; without it
+        // the old fallback selected the OLDEST session and the freshly created
+        // Linux session was never displayed — the feature looked dead.
+        pendingSelectId = intent?.getStringExtra(EXTRA_SESSION_ID)
 
         b.termList.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         b.termList.adapter = adapter
@@ -137,6 +149,11 @@ class TerminalActivity : AppActivity() {
     private fun currentSession() = currentId?.let { TerminalEngine.getSession(it) }
 
     private fun refresh() {
+        // r1395 — honor the caller's session selection once, before the fallback
+        pendingSelectId?.let { pid ->
+            pendingSelectId = null
+            if (TerminalEngine.getSession(pid) != null) currentId = pid
+        }
         val sessions = TerminalEngine.listSessions()
         if (currentId == null || TerminalEngine.getSession(currentId!!) == null) {
             currentId = sessions.firstOrNull()?.id

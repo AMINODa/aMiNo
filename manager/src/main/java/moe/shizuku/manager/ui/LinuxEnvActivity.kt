@@ -118,10 +118,15 @@ class LinuxEnvActivity : AppActivity() {
         // r1388: the error now carries the first real failing command + its
         // stderr verbatim (never a generic message) — give it room to render.
         st.lastError?.let { sb.append("\n").append(getString(R.string.linux_detail_error, it.take(1600))) }
-        statusDetails.text = sb.toString()
 
         // buttons enablement — honest states
         val ready = st.state == LinuxEnvManager.State.READY
+        // r1395 — honest stage board (user Task 5): the exact proven stage and
+        // the exact failing one, never a single umbrella "ready".
+        if (ready) {
+            try { sb.append("\n").append(LinuxEnvManager.stageBoard(this)) } catch (_: Throwable) {}
+        }
+        statusDetails.text = sb.toString()
         val busyStates = setOf(LinuxEnvManager.State.CHECKING, LinuxEnvManager.State.DOWNLOADING,
             LinuxEnvManager.State.TRANSFERRING, LinuxEnvManager.State.EXTRACTING, LinuxEnvManager.State.VERIFYING)
         val installingNow = st.state in busyStates || working
@@ -255,13 +260,33 @@ class LinuxEnvActivity : AppActivity() {
 
     private fun openTerminal() {
         if (LinuxEnvManager.currentState(this) != LinuxEnvManager.State.READY) { toast(getString(R.string.linux_need_ready)); return }
+        // r1395 — observable launch (user Task 1+2): every attempt is logged
+        // stage by stage on this page; a failure shows the REAL cause in a
+        // dialog (never a bare generic toast); a success opens the terminal
+        // WITH the Linux session selected. This page stays in the stack.
+        log("open terminal: state READY — looking for a live Debian session…")
         lifecycleScope.launch {
-            val s = withContext(Dispatchers.IO) {
-                TerminalEngine.listSessions().firstOrNull { it.backend == TermBackend.LINUX_USERSPACE && it.alive }
-                    ?: runCatching { TerminalEngine.create(this@LinuxEnvActivity, TermBackend.LINUX_USERSPACE, "linux", false) }.getOrNull()
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    TerminalEngine.listSessions()
+                        .firstOrNull { it.backend == TermBackend.LINUX_USERSPACE && it.alive && it.ready }
+                        ?: TerminalEngine.create(this@LinuxEnvActivity, TermBackend.LINUX_USERSPACE, "linux", false)
+                }
             }
-            if (s == null) { toast(getString(R.string.linux_session_failed)); return@launch }
-            startActivity(Intent(this@LinuxEnvActivity, TerminalActivity::class.java))
+            val s = result.getOrNull()
+            if (s == null) {
+                val cause = result.exceptionOrNull()
+                log("terminal open FAILED at: ${cause?.message ?: "unknown error"}")
+                androidx.appcompat.app.AlertDialog.Builder(this@LinuxEnvActivity)
+                    .setTitle(getString(R.string.linux_session_failed))
+                    .setMessage(cause?.message ?: "unknown error")
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show()
+                return@launch
+            }
+            log("terminal open: session ${s.id} ready=${s.ready} — opening the terminal screen (this page stays open)")
+            startActivity(Intent(this@LinuxEnvActivity, TerminalActivity::class.java)
+                .putExtra(TerminalActivity.EXTRA_SESSION_ID, s.id))
         }
     }
 
