@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- aMiNo 1.4: manual skill creation / editing form (Create New Skill + Edit). -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp"
+    android:paddingTop="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <EditText
+            android:id="@+id/fName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/skill_f_name"
+            android:inputType="textCapWords"
+            android:maxLines="1" />
+
+        <EditText
+            android:id="@+id/fVersion"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/skill_f_version"
+            android:inputType="text"
+            android:maxLines="1" />
+
+        <EditText
+            android:id="@+id/fCategory"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/skill_f_category"
+            android:inputType="text"
+            android:maxLines="1" />
+
+        <EditText
+            android:id="@+id/fTags"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/skill_f_tags"
+            android:inputType="text"
+            android:maxLines="1" />
+
+        <EditText
+            android:id="@+id/fDescription"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/skill_f_description"
+            android:inputType="textMultiLine"
+            android:minLines="2" />
+
+        <EditText
+            android:id="@+id/fTrigger"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/skill_f_trigger"
+            android:inputType="textMultiLine"
+            android:minLines="1" />
+
+        <EditText
+            android:id="@+id/fInstructions"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/skill_f_instructions"
+            android:inputType="textMultiLine"
+            android:minLines="4"
+            android:fontFamily="monospace" />
+
+        <EditText
+            android:id="@+id/fSteps"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/skill_f_steps"
+            android:inputType="textMultiLine"
+            android:minLines="3"
+            android:fontFamily="monospace"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/fParamsHint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/skill_f_params"
+            android:inputType="text"
+            android:maxLines="1" />
+
+        <EditText
+            android:id="@+id/fVerify"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/skill_f_verify"
+            android:inputType="text"
+            android:maxLines="1"
+            android:fontFamily="monospace"
+            android:textSize="13sp" />
+
+        <EditText
+            android:id="@+id/fTools"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/skill_f_tools"
+            android:inputType="text"
+            android:maxLines="1"
+            android:textSize="13sp" />
+    </LinearLayout>
+</ScrollView>

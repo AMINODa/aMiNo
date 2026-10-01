@@ -183,6 +183,14 @@
             android:name=".tools.ToolsActivity"
             android:exported="false"
             android:label="@string/tools_title" />
+        <!-- aMiNo 1.4: Skills Center — install/import/organize/compose external skills
+             (SKILL.md / JSON / ZIP / folders / GitHub URLs / pasted text) with real
+             backend operations, script approval gates and persistent local storage. -->
+        <activity
+            android:name=".skills.SkillsActivity"
+            android:exported="false"
+            android:label="@string/skills_title"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".stealth.StealthTutorialActivity"
             android:label="@string/home_stealth_title"

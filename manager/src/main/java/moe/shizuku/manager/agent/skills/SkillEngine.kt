@@ -54,7 +54,20 @@ object SkillEngine {
             .joinToString("").trim('-').take(64).ifBlank { "skill" }
 
     private fun fromJson(o: JSONObject): Skill? = runCatching {
-        Skill(
+        if (o.optString("format", "") == SkillPackage.FORMAT) {
+            // v1.4 amino-skill/1 package — fields live at top level with the SAME
+            // counter keys (success/fail/last_used), so recordResult keeps working
+            // on both formats unchanged.
+            Skill(
+                o.getString("id"), o.optString("name", o.optString("id", "skill")),
+                o.optString("trigger", ""),
+                (o.optJSONArray("steps") ?: JSONArray()).toString(),
+                o.optString("verify", "").ifBlank { null },
+                o.optString("params_hint", "").ifBlank { null },
+                o.optInt("success", 0), o.optInt("fail", 0),
+                o.optLong("created", 0L), o.optLong("last_used", 0L)
+            )
+        } else Skill(
             o.getString("id"), o.getString("title"), o.optString("trigger", ""),
             o.getString("steps"), o.optString("verify", "").ifBlank { null },
             o.optString("params_hint", "").ifBlank { null },

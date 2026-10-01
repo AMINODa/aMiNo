@@ -456,27 +456,63 @@ object ToolRegistry {
         },
         RegisteredTool(
             ToolSpec(
+                "skill_save",
+                "Convert a JUST-SUCCEEDED multi-step procedure into a reusable SKILL (local JSON, survives " +
+                    "restarts). steps_json = JSON array where each step is ONE of: {\"type\":\"shell\",\"cmd\":\"...\"} " +
+                    "(Android HOST command via the aMiNo service), {\"type\":\"terminal\",\"cmd\":\"...\"} (inside " +
+                    "the agent default terminal env — Debian when installed, same validator as terminal_execute), " +
+                    "{\"type\":\"input\",\"action\":\"tap\",\"x\":0,\"y\":0} (any screen_act action), " +
+                    "{\"type\":\"perceive\",\"max_elements\":30}, or {\"type\":\"wait\",\"ms\":500}. Use {name} " +
+                    "placeholders for variable parts and declare them in params_hint. verify = an optional " +
+                    "host command that must exit 0 for the skill to count as SUCCESS. Step field \"optional\":true " +
+                    "continues past a failed step. Saved skills are visible to the user in the Skills Center (drawer 🧩).",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("title", JSONObject().put("type", "string"))
+                        .put("trigger", JSONObject().put("type", "string")
+                            .put("description", "WHEN this skill applies — used to match future requests"))
+                        .put("steps_json", JSONObject().put("type", "string")
+                            .put("description", "JSON array of steps (see description)"))
+                        .put("verify", JSONObject().put("type", "string"))
+                        .put("params_hint", JSONObject().put("type", "string")
+                            .put("description", "Documents the {placeholders}, e.g. '{package}: the app package'")))
+                    .put("required", org.json.JSONArray().put("title").put("steps_json"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            moe.shizuku.manager.agent.skills.SkillEngine.save(
+                ctx, args.optString("title", ""), args.optString("trigger", ""),
+                args.optString("steps_json", ""), args.optString("verify", "").ifBlank { null },
+                args.optString("params_hint", "").ifBlank { null })
+        },
+        RegisteredTool(
+            ToolSpec(
                 "skill_list",
-                "List your saved skills (id, title, trigger, success/fail counters). Check this BEFORE " +
-                    "re-doing a known task — a matching skill runs in ONE call.",
+                "List installed skills (id, name, version, category, source, steps/playbook, success/fail " +
+                    "counters, enabled state). Check this BEFORE re-doing a known task — a matching skill runs " +
+                    "in ONE call.",
                 JSONObject().put("type", "object").put("properties", JSONObject())
             ),
             requiresShell = false
         ) { ctx, _ ->
-            val all = moe.shizuku.manager.agent.skills.SkillEngine.all(ctx)
-            if (all.isEmpty()) AgentTools.ToolResult(true, "no skills saved yet — create one with skill_save when a multi-step task succeeds")
-            else AgentTools.ToolResult(true, all.joinToString("\n") { sk ->
-                "${sk.id} — ${sk.title} | when: ${sk.trigger.take(90)} | ok ${sk.success}/fail ${sk.fail}" +
-                    (sk.paramsHint?.let { " | params: $it" } ?: "")
+            moe.shizuku.manager.agent.skills.SkillManager.reconcile(ctx)
+            val all = moe.shizuku.manager.agent.skills.SkillManager.all(ctx)
+            if (all.isEmpty()) AgentTools.ToolResult(true, "no skills installed yet — save one with skill_save after a multi-step task succeeds, or install from the Skills Center")
+            else AgentTools.ToolResult(true, all.joinToString("\n") { p ->
+                "${p.id} «${p.name}» v${p.version} [${p.category}] src=${p.source.type} " +
+                    (if (!p.enabled) "DISABLED " else "") +
+                    (if (p.hasSteps) "steps(${if (p.hasUnapprovedScripts) "⚠scripts-unapproved" else "ok"}) — skill_run" else "playbook — skill_use") +
+                    " | ok ${p.success}/fail ${p.fail}" +
+                    (p.paramsHint?.let { " | params: $it" } ?: "")
             })
         },
         RegisteredTool(
             ToolSpec(
                 "skill_run",
-                "Run a saved skill end-to-end and get the FULL per-step log (rc + output tails). params = " +
-                    "object whose keys fill the skill's {placeholders}. Fail-fast: the first failing step " +
-                    "stops the run and is reported honestly; the verify command (if any) gates SUCCESS. " +
-                    "Call skill_list first if unsure of the id.",
+                "Run an installed skill end-to-end and get the FULL per-step log (rc + output tails). " +
+                    "Gated by the Skills Center security rules: disabled skills and skills with unapproved " +
+                    "imported scripts are REFUSED. params = object whose keys fill the skill's {placeholders}. " +
+                    "Fail-fast: the first failing step stops the run and is reported honestly; the verify " +
+                    "command (if any) gates SUCCESS. Call skill_list first if unsure of the id.",
                 JSONObject().put("type", "object").put("properties",
                     JSONObject().put("id", JSONObject().put("type", "string"))
                         .put("params", JSONObject().put("type", "object")
@@ -486,21 +522,132 @@ object ToolRegistry {
             requiresShell = false
         ) { ctx, args ->
             runBlocking {
-                moe.shizuku.manager.agent.skills.SkillEngine.run(
-                    ctx, args.optString("id", ""), args.optJSONObject("params"))
+                val id = args.optString("id", "")
+                val gate = moe.shizuku.manager.agent.skills.SkillManager.runPreflight(ctx, id)
+                if (gate != null) gate
+                else {
+                    val r = moe.shizuku.manager.agent.skills.SkillEngine.run(
+                        ctx, id, args.optJSONObject("params"))
+                    moe.shizuku.manager.agent.skills.SkillManager.recordResult(ctx, id, r.ok)
+                    r
+                }
             }
         },
         RegisteredTool(
             ToolSpec(
                 "skill_delete",
-                "Delete a saved skill by id (use when a skill is outdated or consistently failing).",
+                "Delete an installed skill by id (use when a skill is outdated or consistently failing). " +
+                    "Removes the package file, its carried files/attachments and the metadata index row.",
                 JSONObject().put("type", "object").put("properties",
                     JSONObject().put("id", JSONObject().put("type", "string")))
                     .put("required", org.json.JSONArray().put("id"))
             ),
             requiresShell = false
         ) { ctx, args ->
-            moe.shizuku.manager.agent.skills.SkillEngine.delete(ctx, args.optString("id", ""))
+            moe.shizuku.manager.agent.skills.SkillManager.delete(ctx, args.optString("id", ""))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "skill_import",
+                "Install a skill from EXTERNAL sources without any model training. source='github_url' + url " +
+                    "(github.com repo / /blob/ /tree/ path, or raw.githubusercontent.com — public, no auth) or " +
+                    "source='paste' + content (SKILL.md text, JSON manifest, or plain instructions). Everything " +
+                    "is normalized into the internal amino-skill package. SECURITY: imported scripts are stored " +
+                    "as DATA with approved=false and NEVER execute — the user must review/approve them in the " +
+                    "Skills Center; say this explicitly when you import something with scripts. For local files/" +
+                    "ZIPs/folders direct the user to the Skills Center (drawer 🧩) — file pickers are UI-only.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("source", JSONObject().put("type", "string")
+                        .put("description", "github_url | paste"))
+                        .put("url", JSONObject().put("type", "string"))
+                        .put("content", JSONObject().put("type", "string")
+                            .put("description", "for source=paste: SKILL.md / JSON manifest / plain instructions")))
+                    .put("required", org.json.JSONArray().put("source"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            when (args.optString("source", "")) {
+                "github_url" -> {
+                    val url = args.optString("url", "").trim()
+                    if (url.isBlank()) AgentTools.ToolResult(false, "skill_import needs url for source=github_url")
+                    else try {
+                        moe.shizuku.manager.agent.skills.SkillManager.install(ctx,
+                            moe.shizuku.manager.agent.skills.SkillImporter.fromGitHub(url))
+                    } catch (e: Exception) {
+                        AgentTools.ToolResult(false, "import failed: ${e.message?.take(300)}")
+                    }
+                }
+                "paste" -> {
+                    val content = args.optString("content", "")
+                    if (content.isBlank()) AgentTools.ToolResult(false, "skill_import needs content for source=paste")
+                    else try {
+                        moe.shizuku.manager.agent.skills.SkillManager.install(ctx,
+                            moe.shizuku.manager.agent.skills.SkillImporter.fromPaste(content))
+                    } catch (e: Exception) {
+                        AgentTools.ToolResult(false, "import failed: ${e.message?.take(300)}")
+                    }
+                }
+                else -> AgentTools.ToolResult(false, "source must be 'github_url' or 'paste' (files/ZIPs/folders are imported in the Skills Center UI)")
+            }
+        },
+        RegisteredTool(
+            ToolSpec(
+                "skill_search",
+                "Search installed skills by keyword (matches name, description, trigger, instructions, tags, " +
+                    "id) and optional category. Use this to find a relevant skill before doing a task manually.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("query", JSONObject().put("type", "string"))
+                        .put("category", JSONObject().put("type", "string")))
+                    .put("required", org.json.JSONArray().put("query"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            val list = moe.shizuku.manager.agent.skills.SkillManager.search(
+                ctx, args.optString("query", ""))
+            val cat = args.optString("category", "").takeIf { it.isNotBlank() }
+            val filtered = if (cat != null) list.filter { it.category.equals(cat, true) } else list
+            if (filtered.isEmpty()) AgentTools.ToolResult(true, "no matching skill installed — you can create one (skill_save) or install one (skill_import / Skills Center)")
+            else AgentTools.ToolResult(true, filtered.joinToString("\n") { p ->
+                "${p.id} «${p.name}» v${p.version} [${p.category}]${if (!p.enabled) " DISABLED" else ""} — " +
+                    p.description.take(120).ifBlank { p.trigger.take(120) }
+            })
+        },
+        RegisteredTool(
+            ToolSpec(
+                "skill_use",
+                "Load a PLAYBOOK skill's instructions into your context together with a REAL availability " +
+                    "report (required tools, shell state, dependencies). Then execute the instructions step " +
+                    "by step with your own tools (screen_read/screen_act/shell/terminal), verifying every " +
+                    "step. Use for skills that teach HOW (no deterministic steps). For step-machine skills " +
+                    "use skill_run instead.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("id", JSONObject().put("type", "string"))
+                        .put("params", JSONObject().put("type", "object")
+                            .put("description", "Values for the skill's declared inputs, if any")))
+                    .put("required", org.json.JSONArray().put("id"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            moe.shizuku.manager.agent.skills.SkillRouter.playbook(
+                ctx, args.optString("id", ""), args.optJSONObject("params"))
+        },
+        RegisteredTool(
+            ToolSpec(
+                "skill_workflow",
+                "COMPOSE several deterministic skills into ONE task (Skill Router + Execution Coordinator): " +
+                    "steps = JSON array [{\"skill\":\"id\",\"params\":{...},\"optional\":false,\"retries\":1}, ...] " +
+                    "(max 10). Runs them in dependency-aware order, passes structured outputs forward — " +
+                    "step N's params may embed an earlier step's output as {1.output} (its 0-based index) — " +
+                    "retries failed steps (default 1 retry), stops fail-fast, and returns a per-step honest " +
+                    "status report. Playbook-only skills are refused inside workflows (use skill_use).",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("steps", JSONObject().put("type", "string")
+                        .put("description", "JSON array of {skill, params, optional, retries} — see description")))
+                    .put("required", org.json.JSONArray().put("steps"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            moe.shizuku.manager.agent.skills.SkillRouter.workflow(ctx, args.optString("steps", ""))
         },
 
         // ============ v1.3 SUPER AGENT: EXPERIENCE MEMORY (self-evolving) ============

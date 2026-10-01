@@ -26,8 +26,15 @@ object AgentIdentity {
         appendLine()
         appendLine("SUPER AGENT LOOP (mandatory for anything on-screen):")
         appendLine("- To control the phone UI: screen_read first (see the REAL screen as elements with center coordinates), then screen_act (tap/swipe/text/key), then screen_read AGAIN to verify what actually changed. Never claim a UI action worked without a fresh screen_read.")
-        appendLine("- When a multi-step procedure just succeeded, SAVE it with skill_save — next time run it in ONE skill_run call. Check the Known skills below BEFORE re-exploring a task you may have solved before.")
+        appendLine("- When a multi-step procedure just succeeded, SAVE it with skill_save — next time run it in ONE skill_run call. Check the Installed skills below BEFORE re-exploring a task you may have solved before.")
         appendLine("- After finishing a notable task (especially a failure with a workaround), record the lesson with experience_record — lessons are injected into your future sessions automatically.")
+        appendLine()
+        appendLine("SKILLS SYSTEM (v1.4 — install/import/organize/compose, NO model training involved):")
+        appendLine("- Before a non-trivial task: skill_search (or the Installed skills context) for a matching skill. Deterministic skill → skill_run; playbook skill → skill_use then follow its instructions with your real tools and VERIFY every step.")
+        appendLine("- Multi-skill tasks: skill_workflow with steps [{\"skill\":\"id\",\"params\":{...},\"retries\":1}] — it orders by dependencies, passes outputs forward ({1.output}), retries, and reports per-step status honestly.")
+        appendLine("- Installing: skill_import with source='github_url' (repo /blob/ /tree/ or raw URL) or source='paste' (SKILL.md/JSON/plain text). Files, ZIPs and folders are imported by the USER in the Skills Center (drawer 🧩) — point them there.")
+        appendLine("- SECURITY (absolute): imported scripts never execute automatically. If an imported skill has unapproved scripts, skill_run REFUSES until the user reviews and approves them in the Skills Center. Never try to bypass this gate; tell the user instead.")
+        appendLine("- Keep the ecosystem alive: after importing/creating a skill mention it was added to the Skills Center; after a skill run, its counters update automatically.")
         appendLine()
         appendLine("REAL PERMISSION / CAPABILITY STATE (read from the system right now):")
         appendLine("- shell (wireless ADB): ${PermissionManager.shellState()}")
@@ -61,10 +68,16 @@ object AgentIdentity {
             sb.appendLine("Relevant past experiences (lessons from earlier runs — reuse them, do not repeat known mistakes):")
             exp.forEach { sb.appendLine("- [${it.outcome}] ${it.task} → ${it.lessons.take(220)}") }
         }
-        val skills = moe.shizuku.manager.agent.skills.SkillEngine.all(context)
+        val skills = moe.shizuku.manager.agent.skills.SkillManager.all(context, enabledOnly = true)
         if (skills.isNotEmpty()) {
-            sb.appendLine("Known skills (prefer skill_run over redoing the steps manually):")
-            skills.take(8).forEach { sb.appendLine("- ${it.id}: ${it.title} — when: ${it.trigger.take(100)} (ok ${it.success}/fail ${it.fail})") }
+            sb.appendLine("Installed skills (ENABLED only — prefer these over redoing steps manually; skill_run for step-machine skills, skill_use for playbooks):")
+            skills.take(10).forEach { p ->
+                sb.appendLine("- ${p.id} «${p.name}» v${p.version} [${p.category}] — " +
+                    (p.description.ifBlank { p.trigger }).take(100) +
+                    (if (p.hasSteps) " — deterministic (skill_run)" else " — playbook (skill_use)") +
+                    " (ok ${p.success}/fail ${p.fail})" +
+                    (if (p.hasUnapprovedScripts) " — ⚠has UNAPPROVED scripts" else ""))
+            }
         }
         return sb.toString().trim()
     }

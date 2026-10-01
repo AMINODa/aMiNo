@@ -15,6 +15,9 @@ import android.database.sqlite.SQLiteOpenHelper
  *  - experiences (v1.3)       : Episodic task memory — what worked, what failed,
  *                               lessons for future runs (the self-evolving loop:
  *                               Mobile-Agent-E / AppAgentX experience reuse)
+ *  - skills (v1.4)            : Skills Center metadata index — the skill FILES in
+ *                               filesDir/skills/ are the source of truth; this table
+ *                               is a searchable index (rebuildable via reconcile()).
  *
  * Implemented with plain SQLiteOpenHelper instead of Room on purpose: same local
  * isolation, zero annotation-processor/build risk, full SQL control.
@@ -24,7 +27,7 @@ class AminoDb private constructor(context: Context) :
 
     companion object {
         const val DB_NAME = "amino_agent.db"
-        const val DB_VERSION = 2
+        const val DB_VERSION = 3
 
         const val T_CONVERSATIONS = "conversations"
         const val T_MESSAGES = "messages"
@@ -32,6 +35,7 @@ class AminoDb private constructor(context: Context) :
         const val T_WORKING_MEMORY = "working_memory"
         const val T_KNOWLEDGE = "knowledge"
         const val T_EXPERIENCES = "experiences"
+        const val T_SKILLS = "skills"
 
         @Volatile
         private var instance: AminoDb? = null
@@ -44,6 +48,26 @@ class AminoDb private constructor(context: Context) :
                 lessons TEXT,
                 skill_id TEXT,
                 created_at INTEGER NOT NULL
+            )""".trimIndent()
+
+        val CREATE_SKILLS = """
+            CREATE TABLE $T_SKILLS(
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                version TEXT,
+                category TEXT,
+                description TEXT,
+                enabled INTEGER DEFAULT 1,
+                source_type TEXT,
+                has_steps INTEGER DEFAULT 0,
+                has_scripts INTEGER DEFAULT 0,
+                scripts_approved INTEGER DEFAULT 0,
+                sha256 TEXT,
+                tags TEXT,
+                success INTEGER DEFAULT 0,
+                fail INTEGER DEFAULT 0,
+                installed_at INTEGER,
+                updated_at INTEGER
             )""".trimIndent()
 
         fun get(context: Context): AminoDb =
@@ -95,10 +119,13 @@ class AminoDb private constructor(context: Context) :
                 created_at INTEGER NOT NULL
             )""")
         db.execSQL(CREATE_EXPERIENCES)
+        db.execSQL(CREATE_SKILLS)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         // v2 (1.3): experiences table — additive only, nothing existing migrates.
         if (oldVersion < 2) db.execSQL(CREATE_EXPERIENCES)
+        // v3 (1.4): skills metadata index — additive only (files remain the truth).
+        if (oldVersion < 3) db.execSQL(CREATE_SKILLS)
     }
 }

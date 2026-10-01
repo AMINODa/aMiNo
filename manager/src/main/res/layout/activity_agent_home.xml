@@ -343,6 +343,7 @@
                 <TextView android:id="@+id/dKeys" style="@style/AminoDrawerItem" />
                 <TextView android:id="@+id/dMemory" style="@style/AminoDrawerItem" />
                 <TextView android:id="@+id/dTools" style="@style/AminoDrawerItem" />
+                <TextView android:id="@+id/dSkills" style="@style/AminoDrawerItem" />
                 <TextView android:id="@+id/dTerminal" style="@style/AminoDrawerItem" android:textColor="#FF867C" />
                 <TextView android:id="@+id/dShell" style="@style/AminoDrawerItem" />
                 <TextView android:id="@+id/dPermissions" style="@style/AminoDrawerItem" android:textColor="#FF867C" />
