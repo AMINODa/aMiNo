@@ -395,6 +395,8 @@
 
     <!-- AMINO Agent (r1376) -->
     <string name="nav_home">الاقتران</string>
+    <string name="nav_adb">Adb</string>
+    <string name="welcome_body">👋 مرحباً — أنا أمينو، في خدمتك!\nلنجهّز كل شيء معاً — أربع خطوات فقط:\n1️⃣ الاقتران: افتح «Adb» من الدرج وشغّل الخدمة (اقتران لاسلكي) — وتفعيل إمكانية الوصول Accessibility يتيح الاقتران التلقائي.\n2️⃣ الأذونات: افتح «الأذونات» من الدرج وامنح ما يلزم.\n3️⃣ بيئة Linux: افتح «الطرفية» ← إدارة بيئة Linux ← ثبّت Debian — التنزيل تلقائي وموثّق بالبصمة.\n4️⃣ مفتاح AI: افتح «المفاتيح» وأدخل مفتاحك لأستطيع التفكير والرد.\nجاهز؟ اكتب لي أي أمر وسأنفّذه ✨</string>
     <string name="nav_chat">الدردشة</string>
     <string name="nav_keys">المفاتيح</string>
     <string name="nav_memory">الذاكرة</string>

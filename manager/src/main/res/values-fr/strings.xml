@@ -334,6 +334,8 @@
 
     <!-- AMINO Agent (r1376) -->
     <string name="nav_home">Appairage</string>
+    <string name="nav_adb">Adb</string>
+    <string name="welcome_body">👋 Bonjour — je suis aMiNo, à votre service !\nPréparons tout ensemble — quatre étapes seulement :\n1️⃣ Appairage : ouvrez « Adb » dans le menu et démarrez le service (débogage sans fil). L’accessibilité activée permet l’appairage automatique.\n2️⃣ Autorisations : ouvrez « Permissions » dans le menu et accordez ce qui est nécessaire.\n3️⃣ Linux : ouvrez « Terminal » → gérer l’environnement Linux → installer Debian — téléchargement automatique et vérifié.\n4️⃣ Clé IA : ouvrez « Clés » et ajoutez votre clé pour que je puisse réfléchir et répondre.\nPrêt ? Tapez une commande et je l’exécute ✨</string>
     <string name="nav_chat">Discussion</string>
     <string name="nav_keys">Clés</string>
     <string name="nav_memory">Mémoire</string>

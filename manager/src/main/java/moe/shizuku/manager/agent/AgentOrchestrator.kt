@@ -107,6 +107,20 @@ object AgentOrchestrator {
             providerReady = providerReady(context))
     }
 
+    /**
+     * aMiNo 1.1 — first-launch greeting: persist ONE assistant message into the
+     * CURRENT conversation and publish it. Never touches busy/status — a plain
+     * append + refresh, exactly how tool rows land in the stream. Call AFTER
+     * loadLatestOrNew/openConversation so it lands in a real conversation.
+     */
+    fun postWelcome(context: Context, text: String) {
+        init(context)
+        val convId = _state.value.conversationId
+        if (convId <= 0) return
+        MemoryRepository.addMessage(context, convId, "assistant", text)
+        refresh(context)
+    }
+
     private fun providerReady(context: Context): Boolean = ApiKeysStore.hasKey(context)
 
     private fun reload(context: Context, conversationId: Long) {

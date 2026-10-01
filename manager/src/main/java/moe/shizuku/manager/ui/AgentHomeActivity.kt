@@ -109,7 +109,9 @@ open class AgentHomeActivity : AppActivity() {
             v.text = "$emoji ${getString(res)}"
         }
         drawerLabel(binding.dChat, R.string.nav_chat, "💬")
-        drawerLabel(binding.dHome, R.string.nav_home, "📶")
+        // aMiNo 1.1 — the classic home (pairing/service/wireless-debugging) is no
+        // longer the launcher: it lives here in the drawer, named "Adb" (user request)
+        drawerLabel(binding.dHome, R.string.nav_adb, "📡")
         drawerLabel(binding.dKeys, R.string.nav_keys, "🔑")
         drawerLabel(binding.dMemory, R.string.nav_memory, "🧠")
         drawerLabel(binding.dTools, R.string.nav_tools, "🧰")
@@ -143,17 +145,20 @@ open class AgentHomeActivity : AppActivity() {
         // (IllegalArgumentException: Invalid target position). Now guarded.
         binding.dChat.post { scrollChatToBottom() }
 
-        // r1382: first launch — show ALL the permission dialogs once (user request)
-        val prefs = getSharedPreferences("amino_agent", MODE_PRIVATE)
-        if (!prefs.getBoolean("perm_flow_done", false)) {
-            prefs.edit().putBoolean("perm_flow_done", true).apply()
-            startActivity(Intent(this, AllPermissionsActivity::class.java))
-        }
-
-
         // open a specific conversation when coming from the Memory page
         val convId = intent.getLongExtra(EXTRA_CONVERSATION_ID, -1)
         if (convId > 0) AgentOrchestrator.openConversation(this, convId) else AgentOrchestrator.loadLatestOrNew(this)
+
+        // aMiNo 1.1 — FIRST LAUNCH: the Agent greets the user IN the chat with the
+        // four onboarding steps (pairing/ADB → permissions → Linux env → AI key).
+        // Replaces the r1382 auto-open of AllPermissionsActivity — that window is
+        // still reachable from the drawer ("Permissions"), nothing pops on launch.
+        // Shown exactly once per install (fresh install or upgrade lands here once).
+        val prefs = getSharedPreferences("amino_agent", MODE_PRIVATE)
+        if (!prefs.getBoolean("welcome_done", false)) {
+            prefs.edit().putBoolean("welcome_done", true).apply()
+            AgentOrchestrator.postWelcome(this, getString(R.string.welcome_body))
+        }
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {

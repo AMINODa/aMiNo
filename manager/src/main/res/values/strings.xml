@@ -421,6 +421,8 @@
 
     <!-- AMINO Agent (r1376) -->
     <string name="nav_home">Pairing</string>
+    <string name="nav_adb">Adb</string>
+    <string name="welcome_body">👋 Hello — I am aMiNo, at your service!\nLet us set everything up together — just four steps:\n1️⃣ Pairing: open “Adb” in the drawer and start the service (wireless debugging). Turning on Accessibility enables automatic pairing.\n2️⃣ Permissions: open “Permissions” in the drawer and grant what is needed.\n3️⃣ Linux: open “Terminal” → manage the Linux environment → install Debian — the download is automatic and digest-verified.\n4️⃣ AI key: open “Keys” and add your key so I can think and reply.\nReady? Type any command and I will run it ✨</string>
     <string name="nav_chat">Chat</string>
     <string name="nav_keys">Keys</string>
     <string name="nav_memory">Memory</string>
