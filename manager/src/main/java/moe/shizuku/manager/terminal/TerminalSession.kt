@@ -246,7 +246,12 @@ class TerminalSession(
             addSys("launch diagnostic: ${d.oneLine()}")
             return true
         }
-        if (d.failedStage == "INIT_TIMEOUT" && d.stderrTail.isBlank()) {
+        // r1397 — the r1396 gate (stderrTail blank) was self-defeating: the INE
+        // receipt is WRITTEN TO STDERR by design, so any guest that started
+        // executing made stderrTail non-blank and silently disabled this
+        // fallback. A failed INIT_TIMEOUT now always earns the one /bin/sh
+        // retry; each attempt still records its own honest evidence.
+        if (d.failedStage == "INIT_TIMEOUT") {
             addSys("attempt 1 (guest ${d.guestShell}) diagnostic: ${d.oneLine()}")
             val d2 = LaunchDiagnostic(id).also {
                 it.environmentId = d.environmentId; it.rootfsPath = d.rootfsPath
@@ -781,24 +786,27 @@ class LaunchDiagnostic(val sessionId: String) {
 
     fun fail(stage: String, why: String) { failedStage = stage; summary = why }
 
+    // r1397 — decision-critical fields FIRST (stage, verdict, receipts, tails);
+    // the bulky identity fields (rootfs/serviceUid/domain/proot/cmd) go LAST so
+    // no fixed-width window can ever amputate the evidence again.
     fun oneLine(): String = buildString {
         append("ts=").append(timestamp)
         append(" · env=").append(environmentId)
+        append(" · guest=").append(guestShell)
+        append(" · spawn=").append(if (spawned) "ok" else "not reached")
+        processAliveAfterSpawn?.let { append(" · aliveAfterSpawn=").append(it) }
+        append(" · stage=").append(failedStage ?: "READY")
+        if (summary.isNotBlank()) append(" — ").append(summary.take(300))
+        stdinReceipt?.let { append(" · stdinReceipt=").append(it) }
+        stderrReceipt?.let { append(" · stderrReceipt=").append(it) }
+        if (stderrTail.isNotBlank()) append(" · stderr: ").append(stderrTail.take(200))
+        if (stdoutTail.isNotBlank()) append(" · stdout: ").append(stdoutTail.take(200))
+        if (commandSanitized.isNotBlank()) append(" · cmd=").append(commandSanitized.take(180))
         append(" · rootfs=").append(rootfsPath)
         append(" · serviceUid=").append(serviceUid ?: "?")
         append(" · domain=").append(serviceDomain ?: "?")
         append(" · proot=").append(prootPath)
         prootVersion?.let { append(" (").append(it).append(")") }
-        append(" · guest=").append(guestShell)
-        if (commandSanitized.isNotBlank()) append(" · cmd=").append(commandSanitized.take(220))
-        append(" · spawn=").append(if (spawned) "ok" else "not reached")
-        processAliveAfterSpawn?.let { append(" · aliveAfterSpawn=").append(it) }
-        append(" · stage=").append(failedStage ?: "READY")
-        if (summary.isNotBlank()) append(" — ").append(summary.take(300))
-        if (stderrTail.isNotBlank()) append(" · stderr: ").append(stderrTail.take(200))
-        if (stdoutTail.isNotBlank()) append(" · stdout: ").append(stdoutTail.take(200))
-        stdinReceipt?.let { append(" · stdinReceipt=").append(it) }
-        stderrReceipt?.let { append(" · stderrReceipt=").append(it) }
     }
 }
 

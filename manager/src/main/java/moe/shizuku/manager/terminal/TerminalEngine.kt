@@ -279,10 +279,20 @@ object TerminalEngine {
             val diag = s.lastLaunch
             val tail = s.sysTail()
             runCatching { s.close() }
+            // r1397 — the r1396 message used Kotlin take(700), which keeps the
+            // FIRST 700 chars and amputated exactly the decision-critical part
+            // of the evidence on the user's device dialog (receipt markers,
+            // stdout/stderr tails, the /bin/sh attempt verdict — all of which
+            // live at the END of the log). The last attempt's oneLine (bounded,
+            // identical to the Logcat line for cross-checking) now LEADS, and
+            // the log tail uses takeLast so the END survives.
             throw IllegalStateException(
                 "could not start a ${backend.title} session" +
-                    (diag?.let { " — failed stage: ${it.failedStage ?: "?"} — ${it.summary.take(400)}" } ?: "") +
-                    (if (tail.isNotBlank()) " · session log: ${tail.take(700)}" else "")
+                    (diag?.let {
+                        " — failed stage: ${it.failedStage ?: "?"} — ${it.summary.take(400)}" +
+                                " · last attempt: ${it.oneLine()}"
+                    } ?: "") +
+                    (if (tail.isNotBlank()) " · session log (end): ${tail.takeLast(700)}" else "")
             )
         }
         sessions[id] = s
