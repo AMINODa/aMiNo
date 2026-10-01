@@ -1956,14 +1956,75 @@ object LinuxEnvManager {
         return s.ok && s.output.contains("KILLDONE")
     }
 
-    /** Sweep any leftover processes bound to the amino-linux runtime tree. */
-    suspend fun sweepStrayProcesses() {
-        ShizukuExec.oneShot(
-            "for p in /proc/[0-9]*/cmdline; do " +
-                "if grep -aq 'amino-linux' \"\$p\" 2>/dev/null; then " +
-                "pid=\${p%/cmdline}; pid=\${pid#/proc/}; kill -9 \$pid 2>/dev/null; fi; done; echo SWEEP_DONE",
-            20_000
-        )
+    /**
+     * r1400 — the shared sweep script. SIGKILLs anything still bound to the
+     * amino runtime tree, matched by cmdline OR cwd (an orphaned guest shell
+     * shows neither "proot" nor the rootfs in its cmdline after the tracer
+     * was SIGKILLed, but its cwd still resolves into the rootfs — the r1399
+     * crash left exactly such orphans behind). The sweep shell EXCLUDES
+     * itself ($$) and its parent ($PPID): the old version matched its own
+     * `sh -c '…amino-linux…'` cmdline and could kill itself mid-loop,
+     * truncating the sweep. With cleanupTmp the temp dirs the NEXT spawn
+     * depends on are re-initialised too (PROOT_TMP_DIR + tmp2, the
+     * in-container /tmp with 1777, shared) and stale per-session err files
+     * are dropped. Every $ is escaped for the Kotlin string template.
+     */
+    private fun sweepScript(cleanupTmp: Boolean): String = buildString {
+        append("killed=0; ")
+        append("for p in /proc/[0-9]*/cmdline; do ")
+        append("pid=\${p%/cmdline}; pid=\${pid#/proc/}; ")
+        append("[ \"\$pid\" = \"\$\$\" ] 2>/dev/null && continue; ")
+        append("[ \"\$pid\" = \"\$PPID\" ] 2>/dev/null && continue; ")
+        append("if grep -aq 'amino-linux' \"\$p\" 2>/dev/null || ")
+        append("readlink \"/proc/\$pid/cwd\" 2>/dev/null | grep -q 'amino-linux'; then ")
+        append("kill -9 \"\$pid\" 2>/dev/null && killed=\$((killed+1)); fi; done; ")
+        if (cleanupTmp) {
+            append("rm -rf '$BASE/tmp'/* '$BASE/tmp'/.[!.]* '$BASE/tmp'/..?* 2>/dev/null; ")
+            append("rm -rf '$BASE/tmp2'/* '$BASE/tmp2'/.[!.]* '$BASE/tmp2'/..?* 2>/dev/null; ")
+            append("rm -rf '$ROOTFS/tmp'/* '$ROOTFS/tmp'/.[!.]* '$ROOTFS/tmp'/..?* 2>/dev/null; ")
+            append("mkdir -p '$BASE/tmp' '$BASE/tmp2' '$BASE/shared' '$ROOTFS/tmp' '$ROOTFS/root' 2>/dev/null; ")
+            append("chmod 1777 '$ROOTFS/tmp' 2>/dev/null && echo TMP_REINIT_OK; ")
+        }
+        append("echo KILLED=\$killed")
+    }
+
+    private fun killedFrom(output: String): String =
+        Regex("KILLED=(\\d+)").find(output)?.groupValues?.get(1) ?: "0"
+
+    /**
+     * r1400 — sweep any leftover processes bound to the amino runtime tree.
+     * When excludeSessionId is given and ANOTHER live Linux session exists in
+     * this process, the sweep is SKIPPED — a close/restart must never murder
+     * a session that is still working (the old unconditional sweep did).
+     */
+    suspend fun sweepStrayProcesses(excludeSessionId: String? = null): String {
+        if (excludeSessionId != null) {
+            val othersAlive = TerminalEngine.listSessions().any {
+                it.id != excludeSessionId && it.alive && it.backend == TermBackend.LINUX_USERSPACE
+            }
+            if (othersAlive) return "sweep skipped — another Linux session is live"
+        }
+        val s = ShizukuExec.oneShot(sweepScript(cleanupTmp = false), 20_000)
+        return "sweep done (processes killed: ${killedFrom(s.output)})"
+    }
+
+    /**
+     * r1400 — crash recovery, run before a FRESH spawn when no other live
+     * Linux session exists. The user-device sequence it fixes: the app
+     * crashed mid-session (r1399 toast-on-IO NPE) → the previous session's
+     * PRoot + guest shell survived as service orphans holding the rootfs →
+     * the next "Ouvrir le terminal" raced the leftover tree and died with
+     * INIT_TIMEOUT + "Function not implemented" on /tmp staging. This kills
+     * the orphan tree, re-initialises every temp dir + permission the spawn
+     * needs, and reports honestly (the session SYS log carries the numbers).
+     */
+    suspend fun recoverAfterCrash(): String {
+        val s = ShizukuExec.oneShot(sweepScript(cleanupTmp = true), 25_000)
+        val killed = killedFrom(s.output)
+        val tmpOk = s.output.contains("TMP_REINIT_OK")
+        if (!s.ok && killed == "0" && !tmpOk)
+            return "recovery sweep FAILED: ${s.output.take(160).ifBlank { "no output" }}"
+        return "orphan processes killed: $killed — tmp dirs re-initialised${if (tmpOk) " (+chmod 1777 /tmp)" else " (chmod /tmp failed)"}"
     }
 
     val backend: TermBackend get() = TermBackend.LINUX_USERSPACE

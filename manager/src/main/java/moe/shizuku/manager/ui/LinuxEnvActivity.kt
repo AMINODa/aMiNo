@@ -299,5 +299,9 @@ class LinuxEnvActivity : AppActivity() {
             .show()
     }
 
-    private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()
+    // r1400 — crash-safe: doInstall()'s success/failure toast runs right after
+    // withContext(Dispatchers.IO) inside lifecycleScope.launch; route it (and
+    // every other toast here) through the main-looper helper so a background
+    // context can never kill the process (Android 13 Looper NPE).
+    private fun toast(t: String) = moe.shizuku.manager.utils.Toasts.show(this, t)
 }

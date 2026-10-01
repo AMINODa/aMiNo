@@ -191,6 +191,32 @@ class TerminalSession(
         }
         d.serviceUid = moe.shizuku.manager.terminal.linux.ShizukuExec.serviceUid()
 
+        // ---- stage 1.5 (r1400): recover from a previous crash BEFORE spawning ----
+        // The r1399 device sequence: the app crashed mid-session (toast on a
+        // background thread) → the previous session's PRoot + guest shell
+        // survived as SERVICE orphans holding the rootfs → the next
+        // "Ouvrir le terminal" raced the leftover tree and failed with
+        // INIT_TIMEOUT + "Function not implemented" (/tmp staging). If no
+        // OTHER live Linux session exists in this process, sweep the orphan
+        // tree and re-initialise the temp dirs first. Best-effort: the
+        // preflight below stays the hard gate, and a live sibling session is
+        // never touched.
+        val othersAlive = TerminalEngine.listSessions().any {
+            it.id != id && it.alive && it.backend == TermBackend.LINUX_USERSPACE
+        }
+        if (!othersAlive) {
+            addSys("crash recovery: no live Linux session — sweeping orphaned PRoot processes + re-initialising tmp dirs...")
+            val rec = kotlinx.coroutines.runBlocking {
+                kotlinx.coroutines.withTimeoutOrNull(30_000) {
+                    moe.shizuku.manager.terminal.linux.LinuxEnvManager.recoverAfterCrash()
+                }
+            }
+            addSys(if (rec != null) "crash recovery: $rec"
+                   else "crash recovery timed out (continuing — the preflight is the gate)")
+        } else {
+            addSys("crash recovery skipped — another Linux session is live (its PRoot tree must not be touched)")
+        }
+
         // ---- stage 2: build the exact command + read-only runtime preflight ----
         // r1399 — errFile must exist BEFORE the init script is baked into the
         // guest's argv (the init embeds it for the execute() wrapper).
@@ -834,9 +860,13 @@ class TerminalSession(
         if (rp != null) {
             runCatching { rp.destroy() }
             // best-effort sweep of anything left bound to the runtime tree
-            // (bash itself exits on stdin EOF; traced children follow the tracer)
+            // (bash itself exits on stdin EOF; traced children follow the tracer).
+            // r1400 — guarded: never sweep when another live Linux session
+            // exists (the old unconditional sweep killed ITS proot tree too).
             runCatching {
-                kotlinx.coroutines.runBlocking { moe.shizuku.manager.terminal.linux.LinuxEnvManager.sweepStrayProcesses() }
+                kotlinx.coroutines.runBlocking {
+                    moe.shizuku.manager.terminal.linux.LinuxEnvManager.sweepStrayProcesses(excludeSessionId = id)
+                }
             }
         }
         adbShell = null; proc = null; remoteProc = null; stdin = null

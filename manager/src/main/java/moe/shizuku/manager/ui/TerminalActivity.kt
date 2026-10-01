@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.TextView
-import android.widget.Toast
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -21,6 +20,7 @@ import moe.shizuku.manager.R
 import moe.shizuku.manager.app.AppActivity
 import moe.shizuku.manager.terminal.TermBackend
 import moe.shizuku.manager.terminal.TerminalEngine
+import moe.shizuku.manager.utils.Toasts
 
 /**
  * aMiNo r1384 — the REAL terminal screen (spec E).
@@ -246,5 +246,9 @@ class TerminalActivity : AppActivity() {
             .show()
     }
 
-    private fun toast(t: String) = Toast.makeText(this, t, Toast.LENGTH_SHORT).show()
+    // r1400 — crash-safe: the two onFailure sites above run inside
+    // withContext(Dispatchers.IO) — a raw Toast there KILLED the whole app
+    // on Android 13 ("Can't toast on a thread that has not called
+    // Looper.prepare()") the moment a command execution failed.
+    private fun toast(t: String) = Toasts.show(this, t)
 }

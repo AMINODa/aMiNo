@@ -109,12 +109,14 @@ object UpdateHelper {
             val current = Version.parse(getVersionName()) ?: return false
             return latest > current
         } catch (e: Exception) {
-            Toast
-                .makeText(
-                    appContext,
-                    appContext.getString(R.string.update_check_failed),
-                    Toast.LENGTH_SHORT,
-                ).show()
+            // r1400 — crash-safe: isUpdateAvailable() runs on a background
+            // dispatcher; a raw toast here can kill the process (Android 13
+            // Looper NPE) — route through the main-looper helper.
+            Toasts.show(
+                appContext,
+                appContext.getString(R.string.update_check_failed),
+                Toast.LENGTH_SHORT,
+            )
             return false
         }
     }
@@ -124,12 +126,15 @@ object UpdateHelper {
     suspend fun update() {
         if (!::latestRelease.isInitialized && !isUpdateAvailable()) return
 
-        Toast
-            .makeText(
-                appContext,
-                appContext.getString(R.string.update_downloading),
-                Toast.LENGTH_SHORT,
-            ).show()
+        // r1400 — the whole update() body runs on a background dispatcher and
+        // installPackage's callback fires on a Shizuku binder thread: every
+        // toast below is a potential process-killer (r1399 device crash
+        // class). All of them go through the main-looper helper now.
+        Toasts.show(
+            appContext,
+            appContext.getString(R.string.update_downloading),
+            Toast.LENGTH_SHORT,
+        )
 
         val apk =
             latestRelease.download()?.run {
@@ -142,12 +147,11 @@ object UpdateHelper {
                         android.util.Log.d("UpdateHelper", "Changing package name from $apkPackageName to ${app.packageName}")
                         changePackageName(app.packageName)
                     } catch (e: Exception) {
-                        Toast
-                            .makeText(
-                                appContext,
-                                appContext.getString(R.string.update_failed),
-                                Toast.LENGTH_SHORT,
-                            ).show()
+                        Toasts.show(
+                            appContext,
+                            appContext.getString(R.string.update_failed),
+                            Toast.LENGTH_SHORT,
+                        )
                         return@update
                     }
                 } else {
@@ -155,12 +159,11 @@ object UpdateHelper {
                 }
             }
         if (apk == null) {
-            Toast
-                .makeText(
-                    appContext,
-                    appContext.getString(R.string.update_download_failed),
-                    Toast.LENGTH_SHORT,
-                ).show()
+            Toasts.show(
+                appContext,
+                appContext.getString(R.string.update_download_failed),
+                Toast.LENGTH_SHORT,
+            )
             return
         }
 
@@ -168,7 +171,7 @@ object UpdateHelper {
             val toastMsg =
                 if (isSuccess) appContext.getString(R.string.update_success)
                 else appContext.getString(R.string.update_failed)
-            Toast.makeText(appContext, toastMsg, Toast.LENGTH_SHORT).show()
+            Toasts.show(appContext, toastMsg, Toast.LENGTH_SHORT)
         }
     }
 
