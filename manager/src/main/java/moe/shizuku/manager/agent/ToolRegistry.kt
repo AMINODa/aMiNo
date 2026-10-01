@@ -508,7 +508,10 @@ object ToolRegistry {
         RegisteredTool(
             ToolSpec(
                 "skill_run",
-                "Run an installed skill end-to-end and get the FULL per-step log (rc + output tails). " +
+                "Run an installed DETERMINISTIC skill (step-machine) end-to-end and get the FULL per-step " +
+                    "log (rc + output tails). PLAYBOOK skills (imported SKILL.md — instructions, no steps) are " +
+                    "REFUSED here by design: use skill_use for those. skill_run NEVER fakes success — a run " +
+                    "that executes zero steps fails honestly. " +
                     "Gated by the Skills Center security rules: disabled skills and skills with unapproved " +
                     "imported scripts are REFUSED. params = object whose keys fill the skill's {placeholders}. " +
                     "Fail-fast: the first failing step stops the run and is reported honestly; the verify " +

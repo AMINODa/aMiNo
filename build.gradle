@@ -27,7 +27,7 @@ subprojects { subproject ->
 }
 
 def gitCommitCount = Integer.parseInt("git rev-list --count HEAD".execute([], project.rootDir).text.trim())
-def baseVersionName = "1.4"  // 1.4: SKILLS CENTER — full skill management & runtime (import SKILL.md/JSON/ZIP/folders/GitHub/paste, Skill Router + workflow composition, script approval security, metadata DB)
+def baseVersionName = "1.4.1"  // 1.4.1: HONEST-EXECUTION hotfix — skill_run on playbook skills (SKILL.md, zero steps) is REFUSED instead of fake-SUCCESS; zero-executed-step runs fail; anti-fabrication hard rule in agent identity
 def isBeta = project.hasProperty("beta")
 ext {
     versionCode = gitCommitCount

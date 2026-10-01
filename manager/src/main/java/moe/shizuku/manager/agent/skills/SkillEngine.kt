@@ -167,8 +167,22 @@ object SkillEngine {
             return AgentTools.ToolResult(false, "skill '$id' has corrupt steps: ${e.message?.take(150)}")
         }
 
+        // HONEST-EXECUTION GATE: a playbook skill (imported SKILL.md — instructions, no
+        // deterministic steps) would loop over ZERO steps and falsely report SUCCESS.
+        // Refuse it and point at the real execution path (skill_use). skill_workflow
+        // applies the same rule; this engine-level gate protects every caller.
+        if (steps.length() == 0)
+            return AgentTools.ToolResult(
+                false,
+                "REFUSED — skill '$id' is a PLAYBOOK skill (instructions, no deterministic steps). " +
+                    "skill_run executed NOTHING and never reports a fake success. " +
+                    "Load it with skill_use {\"id\":\"$id\"} and follow its instructions with your real tools, " +
+                    "citing real outputs — never invent the skill's results."
+            )
+
         val log = StringBuilder("SKILL ${sk.id} — ${sk.title}\n")
         var stopped: String? = null
+        var executed = 0
 
         for (i in 0 until steps.length()) {
             val st = steps.optJSONObject(i) ?: continue
@@ -176,6 +190,7 @@ object SkillEngine {
             val optional = st.optBoolean("optional", false)
             when (type) {
                 "shell" -> {
+                    executed++
                     val cmd = subst(st.optString("cmd", ""), params)
                     log.append("step ${i + 1} [shell-host] $ ").append(cmd.replace('\n', ' ')).append('\n')
                     val s = ShizukuExec.oneShot(
@@ -187,6 +202,7 @@ object SkillEngine {
                     }
                 }
                 "terminal" -> {
+                    executed++
                     val cmd = subst(st.optString("cmd", ""), params)
                     log.append("step ${i + 1} [terminal] $ ").append(cmd.replace('\n', ' ')).append('\n')
                     val r = TerminalTools.execute(
@@ -198,6 +214,7 @@ object SkillEngine {
                     }
                 }
                 "input" -> {
+                    executed++
                     log.append("step ${i + 1} [input] ").append(st.toString().take(120)).append('\n')
                     val r = ScreenPerception.act(st)
                     log.append("  ok=${r.ok} ").append(r.output.take(200)).append('\n')
@@ -207,15 +224,21 @@ object SkillEngine {
                     }
                 }
                 "perceive" -> {
+                    executed++
                     val r = ScreenPerception.read(st.optInt("max_elements", 30))
                     log.append("step ${i + 1} [perceive]\n").append(r.output.take(900)).append('\n')
                 }
                 "wait" -> {
+                    executed++
                     delay(st.optInt("ms", 500).coerceIn(100, 10_000).toLong())
                     log.append("step ${i + 1} [wait]\n")
                 }
             }
         }
+
+        // zero executed steps among non-empty steps = nothing ran → NOT a success
+        if (stopped == null && executed == 0)
+            stopped = "no executable steps ran (steps carried no known type)"
 
         var verified = true
         if (stopped == null && !sk.verify.isNullOrBlank()) {
