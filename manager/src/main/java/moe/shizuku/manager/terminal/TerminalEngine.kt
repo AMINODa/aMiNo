@@ -223,8 +223,33 @@ object TerminalEngine {
     fun getSession(id: String): TerminalSession? = sessions[id]
 
     fun defaultAgentSession(context: Context): TerminalSession? {
+        // 1.2 — the agent gets ONE home: the installed Debian environment when it is
+        // READY. This is the consistency fix for the user's report ("installed python
+        // in one session, later the agent says there is no python"): installs via
+        // terminal_install_package land in the shared PRoot rootfs, while the agent's
+        // default session used to be adb/local — an environment that can NEVER see
+        // Debian packages. Now the default session IS the Debian one (same rootfs the
+        // installs went to), falling back to the proven adb→local ladder only when
+        // linux is absent or its start fails. Nothing else changes: session start
+        // path, r1401 startGate, handshake, proot argv — all untouched.
+        val ctx = context.applicationContext
+        val linuxReady = runCatching {
+            moe.shizuku.manager.terminal.linux.LinuxEnvManager.currentState(ctx) ==
+                moe.shizuku.manager.terminal.linux.LinuxEnvManager.State.READY
+        }.getOrDefault(false)
+        if (linuxReady) {
+            sessions.values.firstOrNull {
+                it.isAgentSession && it.alive && it.ready && it.backend == TermBackend.LINUX_USERSPACE
+            }?.let { return it }
+            try {
+                return create(ctx, TermBackend.LINUX_USERSPACE, "agent", isAgentSession = true)
+            } catch (e: Throwable) {
+                Log.w(TAG, "agent default session on linux failed: ${e.message} — falling back to adb/local")
+            }
+        }
+        // fallback ladder (unchanged pre-1.2): reuse any live agent session,
+        // else adb shell (real power) → local app (always works)
         sessions.values.firstOrNull { it.isAgentSession && it.alive && it.ready }?.let { return it }
-        // agent preference: adb shell (real power) → local app (always works)
         val st = ShellSession.state.value
         val port = (st as? ShellSession.ConnectionState.Connected)?.port
             ?: moe.shizuku.manager.ShizukuSettings.getShellPort().takeIf { it > 0 }

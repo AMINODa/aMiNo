@@ -114,6 +114,9 @@ object TerminalTools {
             }
             ToolResult(o.ok, JSONObject()
                 .put("session", s.id)
+                // 1.2 — every result names the environment it REALLY ran in, so the
+                // model can never mix up the Debian rootfs with the Android host
+                .put("environment", s.backend.id)
                 .put("command", command)
                 .put("exit_code", o.exitCode ?: JSONObject.NULL)
                 .put("ok", o.ok)
@@ -305,9 +308,16 @@ object TerminalTools {
         val r = runInSession(context, s, "command -v $cmd; echo PATHCHECK_RC=\$?", 15)
         val path = r.stdout.lineSequence().firstOrNull { it.startsWith("/") }
         if (path == null) {
+            // 1.2 — honest not-found + the hint that prevents the exact user-reported
+            // contradiction: a Debian package can never be visible from local/adb
             return ToolResult(false, JSONObject()
                 .put("command", cmd).put("found", false)
+                .put("environment", s.backend.id)
                 .put("detail", "not on PATH in session ${s.id} (env ${s.backend.id}) — a real check, not an assumption")
+                .put("hint", if (s.backend == TermBackend.LINUX_USERSPACE)
+                    "installed with apt/dpkg? verify with dpkg -s <pkg> in this same linux session"
+                else
+                    "Debian packages (apt) are NEVER visible from ${s.backend.id} — they live in the linux environment; check with a linux session_id (or install there with terminal_install_package)")
                 .toString(2))
         }
         val ver = runInSession(context, s, "$cmd --version 2>/dev/null | head -n 1", 15)

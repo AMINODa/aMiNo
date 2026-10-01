@@ -23,9 +23,12 @@ object ToolRegistry {
         RegisteredTool(
             ToolSpec(
                 "shell_command",
-                "Run a shell command on the phone through the AMINO wireless ADB connection. " +
-                    "Use for real system inspection (df, ps, getprop, settings, dumpsys, ls, pm ...). " +
-                    "Only works when the wireless debugging session is connected.",
+                "Run a shell command on the ANDROID HOST (toybox) through the AMINO wireless ADB " +
+                    "connection. Use for real system inspection (df, ps, getprop, settings, dumpsys, ls, pm ...). " +
+                    "Only works when the wireless debugging session is connected. " +
+                    "NOTE: this is the Android host, NOT the Debian environment — Linux packages " +
+                    "installed via apt (terminal_install_package / the linux env) are NEVER visible " +
+                    "or runnable here; use terminal_execute for those.",
                 JSONObject().put("type", "object").put("properties",
                     JSONObject().put("command", JSONObject()
                         .put("type", "string")
@@ -140,8 +143,10 @@ object ToolRegistry {
             ToolSpec(
                 "terminal_create_session",
                 "Open a REAL persistent shell session (one long-lived sh; cwd and exported env " +
-                    "survive between commands). environment = local | adb. Returns the session_id " +
-                    "used by all other terminal_* tools.",
+                    "survive between commands). environment = local | adb | linux (linux = the " +
+                    "Debian 12 PRoot environment — same rootfs terminal_install_package uses, " +
+                    "requires the env installed and ready). Returns the session_id used by all " +
+                    "other terminal_* tools.",
                 JSONObject().put("type", "object").put("properties",
                     JSONObject().put("environment", JSONObject().put("type", "string"))
                         .put("name", JSONObject().put("type", "string")))
@@ -156,9 +161,14 @@ object ToolRegistry {
             ToolSpec(
                 "terminal_execute",
                 "Run a command INSIDE a persistent terminal session and get the REAL result: " +
-                    "stdout, stderr, exit_code, cwd. session_id optional (an agent session is " +
-                    "auto-created in the best environment). timeout_seconds default 20; on timeout " +
-                    "the command keeps running — stop it with terminal_stop_process.",
+                    "stdout, stderr, exit_code, cwd, environment. session_id optional — when the " +
+                    "Debian (linux) environment is installed, the agent session runs THERE by " +
+                    "default (the same rootfs terminal_install_package installs into, so a " +
+                    "package installed once is visible in every later command); pass a " +
+                    "session_id to target another environment instead. Every result reports " +
+                    "its 'environment' — always check it before claiming where something runs. " +
+                    "timeout_seconds default 20; on timeout the command keeps running — stop " +
+                    "it with terminal_stop_process.",
                 JSONObject().put("type", "object").put("properties",
                     JSONObject().put("command", JSONObject().put("type", "string"))
                         .put("session_id", JSONObject().put("type", "string"))
@@ -243,7 +253,10 @@ object ToolRegistry {
                 "Install tool(s) like nmap in the RIGHT environment — full honest flow: discover env, " +
                     "detect the real package manager (pkg/apt/apk/dnf/yum), run update+install, then " +
                     "VERIFY each tool with its version/path and report. Never assumes a manager exists. " +
-                    "environment optional (termux | adb | local — auto-probed in that order).",
+                    "environment optional (linux | termux | adb | local — probed in that order; " +
+                    "linux = the Debian PRoot environment, the BEST home for CLI tools — installed " +
+                    "packages persist in the shared rootfs and are visible to every linux session, " +
+                    "including the agent's default session).",
                 JSONObject().put("type", "object").put("properties",
                     JSONObject().put("packages", JSONObject().put("type", "string")
                         .put("description", "Space-separated package names, e.g. 'nmap'"))
@@ -258,8 +271,10 @@ object ToolRegistry {
             ToolSpec(
                 "terminal_check_command",
                 "Check whether a command/binary REALLY exists in a session's environment: returns its " +
-                    "full path and version line. Use to verify installs and before planning commands. " +
-                    "session_id optional.",
+                    "full path, version line and the environment it checked. Use to verify installs " +
+                    "and before planning commands. session_id optional — without one it checks the " +
+                    "agent's default environment (linux when the Debian env is installed). A Debian " +
+                    "package is never visible from local/adb — check where you installed.",
                 JSONObject().put("type", "object").put("properties",
                     JSONObject().put("command", JSONObject().put("type", "string"))
                         .put("session_id", JSONObject().put("type", "string")))

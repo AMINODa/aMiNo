@@ -27,7 +27,7 @@ subprojects { subproject ->
 }
 
 def gitCommitCount = Integer.parseInt("git rev-list --count HEAD".execute([], project.rootDir).text.trim())
-def baseVersionName = "1.1.1"  // 1.1.1 hotfix: Adb drawer item crashed (abstract HomeActivity as intent target)
+def baseVersionName = "1.2"  // 1.2: agent↔Linux consistency — the agent default session prefers the installed Debian env (one home for commands)
 def isBeta = project.hasProperty("beta")
 ext {
     versionCode = gitCommitCount
