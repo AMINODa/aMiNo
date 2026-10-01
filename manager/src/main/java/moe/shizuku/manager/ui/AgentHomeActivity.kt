@@ -19,8 +19,8 @@ import moe.shizuku.manager.R
 import moe.shizuku.manager.agent.AgentOrchestrator
 import moe.shizuku.manager.agent.AgentStatus
 import moe.shizuku.manager.agent.auto.AutonomousEngine
+import moe.shizuku.manager.MainActivity
 import moe.shizuku.manager.app.AppActivity
-import moe.shizuku.manager.home.HomeActivity
 import moe.shizuku.manager.keys.ApiKeysStore
 import moe.shizuku.manager.databinding.ActivityAgentHomeBinding
 import moe.shizuku.manager.settings.SettingsActivity
@@ -28,7 +28,9 @@ import moe.shizuku.manager.shell.ShellActivity
 
 /**
  * AMINO Agent chat - the new home screen (r1376). The conversation is the center of
- * the app; the old HomeActivity (service status cards) stays reachable from the menu.
+ * the app; the classic home (service status cards, pairing/ADB) stays reachable from
+ * the drawer as "Adb" — opened via its concrete subclass MainActivity (1.1.1: the
+ * abstract HomeActivity itself can never be an intent target).
  */
 open class AgentHomeActivity : AppActivity() {
 
@@ -53,7 +55,11 @@ open class AgentHomeActivity : AppActivity() {
         binding.toolbar.setOnMenuItemClickListener { mi ->
             when (mi.itemId) {
                 R.id.action_new_chat -> { AgentOrchestrator.newConversation(this); true }
-                R.id.action_service_status -> { startActivity(Intent(this, HomeActivity::class.java)); true }
+                // 1.1.1 — HomeActivity is ABSTRACT (never instantiable): launching it
+                // directly threw InstantiationException and killed the process. The
+                // concrete manifest-declared subclass MainActivity (the classic home
+                // UI, launcher of r1378–r1401) is the correct target.
+                R.id.action_service_status -> { startActivity(Intent(this, MainActivity::class.java)); true }
                 R.id.action_settings -> { startActivity(Intent(this, SettingsActivity::class.java)); true }
                 else -> false
             }
@@ -111,6 +117,7 @@ open class AgentHomeActivity : AppActivity() {
         drawerLabel(binding.dChat, R.string.nav_chat, "💬")
         // aMiNo 1.1 — the classic home (pairing/service/wireless-debugging) is no
         // longer the launcher: it lives here in the drawer, named "Adb" (user request)
+        // 1.1.1 — target MainActivity (concrete), NOT abstract HomeActivity
         drawerLabel(binding.dHome, R.string.nav_adb, "📡")
         drawerLabel(binding.dKeys, R.string.nav_keys, "🔑")
         drawerLabel(binding.dMemory, R.string.nav_memory, "🧠")
@@ -130,14 +137,17 @@ open class AgentHomeActivity : AppActivity() {
                 startActivity(Intent(this, target))
             }
         }
-        open(binding.dHome, HomeActivity::class.java)
+        // 1.1.1 — was HomeActivity::class.java (ABSTRACT): tapping "Adb" (or the old
+        // "Pairing" item) crashed with InstantiationException. MainActivity is the
+        // concrete HomeActivity subclass declared in the manifest — same UI.
+        open(binding.dHome, MainActivity::class.java)
         open(binding.dKeys, moe.shizuku.manager.keys.KeysActivity::class.java)
         open(binding.dMemory, moe.shizuku.manager.memory.MemoryActivity::class.java)
         open(binding.dTools, moe.shizuku.manager.tools.ToolsActivity::class.java)
         open(binding.dTerminal, moe.shizuku.manager.ui.TerminalActivity::class.java)
         open(binding.dShell, ShellActivity::class.java)
         open(binding.dPermissions, AllPermissionsActivity::class.java)
-        open(binding.dStatus, HomeActivity::class.java)
+        open(binding.dStatus, MainActivity::class.java)
         open(binding.dSettings, SettingsActivity::class.java)
         binding.dChat.setOnClickListener { binding.drawerLayout.closeDrawer(androidx.core.view.GravityCompat.START) }
         // r1383: was smoothScrollToPosition(itemCount - 1) — with an empty conversation this
