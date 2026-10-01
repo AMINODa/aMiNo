@@ -192,7 +192,12 @@ class TerminalSession(
         d.serviceUid = moe.shizuku.manager.terminal.linux.ShizukuExec.serviceUid()
 
         // ---- stage 2: build the exact command + read-only runtime preflight ----
-        val (cmd, env) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.sessionCommand(appContext)
+        // r1399 — errFile must exist BEFORE the init script is baked into the
+        // guest's argv (the init embeds it for the execute() wrapper).
+        errFile = "/tmp/.amino_err_$id"
+        val initScript = linuxInitScript(guest = "/bin/bash")
+        val (cmd, env) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.sessionCommand(
+            appContext, guest = "/bin/bash", initScript = initScript)
         d.commandSanitized = cmd.joinToString(" ")
         val tmpDir = env.firstOrNull { it.startsWith("PROOT_TMP_DIR=") }?.substringAfter('=') ?: "$base/tmp"
         // one service roundtrip (read-only): uid, SELinux domain, proot exec bit,
@@ -259,7 +264,8 @@ class TerminalSession(
                 it.guestShell = "/bin/sh"; it.prootPath = d.prootPath
                 it.serviceUid = d.serviceUid; it.serviceDomain = d.serviceDomain
             }
-            val (cmd2, env2) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.sessionCommand(appContext, guest = "/bin/sh")
+            val (cmd2, env2) = moe.shizuku.manager.terminal.linux.LinuxEnvManager.sessionCommand(
+                appContext, guest = "/bin/sh", initScript = linuxInitScript(guest = "/bin/sh"))
             d2.commandSanitized = cmd2.joinToString(" ")
             lastLaunch = d2
             procGen++                                   // invalidate attempt-1 reader threads FIRST
@@ -297,7 +303,8 @@ class TerminalSession(
         remoteProc = rp
         val gen = ++procGen
         stdin = rp.stdin
-        errFile = "/tmp/.amino_err_$id"   // inside the container
+        // r1399 — errFile is assigned in startLinux BEFORE sessionCommand bakes
+        // it into the argv-delivered init; nothing to do here anymore.
         d.spawned = true
         d.processAliveAfterSpawn = try { rp.alive() } catch (_: Throwable) { null }
         val outStart = synchronized(lock) { outCap.length }   // per-attempt stdout slice
@@ -335,17 +342,15 @@ class TerminalSession(
         alive = true
         sendLinuxInit()
         if (ready) {
-            // r1398 — fd1 health probe: the IN receipt rides stdout BY DESIGN.
-            // If stderr answered (ready) but stdout never echoed IN, the guest's
-            // fd1 is dead on this device — merge it into the proven stderr pipe
-            // (exec 1>&2, a builtin in bash and dash) so command output and the
-            // acceptance tests stay functional, and record the fact honestly.
-            val sawIn = synchronized(lock) { outCap.substring(outStart) }.contains("__AMINO_T9_IN_")
-            if (!sawIn) {
-                writeRaw("exec 1>&2\n")
-                addSys("guest stdout stream is silent on this device (IN receipt absent while stderr answered) — fd1 merged into stderr (exec 1>&2); output continues through the proven stream")
-                Log.w("LinuxSession", "[$id] stdout silent (no IN receipt) — merged fd1 into stderr")
-            }
+            // r1399 — the fd1 health probe moved here, POST-ready and ARMORED:
+            // the probe echo is backgrounded so a hostile fd1 (this device
+            // black-holes child stdout) can only stall a stray subshell — never
+            // the session shell. The r1398 pre-ready design wrote the IN
+            // receipt to fd1 as the FIRST init line: the guest stalled INSIDE
+            // that write (alive, INE echoed, HI never reached — device dialogs
+            // r1397+r1398), which is exactly why the init now rides argv and
+            // the fd1 question is answered only after the session is live.
+            probeAndHealFd1()
         } else {
             val aliveNow = try { rp.alive() } catch (_: Throwable) { false }
             d.stderrTail = synchronized(errCapture) { errCapture.toString() }.trim().take(500)
@@ -364,29 +369,66 @@ class TerminalSession(
     }
 
     /**
-     * Linux init: r1398 — the handshake rides the PROVEN stream: INE (stderr
-     * receipt: the init reached the guest and it executes) and HI_42 (ready)
-     * both go to stderr, which the user's device proved live while stdout
-     * stayed silent; IN stays on stdout BY DESIGN as the fd1 health probe
-     * (its absence after ready triggers the exec 1>&2 merge in linuxAttempt).
-     * The ready marker is RE-SENT at +5s and +10s — a lost or late stdin
-     * write must not cost the session its init (extra markers are harmless:
-     * ready stays true). Returns the init verdict.
+     * r1399 — the init script travels INSIDE the guest's argv
+     * (`<guest> -c '<script>'`), the delivery channel PROVEN live on the
+     * user's device: every one-shot and the PRoot runtime probe answer
+     * through argv, while stdin-fed inits INIT_TIMEOUT (r1397 + r1398 device
+     * dialogs: the guest executed at most the first two stdin lines — INE
+     * echoed on stderr, then stalled alive; HI never came; re-sent stdin
+     * markers never echoed either). Order is fail-safe: the ready marker HI
+     * rides the PROVEN stderr stream as the VERY FIRST statement — zero
+     * setup before it — so the session goes ready within milliseconds of
+     * guest start no matter what else is broken. The guest-executes receipt
+     * (INE, stderr) follows, then the environment the execute() wrapper
+     * needs (err file), then the handover `exec <guest>` — the session shell
+     * that keeps reading stdin for user commands.
+     */
+    private fun linuxInitScript(guest: String): String = buildString {
+        append("echo \"${M}HI_\$((6*7))\" >&2; ")
+        append("echo \"${M}INE_$id\" >&2; ")
+        append("export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; ")
+        append("__amino_err=${shellQuote(errFile ?: "/tmp/.amino_err_$id")}; export __amino_err; ")
+        append("mkdir -p /tmp 2>/dev/null; ")
+        append("cd ${shellQuote(startDir)} 2>/dev/null || cd /; ")
+        append("exec ").append(guest)
+    }
+
+    /**
+     * r1399 — ARMORED fd1 health probe, shared by every backend. The probe
+     * echo is BACKGROUND (`&`) so a hostile fd1 can only stall a stray
+     * subshell — never the session shell. If the receipt does not surface on
+     * stdout within 1.5s, the guest's stdout is merged into the proven stderr
+     * stream (exec 1>&2, builtin in bash and dash) and the fact is recorded
+     * honestly. Devices where stdout works keep classic dual-stream mode.
+     */
+    private fun probeAndHealFd1() {
+        writeRaw("echo \"${M}INP_$id\" &\n")
+        val t0 = System.currentTimeMillis()
+        var sawInp = false
+        while (System.currentTimeMillis() - t0 < 1500) {
+            if (synchronized(lock) { outCap.contains("${M}INP_") }) { sawInp = true; break }
+            Thread.sleep(60)
+        }
+        if (sawInp) {
+            addSys("guest fd1 verified alive (INP receipt on stdout) — classic dual-stream mode")
+        } else {
+            writeRaw("exec 1>&2\n")
+            addSys("guest fd1 delivered nothing in 1.5s (this device black-holes child stdout) — fd1 merged into the proven stderr stream (exec 1>&2); all output now rides stderr")
+            Log.w(TAG, "[$id] fd1 silent (no INP receipt) — merged fd1 into stderr")
+        }
+    }
+
+    /**
+     * Linux init wait: r1399 — the init itself travels in ARGV (see
+     * linuxInitScript); stdin now carries only FALLBACK ready markers
+     * (re-sent at +5s and +10s). If the argv init executed but its HI marker
+     * was lost, the queued markers are executed by the handover shell and
+     * still complete the handshake; extra markers are harmless (ready stays
+     * true). Returns the init verdict.
      */
     private fun sendLinuxInit(): Boolean {
         ready = false
         val marker = "echo \"${M}HI_\$((6*7))\" >&2\n"
-        val init = buildString {
-            append("echo \"${M}IN_$id\"\n")            // stdout receipt — stdin reached the guest
-            append("echo \"${M}INE_$id\" >&2\n")       // stderr receipt — the guest is executing
-            append("export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n")
-            append("__amino_err=${errFile}\n")
-            append("export __amino_err\n")
-            append("mkdir -p /tmp 2>/dev/null; ")
-            append("cd ${shellQuote(startDir)} 2>/dev/null || cd /\n")
-            append(marker)
-        }
-        writeRaw(init)
         // PRoot startup is slower than a plain shell — allow more time
         val t0 = System.currentTimeMillis()
         val deadline = t0 + 15000
@@ -408,19 +450,42 @@ class TerminalSession(
     }
 
     private fun startLocal(root: Boolean): Boolean {
-        val pb = ProcessBuilder(if (root) listOf("su") else listOf("sh"))
+        // r1399 — the init travels in ARGV (`sh -c '<init>'`), the delivery
+        // channel proven on the user's device: the local environment failed
+        // there with the EXACT same INIT_TIMEOUT as the linux session (agent
+        // transcript 2026-10-01) because BOTH fed the init through stdin. HI
+        // (ready) rides STDERR as the FIRST statement — and the stderr drain
+        // is now a LINE READER feeding the same parser (was: drained and
+        // discarded, so the local handshake could only ever ride stdout —
+        // exactly the stream this device black-holes).
+        errFile = "${appContext.cacheDir.absolutePath}/.amino_err_${id}"
+        val init = buildString {
+            append("echo \"${M}HI_\$((6*7))\" >&2; ")
+            append("export PATH=/system/bin:/system/xbin:/vendor/bin:/odm/bin:/apex/com.android.runtime/bin:/su/bin:/sbin:\$PATH; ")
+            append("__amino_err=${shellQuote(errFile ?: "")}; export __amino_err; ")
+            append("mkdir -p /data/local/tmp 2>/dev/null; ")
+            append("cd ${shellQuote(startDir)} 2>/dev/null || cd /; ")
+            append("exec sh")
+        }
+        val pb = ProcessBuilder(if (root) listOf("su", "-c", init) else listOf("sh", "-c", init))
         pb.redirectErrorStream(false)
         val p = pb.start()
         proc = p
         stdin = p.outputStream
-        errFile = "${appContext.cacheDir.absolutePath}/.amino_err_${id}"
-        // native stderr pipe MUST be drained or the child can block on a full pipe.
-        // The marker protocol still provides per-command stderr via the temp file.
+        val errCapture = StringBuilder()
+        // native stderr pipe MUST be drained or the child can block on a full
+        // pipe — r1399: drained as LINES through the same parser (bounded
+        // capture kept for the failure evidence).
         Thread({
-            try { p.errorStream.copyTo(object : java.io.OutputStream() {
-                override fun write(b: Int) {}
-                override fun write(b: ByteArray, off: Int, len: Int) {}
-            }) } catch (_: Throwable) {}
+            try {
+                val r = BufferedReader(InputStreamReader(p.errorStream, Charsets.UTF_8))
+                var line = r.readLine()
+                while (line != null) {
+                    synchronized(errCapture) { if (errCapture.length < 4096) errCapture.appendLine(line) }
+                    parseLine(line, fromErr = true)
+                    line = r.readLine()
+                }
+            } catch (_: Throwable) {}
         }, "amino-term-errdrain-$id").apply { isDaemon = true; start() }
         Thread({
             try {
@@ -431,8 +496,26 @@ class TerminalSession(
             onBackendDied()
         }, "amino-term-out-$id").apply { isDaemon = true; start() }
         alive = true
-        sendInit()
-        return true
+        // bounded wait for the HI marker (stderr or stdout), with ONE stdin
+        // fallback re-send at +4s (queued markers execute at the handover
+        // shell's read loop if the argv init ran but HI was lost).
+        val marker = "echo \"${M}HI_\$((6*7))\" >&2\n"
+        val deadline = System.currentTimeMillis() + 8000
+        var retry = System.currentTimeMillis() + 4000
+        while (alive && !ready && System.currentTimeMillis() < deadline) {
+            if (System.currentTimeMillis() >= retry) { writeRaw(marker); retry = Long.MAX_VALUE }
+            Thread.sleep(80)
+        }
+        if (ready) {
+            cwd = startDir
+            addSys("session ready — env: ${backend.title}")
+            probeAndHealFd1()
+        } else {
+            val tail = synchronized(errCapture) { errCapture.toString() }.trim().take(300)
+            addSys("session init timed out — the environment did not answer" +
+                if (tail.isNotBlank()) " · stderr tail: $tail" else "")
+        }
+        return ready
     }
 
     private fun startAdb(): Boolean {
@@ -457,14 +540,19 @@ class TerminalSession(
 
     private fun sendInit() {
         ready = false
+        // r1399 — HI (ready) FIRST, on stderr (the stream proven live where
+        // child stdout is black-holed); setup follows; fd1 is merged at the
+        // end, before the shell starts reading user commands. On ADB the
+        // stream is a merged PTY so all of this is a no-op there; the same
+        // shape heals any backend whose stdout is hostile.
         val path = "/system/bin:/system/xbin:/vendor/bin:/odm/bin:/apex/com.android.runtime/bin:/su/bin:/sbin:\$PATH"
         val init = buildString {
-            append("export PATH=$path\n")
-            append("__amino_err=${errFile}\n")
-            append("export __amino_err\n")
+            append("echo \"${M}HI_\$((6*7))\" >&2; ")
+            append("export PATH=$path; ")
+            append("__amino_err=${shellQuote(errFile ?: "")}; export __amino_err; ")
             append("mkdir -p /data/local/tmp 2>/dev/null; ")
-            append("cd ${shellQuote(startDir)} 2>/dev/null || cd /\n")
-            append("echo \"${M}HI_\$((6*7))\"\n")
+            append("cd ${shellQuote(startDir)} 2>/dev/null || cd /; ")
+            append("exec 1>&2")
         }
         writeRaw(init)
         // bounded busy-wait (Thread.sleep is not cancellable — use a wall deadline)
@@ -523,10 +611,11 @@ class TerminalSession(
             if (line.contains(ERRE)) { errState = false } else { appendLine(TermLine.Kind.ERR, line); errCap.appendLine(line) }
             return
         }
-        // r1398 — init receipt markers are diagnostic, not terminal content:
-        // IN (stdout) is recorded in outCap for the fd1-health probe; INE lives
-        // in the bounded stderr capture. Neither is displayed.
-        if (line.startsWith("${M}IN_") || line.startsWith("${M}INE_")) {
+        // r1398/r1399 — init receipt markers are diagnostic, not terminal
+        // content: IN (stdout, pre-merge) and INP (post-ready fd1 probe) are
+        // recorded in outCap for the fd1-health verdict; INE lives in the
+        // bounded stderr capture. None are displayed.
+        if (line.startsWith("${M}IN_") || line.startsWith("${M}INE_") || line.startsWith("${M}INP_")) {
             if (!fromErr) outCap.appendLine(line)
             return
         }
@@ -841,7 +930,9 @@ class LaunchDiagnostic(val sessionId: String) {
         stderrReaderError?.let { append(" · stderrReaderError=").append(it) }
         if (stderrTail.isNotBlank()) append(" · stderr: ").append(stderrTail.take(200))
         if (stdoutTail.isNotBlank()) append(" · stdout: ").append(stdoutTail.take(200))
-        if (commandSanitized.isNotBlank()) append(" · cmd=").append(commandSanitized.take(180))
+        // r1399 — the cmd now embeds the argv-delivered init script (the
+        // decisive evidence on stdin-hostile devices): widen the window.
+        if (commandSanitized.isNotBlank()) append(" · cmd=").append(commandSanitized.take(600))
         append(" · rootfs=").append(rootfsPath)
         append(" · serviceUid=").append(serviceUid ?: "?")
         append(" · domain=").append(serviceDomain ?: "?")

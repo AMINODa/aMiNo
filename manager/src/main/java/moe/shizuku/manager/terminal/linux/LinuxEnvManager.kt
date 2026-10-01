@@ -1899,7 +1899,8 @@ object LinuxEnvManager {
      * Aligning the session spawn with the proven-on-device shape removes the last
      * structural difference between the launches that work and the one that hung.
      */
-    fun sessionCommand(ctx: Context, guest: String = "/bin/bash", wrapShell: Boolean = true): Pair<List<String>, Array<String>> {
+    fun sessionCommand(ctx: Context, guest: String = "/bin/bash", wrapShell: Boolean = true,
+                       initScript: String? = null): Pair<List<String>, Array<String>> {
         val fix = prootFix(ctx)
         val binds = ArrayList<String>()
         for (b in listOf("/dev", "/proc", "/sys", "/system", "/vendor"))
@@ -1924,8 +1925,15 @@ object LinuxEnvManager {
                 "TERM=xterm-256color", "LANG=C.UTF-8",
                 "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                 "TMPDIR=/tmp",
-                guest
             ))
+            // r1399 — the init script travels INSIDE the guest's argv
+            // (`<guest> -c '<init>'`), the delivery channel PROVEN live on the
+            // user's device (every one-shot + the PRoot probe answer through
+            // argv; stdin-fed inits INIT_TIMEOUT there — r1397+r1398 dialogs).
+            // The script ends with `exec <guest>` (handover to the session
+            // shell reading stdin); when no script is requested the bare-guest
+            // r1385 shape is kept for compatibility.
+            if (initScript != null) { add(guest); add("-c"); add(initScript) } else { add(guest) }
         }
         var env = arrayOf(
             "PROOT_TMP_DIR=${prootTmpFor(fix)}",
