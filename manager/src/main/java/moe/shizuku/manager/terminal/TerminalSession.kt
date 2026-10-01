@@ -99,6 +99,17 @@ class TerminalSession(
     private val execMutex = Mutex()
 
     private val lock = Any()
+    // r1401 — the launch gate is NOT `lock` on purpose: start() waits up to 30s
+    // (recovery sweep + two 15s init attempts + sleeps) and the READER THREADS
+    // must be able to take `lock` during that wait to deliver the init markers.
+    // Holding `lock` across the whole launch starved the parser forever: the
+    // stderr reader captured __AMINO_T9_HI_42 into the tail (capture happens
+    // BEFORE parseLine) then blocked on `lock` — ready could never become true
+    // → INIT_TIMEOUT on every device since r1385 (the r1395–r1400 device
+    // dialogs: "stderr: __AMINO_T9_HI_42" + stderrReceipt=false + alive — the
+    // exact fingerprint). One-shots and probes always worked because they
+    // never touch this session's lock.
+    private val startGate = Any()
     private val lines = ArrayList<TermLine>()
     private val seqGen = AtomicLong(0)
     private val lineBuf = StringBuilder()          // partial line from the stream
@@ -143,7 +154,11 @@ class TerminalSession(
     // ---------- lifecycle ----------
 
     fun start(): Boolean {
-        synchronized(lock) {
+        // r1401 — serialize launches on startGate (NOT lock): the init handshake
+        // completes only if the reader threads can parseLine (lock) WHILE this
+        // thread sleeps inside the bounded waits. alive/ready are @Volatile so
+        // the plain reads below are safe without holding lock.
+        synchronized(startGate) {
             if (alive) return true
             return try {
                 when (backend) {
