@@ -1904,7 +1904,12 @@ object LinuxEnvManager {
         val binds = ArrayList<String>()
         for (b in listOf("/dev", "/proc", "/sys", "/system", "/vendor"))
             if (java.io.File(b).exists()) { binds.add("-b"); binds.add(b) }
-        val shared = File(ctx.filesDir, "linux/shared").apply { mkdirs() }
+        // r1398 — the shared exchange dir moved OUT of the app-private storage:
+        // /data/user/0/<pkg>/… is invisible to the shell-uid service and proot
+        // reported "can't sanitize binding … Permission denied" (r1397 device
+        // dialog evidence). $BASE/shared lives in the same service-owned tree
+        // as proot and the rootfs; the preflight creates it (mkdir -p).
+        val shared = java.io.File("$BASE/shared")
         binds.add("-b"); binds.add("${shared.absolutePath}:/shared")
         val baseCmd = buildList {
             add("$BASE/bin/proot"); add("--kill-on-exit"); add("--link2symlink")

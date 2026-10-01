@@ -204,6 +204,7 @@ class TerminalSession(
                     "echo DOMAIN=\$(cat /proc/self/attr/current 2>/dev/null); " +
                     "test -x $base/bin/proot && echo PROOT_EXEC_OK || echo PROOT_EXEC_MISSING; " +
                     "mkdir -p '$tmpDir' 2>/dev/null; test -w '$tmpDir' && echo TMP_OK || echo TMP_BAD; " +
+                    "mkdir -p $base/shared 2>/dev/null; " +
                     "test -f $base/libexec/proot/loader && echo LOADER_OK || echo LOADER_MISSING; " +
                     "test -x $rootfs/bin/bash && echo BASH_OK || echo BASH_MISSING; " +
                     "LD_LIBRARY_PATH=$base/lib $base/bin/proot --version 2>&1 | head -n 1",
@@ -300,30 +301,52 @@ class TerminalSession(
         d.spawned = true
         d.processAliveAfterSpawn = try { rp.alive() } catch (_: Throwable) { null }
         val outStart = synchronized(lock) { outCap.length }   // per-attempt stdout slice
-        // native stderr pipe MUST be drained or the child can block on a full pipe.
-        // Drained into a BOUNDED capture too — proot's own error text is primary
-        // evidence and is surfaced on failure via the diagnostic oneLine.
+        // r1398 — the stderr pipe is the PROVEN stream on the user's device
+        // (r1397 dialog evidence: the INE receipt AND proot's own warning both
+        // arrived on stderr while stdout stayed silent with the process alive).
+        // The stderr drain is now a LINE READER that feeds the SAME parser as
+        // stdout, so the init handshake and every protocol marker work no matter
+        // which stream actually flows. Bounded capture kept for diagnostics.
         val errCapture = StringBuilder()
         Thread({
-            try { rp.stderr.copyTo(object : java.io.OutputStream() {
-                var cap = 0
-                override fun write(b: Int) { synchronized(errCapture) { if (cap < 4096) { errCapture.append(b.toChar()); cap++ } } }
-                override fun write(b: ByteArray, off: Int, len: Int) {
-                    synchronized(errCapture) { val take = minOf(len, 4096 - cap); if (take > 0) { errCapture.append(String(b, off, take)); cap += take } }
+            try {
+                val r = BufferedReader(InputStreamReader(rp.stderr, Charsets.UTF_8))
+                var line = r.readLine()
+                while (line != null) {
+                    synchronized(errCapture) { if (errCapture.length < 4096) errCapture.appendLine(line) }
+                    parseLine(line, fromErr = true)
+                    line = r.readLine()
                 }
-            }) } catch (_: Throwable) {}
+            } catch (e: Throwable) {
+                d.stderrReaderError = e.message ?: e.javaClass.simpleName   // r1398 — never swallow again
+            }
+            if (gen == procGen) onBackendDied()      // only the CURRENT attempt may bury the session
         }, "amino-linux-errdrain-$id-$gen").apply { isDaemon = true; start() }
         Thread({
             try {
                 val r = BufferedReader(InputStreamReader(rp.stdout, Charsets.UTF_8))
                 var line = r.readLine()
                 while (line != null) { parseLine(line); line = r.readLine() }
-            } catch (_: Throwable) {}
+            } catch (e: Throwable) {
+                d.stdoutReaderError = e.message ?: e.javaClass.simpleName   // r1398 — never swallow again
+            }
             if (gen == procGen) onBackendDied()      // only the CURRENT attempt may bury the session
         }, "amino-linux-out-$id-$gen").apply { isDaemon = true; start() }
         alive = true
         sendLinuxInit()
-        if (!ready) {
+        if (ready) {
+            // r1398 — fd1 health probe: the IN receipt rides stdout BY DESIGN.
+            // If stderr answered (ready) but stdout never echoed IN, the guest's
+            // fd1 is dead on this device — merge it into the proven stderr pipe
+            // (exec 1>&2, a builtin in bash and dash) so command output and the
+            // acceptance tests stay functional, and record the fact honestly.
+            val sawIn = synchronized(lock) { outCap.substring(outStart) }.contains("__AMINO_T9_IN_")
+            if (!sawIn) {
+                writeRaw("exec 1>&2\n")
+                addSys("guest stdout stream is silent on this device (IN receipt absent while stderr answered) — fd1 merged into stderr (exec 1>&2); output continues through the proven stream")
+                Log.w("LinuxSession", "[$id] stdout silent (no IN receipt) — merged fd1 into stderr")
+            }
+        } else {
             val aliveNow = try { rp.alive() } catch (_: Throwable) { false }
             d.stderrTail = synchronized(errCapture) { errCapture.toString() }.trim().take(500)
             d.stdoutTail = synchronized(lock) { outCap.substring(outStart) }.trim().take(500)
@@ -341,16 +364,18 @@ class TerminalSession(
     }
 
     /**
-     * Linux init: r1396 receipt markers FIRST (IN on stdout = stdin reached the
-     * guest, INE on stderr = the guest is executing), then the unchanged container
-     * PATH, per-session stderr file inside /tmp, /root home, and the HI_42 ready
-     * marker. The ready marker is RE-SENT at +5s and +10s — a lost or late stdin
-     * write must not cost the session its init (extra markers are harmless: ready
-     * stays true). Returns the init verdict.
+     * Linux init: r1398 — the handshake rides the PROVEN stream: INE (stderr
+     * receipt: the init reached the guest and it executes) and HI_42 (ready)
+     * both go to stderr, which the user's device proved live while stdout
+     * stayed silent; IN stays on stdout BY DESIGN as the fd1 health probe
+     * (its absence after ready triggers the exec 1>&2 merge in linuxAttempt).
+     * The ready marker is RE-SENT at +5s and +10s — a lost or late stdin
+     * write must not cost the session its init (extra markers are harmless:
+     * ready stays true). Returns the init verdict.
      */
     private fun sendLinuxInit(): Boolean {
         ready = false
-        val marker = "echo \"${M}HI_\$((6*7))\"\n"
+        val marker = "echo \"${M}HI_\$((6*7))\" >&2\n"
         val init = buildString {
             append("echo \"${M}IN_$id\"\n")            // stdout receipt — stdin reached the guest
             append("echo \"${M}INE_$id\" >&2\n")       // stderr receipt — the guest is executing
@@ -490,12 +515,19 @@ class TerminalSession(
         }
     }
 
-    /** Feed one complete line from the local process stdout. */
-    private fun parseLine(line: String) = synchronized(lock) { parseLineLocked(line.trimEnd('\r')) }
+    /** Feed one complete line from the local process stdout — or stderr (r1398). */
+    private fun parseLine(line: String, fromErr: Boolean = false) = synchronized(lock) { parseLineLocked(line.trimEnd('\r'), fromErr) }
 
-    private fun parseLineLocked(line: String) {
+    private fun parseLineLocked(line: String, fromErr: Boolean = false) {
         if (errState) {
             if (line.contains(ERRE)) { errState = false } else { appendLine(TermLine.Kind.ERR, line); errCap.appendLine(line) }
+            return
+        }
+        // r1398 — init receipt markers are diagnostic, not terminal content:
+        // IN (stdout) is recorded in outCap for the fd1-health probe; INE lives
+        // in the bounded stderr capture. Neither is displayed.
+        if (line.startsWith("${M}IN_") || line.startsWith("${M}INE_")) {
+            if (!fromErr) outCap.appendLine(line)
             return
         }
         // markers may arrive in any order; completion = RC seen (CWD checked too)
@@ -518,7 +550,7 @@ class TerminalSession(
             maybeComplete(); return
         }
         if (line.isBlank() && !busy) return   // ignore stray newlines when idle
-        appendLine(TermLine.Kind.OUT, line)
+        appendLine(if (fromErr) TermLine.Kind.ERR else TermLine.Kind.OUT, line)
         outCap.appendLine(line)
     }
 
@@ -590,15 +622,19 @@ class TerminalSession(
 
             val quoted = shellQuote(command)
             val wrapper = if (isBuiltinCommand(command)) {
-                // builtins must run in the shell context so cd/export persist
+                // builtins must run in the shell context so cd/export persist.
+                // r1398 — ALL protocol markers now echo to STDERR: the stream
+                // proven live on the user's device (stdout stayed silent there
+                // even with the process alive). The parser is fed from BOTH
+                // streams, so healthy devices behave identically.
                 ": >\"\$__amino_err\"; eval $quoted 2>\"\$__amino_err\"; __amino_rc=\$?; " +
-                    "echo \"$ERRB\"; cat \"\$__amino_err\" 2>/dev/null; echo \"$ERRE\"; " +
-                    "echo \"${M}RC_\${__amino_rc}\"; echo \"${M}FG_0\"; echo \"${M}CWD_\$PWD\"\n"
+                    "echo \"$ERRB\" >&2; cat \"\$__amino_err\" 2>/dev/null >&2; echo \"$ERRE\" >&2; " +
+                    "echo \"${M}RC_\${__amino_rc}\" >&2; echo \"${M}FG_0\" >&2; echo \"${M}CWD_\$PWD\" >&2\n"
             } else {
                 // external commands: background + tracked pid (killable, output streams live)
                 ": >\"\$__amino_err\"; eval $quoted 2>\"\$__amino_err\" & __amino_fg=\$!; " +
-                    "wait \"\$__amino_fg\"; __amino_rc=\$?; echo \"$ERRB\"; cat \"\$__amino_err\" 2>/dev/null; echo \"$ERRE\"; " +
-                    "echo \"${M}RC_\${__amino_rc}\"; echo \"${M}FG_\${__amino_fg}\"; echo \"${M}CWD_\$PWD\"\n"
+                    "wait \"\$__amino_fg\"; __amino_rc=\$?; echo \"$ERRB\" >&2; cat \"\$__amino_err\" 2>/dev/null >&2; echo \"$ERRE\" >&2; " +
+                    "echo \"${M}RC_\${__amino_rc}\" >&2; echo \"${M}FG_\${__amino_fg}\" >&2; echo \"${M}CWD_\$PWD\" >&2\n"
             }
             writeRaw(wrapper)
 
@@ -783,6 +819,8 @@ class LaunchDiagnostic(val sessionId: String) {
     var stderrTail: String = ""
     var stdinReceipt: Boolean? = null    // r1396 — the IN receipt marker arrived on stdout (stdin reached the guest)
     var stderrReceipt: Boolean? = null   // r1396 — the INE receipt marker arrived on stderr (the guest executes)
+    var stdoutReaderError: String? = null // r1398 — the app-side stdout reader thread failed (never swallowed again)
+    var stderrReaderError: String? = null // r1398 — the app-side stderr reader thread failed
 
     fun fail(stage: String, why: String) { failedStage = stage; summary = why }
 
@@ -799,6 +837,8 @@ class LaunchDiagnostic(val sessionId: String) {
         if (summary.isNotBlank()) append(" — ").append(summary.take(300))
         stdinReceipt?.let { append(" · stdinReceipt=").append(it) }
         stderrReceipt?.let { append(" · stderrReceipt=").append(it) }
+        stdoutReaderError?.let { append(" · stdoutReaderError=").append(it) }
+        stderrReaderError?.let { append(" · stderrReaderError=").append(it) }
         if (stderrTail.isNotBlank()) append(" · stderr: ").append(stderrTail.take(200))
         if (stdoutTail.isNotBlank()) append(" · stdout: ").append(stdoutTail.take(200))
         if (commandSanitized.isNotBlank()) append(" · cmd=").append(commandSanitized.take(180))
