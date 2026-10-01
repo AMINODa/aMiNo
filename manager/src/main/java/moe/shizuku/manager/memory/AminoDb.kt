@@ -12,6 +12,9 @@ import android.database.sqlite.SQLiteOpenHelper
  *  - user_memory              : User Memory (only what the user approved)
  *  - working_memory           : Agent Working Memory (current task state)
  *  - knowledge                : Knowledge memory (local text search)
+ *  - experiences (v1.3)       : Episodic task memory — what worked, what failed,
+ *                               lessons for future runs (the self-evolving loop:
+ *                               Mobile-Agent-E / AppAgentX experience reuse)
  *
  * Implemented with plain SQLiteOpenHelper instead of Room on purpose: same local
  * isolation, zero annotation-processor/build risk, full SQL control.
@@ -21,16 +24,27 @@ class AminoDb private constructor(context: Context) :
 
     companion object {
         const val DB_NAME = "amino_agent.db"
-        const val DB_VERSION = 1
+        const val DB_VERSION = 2
 
         const val T_CONVERSATIONS = "conversations"
         const val T_MESSAGES = "messages"
         const val T_USER_MEMORY = "user_memory"
         const val T_WORKING_MEMORY = "working_memory"
         const val T_KNOWLEDGE = "knowledge"
+        const val T_EXPERIENCES = "experiences"
 
         @Volatile
         private var instance: AminoDb? = null
+
+        val CREATE_EXPERIENCES = """
+            CREATE TABLE $T_EXPERIENCES(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task TEXT NOT NULL,
+                outcome TEXT NOT NULL,
+                lessons TEXT,
+                skill_id TEXT,
+                created_at INTEGER NOT NULL
+            )""".trimIndent()
 
         fun get(context: Context): AminoDb =
             instance ?: synchronized(this) {
@@ -80,9 +94,11 @@ class AminoDb private constructor(context: Context) :
                 content TEXT NOT NULL,
                 created_at INTEGER NOT NULL
             )""")
+        db.execSQL(CREATE_EXPERIENCES)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // v1 - nothing to migrate yet.
+        // v2 (1.3): experiences table — additive only, nothing existing migrates.
+        if (oldVersion < 2) db.execSQL(CREATE_EXPERIENCES)
     }
 }

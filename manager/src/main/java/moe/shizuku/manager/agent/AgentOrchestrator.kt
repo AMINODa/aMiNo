@@ -56,7 +56,9 @@ data class AgentUiState(
 object AgentOrchestrator {
 
     private const val TAG = "AgentOrchestrator"
-    private const val MAX_TOOL_ROUNDS = 6
+    // v1.3: GUI tasks (screen_read -> screen_act -> screen_read verify cycles) need
+    // more rounds than pure shell tasks — 12 keeps perception/skill workflows in one run.
+    private const val MAX_TOOL_ROUNDS = 12
     private const val HISTORY_LIMIT = 12
 
     private val guard = CoroutineExceptionHandler { _, e ->
@@ -277,7 +279,7 @@ object AgentOrchestrator {
             }
         }
 
-        MemoryRepository.addMessage(context, convId, "tool", result.output.take(6000), call.name, result.ok)
+        MemoryRepository.addMessage(context, convId, "tool", result.output.take(9000), call.name, result.ok)
         steps.put(JSONObject().put("type", "result").put("tool", call.name)
             .put("ok", result.ok).put("output", result.output.take(1500)))
         val wm = MemoryRepository.working(context, convId)

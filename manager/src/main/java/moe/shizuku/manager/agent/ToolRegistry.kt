@@ -2,6 +2,7 @@ package moe.shizuku.manager.agent
 
 import android.content.Context
 import android.provider.Settings
+import kotlinx.coroutines.runBlocking
 import moe.shizuku.manager.BuildConfig
 import moe.shizuku.manager.shell.ShellSession
 import org.json.JSONObject
@@ -363,6 +364,188 @@ object ToolRegistry {
             requiresShell = false
         ) { ctx, _ ->
             TerminalTools.linuxEnvAcceptanceTests(ctx)
+        },
+
+        // ============ v1.3 SUPER AGENT: SCREEN INTELLIGENCE (perception + actuation) ============
+        RegisteredTool(
+            ToolSpec(
+                "screen_read",
+                "LOOK at the CURRENT screen like a human: returns the focused app/activity plus the real " +
+                    "UI hierarchy (uiautomator dump) as a list of elements — class, resource-id, text, " +
+                    "content-desc and CENTER coordinates for tapping. Text/tree perception: pixel-only " +
+                    "content (photos) is not OCR-readable in this version. ALWAYS call this BEFORE any tap " +
+                    "(find targets) and AFTER any screen_act (verify what actually changed). Requires the " +
+                    "aMiNo service (Shizuku), not wireless ADB.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("max_elements", JSONObject()
+                        .put("type", "integer")
+                        .put("description", "Max elements to return, 10-200, default 50")))
+            ),
+            requiresShell = false
+        ) { _, args ->
+            runBlocking { moe.shizuku.manager.agent.perception.ScreenPerception.read(args.optInt("max_elements", 50)) }
+        },
+        RegisteredTool(
+            ToolSpec(
+                "screen_act",
+                "ACT on the current screen with REAL input injection (the adb-identical channel, through " +
+                    "the aMiNo service): action = tap {x,y} | longtap {x,y} | swipe {x,y,x2,y2,duration_ms} | " +
+                    "text {text} (types into the focused field) | key {key: back|home|enter|up|down|left|right|" +
+                    "volume_up|volume_down|power|recents|...} | wait {ms}. Use coordinates from screen_read. " +
+                    "MANDATORY: verify with a fresh screen_read afterwards — never claim success unverified.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("action", JSONObject().put("type", "string")
+                        .put("description", "tap | longtap | swipe | text | key | wait"))
+                        .put("x", JSONObject().put("type", "integer"))
+                        .put("y", JSONObject().put("type", "integer"))
+                        .put("x2", JSONObject().put("type", "integer"))
+                        .put("y2", JSONObject().put("type", "integer"))
+                        .put("duration_ms", JSONObject().put("type", "integer"))
+                        .put("text", JSONObject().put("type", "string"))
+                        .put("key", JSONObject().put("type", "string"))
+                        .put("ms", JSONObject().put("type", "integer")))
+                    .put("required", org.json.JSONArray().put("action"))
+            ),
+            requiresShell = false
+        ) { _, args ->
+            runBlocking { moe.shizuku.manager.agent.perception.ScreenPerception.act(args) }
+        },
+        RegisteredTool(
+            ToolSpec(
+                "screen_capture",
+                "Take a REAL full-screen PNG (screencap through the aMiNo service) and return its on-device " +
+                    "path (/data/local/tmp, last 5 kept). The PNG is for the USER or future vision models — " +
+                    "this version has no OCR: to READ the screen yourself use screen_read instead.",
+                JSONObject().put("type", "object").put("properties", JSONObject())
+            ),
+            requiresShell = false
+        ) { _, _ ->
+            runBlocking { moe.shizuku.manager.agent.perception.ScreenPerception.capture() }
+        },
+
+        // ============ v1.3 SUPER AGENT: SKILL ENGINE (Explore -> Learn -> Store -> Reuse) ============
+        RegisteredTool(
+            ToolSpec(
+                "skill_save",
+                "Convert a JUST-SUCCEEDED multi-step procedure into a reusable SKILL (local JSON, survives " +
+                    "restarts). steps_json = JSON array where each step is ONE of: {\"type\":\"shell\",\"cmd\":\"...\"} " +
+                    "(Android HOST command via the aMiNo service), {\"type\":\"terminal\",\"cmd\":\"...\"} (inside " +
+                    "the agent default terminal env — Debian when installed, same validator as terminal_execute), " +
+                    "{\"type\":\"input\",\"action\":\"tap\",\"x\":0,\"y\":0} (any screen_act action), " +
+                    "{\"type\":\"perceive\",\"max_elements\":30}, or {\"type\":\"wait\",\"ms\":500}. Use {name} " +
+                    "placeholders for variable parts and declare them in params_hint. verify = an optional " +
+                    "host command that must exit 0 for the skill to count as SUCCESS. Step field \"optional\":true " +
+                    "continues past a failed step.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("title", JSONObject().put("type", "string"))
+                        .put("trigger", JSONObject().put("type", "string")
+                            .put("description", "WHEN this skill applies — used to match future requests"))
+                        .put("steps_json", JSONObject().put("type", "string")
+                            .put("description", "JSON array of steps (see description)"))
+                        .put("verify", JSONObject().put("type", "string"))
+                        .put("params_hint", JSONObject().put("type", "string")
+                            .put("description", "Documents the {placeholders}, e.g. '{package}: the app package'")))
+                    .put("required", org.json.JSONArray().put("title").put("steps_json"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            moe.shizuku.manager.agent.skills.SkillEngine.save(
+                ctx, args.optString("title", ""), args.optString("trigger", ""),
+                args.optString("steps_json", ""), args.optString("verify", "").ifBlank { null },
+                args.optString("params_hint", "").ifBlank { null })
+        },
+        RegisteredTool(
+            ToolSpec(
+                "skill_list",
+                "List your saved skills (id, title, trigger, success/fail counters). Check this BEFORE " +
+                    "re-doing a known task — a matching skill runs in ONE call.",
+                JSONObject().put("type", "object").put("properties", JSONObject())
+            ),
+            requiresShell = false
+        ) { ctx, _ ->
+            val all = moe.shizuku.manager.agent.skills.SkillEngine.all(ctx)
+            if (all.isEmpty()) AgentTools.ToolResult(true, "no skills saved yet — create one with skill_save when a multi-step task succeeds")
+            else AgentTools.ToolResult(true, all.joinToString("\n") { sk ->
+                "${sk.id} — ${sk.title} | when: ${sk.trigger.take(90)} | ok ${sk.success}/fail ${sk.fail}" +
+                    (sk.paramsHint?.let { " | params: $it" } ?: "")
+            })
+        },
+        RegisteredTool(
+            ToolSpec(
+                "skill_run",
+                "Run a saved skill end-to-end and get the FULL per-step log (rc + output tails). params = " +
+                    "object whose keys fill the skill's {placeholders}. Fail-fast: the first failing step " +
+                    "stops the run and is reported honestly; the verify command (if any) gates SUCCESS. " +
+                    "Call skill_list first if unsure of the id.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("id", JSONObject().put("type", "string"))
+                        .put("params", JSONObject().put("type", "object")
+                            .put("description", "Key/value substitutions for the skill's {placeholders}")))
+                    .put("required", org.json.JSONArray().put("id"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            runBlocking {
+                moe.shizuku.manager.agent.skills.SkillEngine.run(
+                    ctx, args.optString("id", ""), args.optJSONObject("params"))
+            }
+        },
+        RegisteredTool(
+            ToolSpec(
+                "skill_delete",
+                "Delete a saved skill by id (use when a skill is outdated or consistently failing).",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("id", JSONObject().put("type", "string")))
+                    .put("required", org.json.JSONArray().put("id"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            moe.shizuku.manager.agent.skills.SkillEngine.delete(ctx, args.optString("id", ""))
+        },
+
+        // ============ v1.3 SUPER AGENT: EXPERIENCE MEMORY (self-evolving) ============
+        RegisteredTool(
+            ToolSpec(
+                "experience_record",
+                "Record a finished task into your episodic memory: task (what was attempted), outcome " +
+                    "(success | fail), lessons (the concrete takeaway — right steps, gotchas, what NOT to " +
+                    "retry), optional skill_id if a skill captured it. Lessons are retrieved and injected " +
+                    "into your context on future similar requests — write what your future self needs. " +
+                    "Especially valuable for failures with workarounds.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("task", JSONObject().put("type", "string"))
+                        .put("outcome", JSONObject().put("type", "string")
+                            .put("description", "success | fail"))
+                        .put("lessons", JSONObject().put("type", "string"))
+                        .put("skill_id", JSONObject().put("type", "string")))
+                    .put("required", org.json.JSONArray().put("task").put("outcome").put("lessons"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            val id = moe.shizuku.manager.memory.MemoryRepository.addExperience(
+                ctx, args.optString("task", ""), args.optString("outcome", "fail"),
+                args.optString("lessons", ""), args.optString("skill_id", "").ifBlank { null })
+            if (id > 0) AgentTools.ToolResult(true, "experience #$id recorded — it will surface in future similar tasks")
+            else AgentTools.ToolResult(false, "could not record the experience (task/outcome/lessons required)")
+        },
+        RegisteredTool(
+            ToolSpec(
+                "experience_recall",
+                "Search your episodic memory for past task experiences (newest first, keyword match over " +
+                    "task + lessons). Use before starting a task you may have attempted before.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("query", JSONObject().put("type", "string"))
+                        .put("limit", JSONObject().put("type", "integer")))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            val list = moe.shizuku.manager.memory.MemoryRepository.experiences(
+                ctx, args.optString("query", "").takeIf { it.isNotBlank() }, args.optInt("limit", 5))
+            if (list.isEmpty()) AgentTools.ToolResult(true, "no matching experiences recorded yet")
+            else AgentTools.ToolResult(true, list.joinToString("\n") { e ->
+                "#${e.id} [${e.outcome}] ${e.task}\n  lesson: ${e.lessons.take(280)}" +
+                    (e.skillId?.let { "\n  skill: $it" } ?: "")
+            })
         }
     )
 

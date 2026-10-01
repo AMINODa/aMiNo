@@ -25,6 +25,12 @@ data class Conversation(
 data class UserMemoryItem(val id: Long, val content: String, val updatedAt: Long)
 data class KnowledgeItem(val id: Long, val title: String, val content: String, val createdAt: Long)
 
+/** v1.3: one episodic record — a task the agent ran, its outcome, and the lesson kept. */
+data class ExperienceItem(
+    val id: Long, val task: String, val outcome: String, val lessons: String,
+    val skillId: String?, val createdAt: Long
+)
+
 /**
  * Local-first memory repository. Everything reads/writes the on-device SQLite db.
  * Nothing here talks to the network.
@@ -166,6 +172,48 @@ object MemoryRepository {
 
     fun deleteKnowledge(context: Context, id: Long) {
         db(context).writableDatabase.delete(AminoDb.T_KNOWLEDGE, "id=?", arrayOf(id.toString()))
+    }
+
+    // ---------- Experience Memory (v1.3 — episodic, self-evolving) ----------
+
+    /**
+     * Records a finished task with its real outcome and the lesson learned.
+     * Keeps at most the newest 200 records — the journal never grows unbounded.
+     */
+    fun addExperience(
+        context: Context, task: String, outcome: String,
+        lessons: String, skillId: String? = null
+    ): Long {
+        val cv = ContentValues().apply {
+            put("task", task.trim().take(300))
+            put("outcome", if (outcome.equals("success", true)) "success" else "fail")
+            put("lessons", lessons.trim().take(600))
+            skillId?.takeIf { it.isNotBlank() }?.let { put("skill_id", it.take(80)) }
+            put("created_at", System.currentTimeMillis())
+        }
+        val w = db(context).writableDatabase
+        val id = w.insert(AminoDb.T_EXPERIENCES, null, cv)
+        w.execSQL(
+            "DELETE FROM ${AminoDb.T_EXPERIENCES} WHERE id NOT IN " +
+                "(SELECT id FROM ${AminoDb.T_EXPERIENCES} ORDER BY id DESC LIMIT 200)"
+        )
+        return id
+    }
+
+    /** Newest-first retrieval; LIKE over task+lessons (local, no embeddings by design). */
+    fun experiences(context: Context, query: String? = null, limit: Int = 5): List<ExperienceItem> {
+        val sel = if (!query.isNullOrBlank()) "(task LIKE ? OR lessons LIKE ?)" else null
+        val args = if (!query.isNullOrBlank()) arrayOf("%$query%", "%$query%") else null
+        return db(context).readableDatabase.query(
+            AminoDb.T_EXPERIENCES, null, sel, args, null, null, "id DESC", limit.coerceIn(1, 20).toString()
+        ).use { c ->
+            c.toList { r ->
+                ExperienceItem(
+                    r.getLong(0), r.getString(1), r.getString(2),
+                    r.getString(3) ?: "", r.getString(4)?.takeIf { it.isNotEmpty() }, r.getLong(5)
+                )
+            }
+        }
     }
 
     // ---------- Agent Working Memory ----------
