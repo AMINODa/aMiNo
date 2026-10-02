@@ -27,7 +27,7 @@ subprojects { subproject ->
 }
 
 def gitCommitCount = Integer.parseInt("git rev-list --count HEAD".execute([], project.rootDir).text.trim())
-def baseVersionName = "1.4.1"  // 1.4.1: HONEST-EXECUTION hotfix — skill_run on playbook skills (SKILL.md, zero steps) is REFUSED instead of fake-SUCCESS; zero-executed-step runs fail; anti-fabrication hard rule in agent identity
+def baseVersionName = "1.4.2"  // 1.4.2: PERMISSION CLARITY hotfix — grant_permissions gains a package= mode that pm-grants runtime permissions to an INSTALLED app with per-permission dumpsys verification and an honest existence-gate refusal for phantom packages (TikTok case); identity HARD RULES: resolve package ids from the system never from memory, grep exit=1 = valid not-installed verdict, am start Error type 3 = failure despite exit=0, launch apps with monkey instead of invented activity names, never imply a reported-not-installed app became usable
 def isBeta = project.hasProperty("beta")
 ext {
     versionCode = gitCommitCount

@@ -80,15 +80,21 @@ object ToolRegistry {
         RegisteredTool(
             ToolSpec(
                 "grant_permissions",
-                "Grant EVERY runtime permission Android allows to the ADB shell identity " +
-                    "(call log, SMS, contacts, phone state, location, camera, mic, storage) " +
-                    "and verify real access. Use when a content query or dump fails with " +
-                    "Permission Denial, or when the user asks to enable all permissions. Requires shell.",
-                JSONObject().put("type", "object").put("properties", JSONObject())
+                "Permissions tool with TWO distinct modes. (1) NO args: boost aMiNo's OWN shell identity " +
+                    "(call log, SMS, contacts, phone, location, camera, mic, storage) so YOUR content queries " +
+                    "work — nothing to do with other apps. (2) package=\"com.exact.name\": grant Android runtime " +
+                    "permissions to that INSTALLED app via pm grant, each VERIFIED with dumpsys (granted=true); " +
+                    "REFUSES honestly if the package is not installed — granting can never make a missing app " +
+                    "usable. NEVER use this to 'enable' an app: verify installation first with installed_apps " +
+                    "or pm list. Requires shell.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("package", JSONObject().put("type", "string")
+                        .put("description", "Optional exact package id to grant TO (mode 2). " +
+                            "Omit to boost aMiNo's own shell identity (mode 1).")))
             ),
             requiresShell = true
-        ) { ctx, _ ->
-            AgentTools.grantShellPermissions(ctx)
+        ) { ctx, args ->
+            AgentTools.grantAppPermissions(ctx, args.optString("package", ""))
         },
         RegisteredTool(
             ToolSpec(

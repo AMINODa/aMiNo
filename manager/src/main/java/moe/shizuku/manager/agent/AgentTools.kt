@@ -180,6 +180,65 @@ object AgentTools {
     }
 
     /**
+     * v1.4.2 — grant Android runtime permissions to a SPECIFIC INSTALLED app via
+     * the shell (pm grant), with an EXISTENCE GATE and per-permission VERIFICATION
+     * (dumpsys granted=true). Refuses honestly when the package is not installed —
+     * a missing app can never be "made usable" by granting anything.
+     */
+    fun grantAppPermissions(context: Context, pkgRaw: String): ToolResult {
+        val pkg = pkgRaw.trim()
+        if (pkg.isEmpty()) return grantShellPermissions(context)
+        if (!Regex("^[A-Za-z0-9_.]+$").matches(pkg))
+            return ToolResult(false, "invalid package id '$pkg' — use the exact id from pm list / installed_apps")
+        val st = ShellSession.state.value
+        if (st !is ShellSession.ConnectionState.Connected) {
+            return ToolResult(false, "shell_not_connected: open the Shell page / pair first")
+        }
+        // 1) existence gate — never grant into a phantom package
+        val chk = shellCommand(context, "pm list packages $pkg")
+        if (!chk.output.contains("package:$pkg")) {
+            return ToolResult(
+                false,
+                "REFUSED — package '$pkg' is NOT installed on this device (pm list found nothing). " +
+                        "Nothing was granted — installing permissions cannot make a missing app usable. " +
+                        "Install the app first, then ask again."
+            )
+        }
+        val perms = listOf(
+            "android.permission.READ_CALL_LOG",
+            "android.permission.READ_CONTACTS",
+            "android.permission.READ_SMS",
+            "android.permission.READ_PHONE_STATE",
+            "android.permission.CALL_PHONE",
+            "android.permission.ACCESS_FINE_LOCATION",
+            "android.permission.ACCESS_COARSE_LOCATION",
+            "android.permission.CAMERA",
+            "android.permission.RECORD_AUDIO",
+            "android.permission.POST_NOTIFICATIONS"
+        )
+        val lines = ArrayList<String>()
+        var granted = 0
+        for (p in perms) {
+            val g = shellCommand(context, "pm grant $pkg $p")
+            val v = shellCommand(context, "dumpsys package $pkg | grep '$p' | head -1")
+            val ok = g.ok && v.output.contains("granted=true")
+            if (ok) {
+                granted++
+                lines.add("granted+verified: ${p.substringAfterLast('.')}")
+            } else {
+                val why = if (!g.ok) g.output.lineSequence().firstOrNull()?.take(110) ?: "pm grant failed"
+                          else "present but not granted=true (install-time or not requestable)"
+                lines.add("not grantable: ${p.substringAfterLast('.')} — $why")
+            }
+        }
+        val summary = "permissions for $pkg: $granted/${perms.size} granted+verified\n" +
+                lines.joinToString("\n") +
+                "\nNOTE: some permissions are normal-permission (auto-granted at install) or restricted " +
+                "by the system — 'not grantable' is an honest report, not a malfunction."
+        return ToolResult(granted > 0, summary.take(3500))
+    }
+
+    /**
      * Read the user's own data through the APP identity (ContentResolver) instead
      * of the shell — needs the matching runtime permission granted from the
      * Permissions page. kinds: calls | sms | contacts.
