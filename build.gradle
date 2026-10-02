@@ -27,7 +27,7 @@ subprojects { subproject ->
 }
 
 def gitCommitCount = Integer.parseInt("git rev-list --count HEAD".execute([], project.rootDir).text.trim())
-def baseVersionName = "1.4.2"  // 1.4.2: PERMISSION CLARITY hotfix — grant_permissions gains a package= mode that pm-grants runtime permissions to an INSTALLED app with per-permission dumpsys verification and an honest existence-gate refusal for phantom packages (TikTok case); identity HARD RULES: resolve package ids from the system never from memory, grep exit=1 = valid not-installed verdict, am start Error type 3 = failure despite exit=0, launch apps with monkey instead of invented activity names, never imply a reported-not-installed app became usable
+def baseVersionName = "1.5.0-alpha"  // 1.5.0-alpha (branch feature/sharingan-live): Sharingan Live — accessibility button → floating panel (TYPE_ACCESSIBILITY_OVERLAY), Record ⏺ 1fps screencap with on-device md5 change skipping + uiautomator text, Execute ⚡ stages [SHARINGAN CONTEXT] (real frames only — TRACE TRUTH) into the next agent message; main stays 1.4.2 until merge
 def isBeta = project.hasProperty("beta")
 ext {
     versionCode = gitCommitCount

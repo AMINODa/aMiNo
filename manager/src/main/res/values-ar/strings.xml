@@ -645,4 +645,18 @@
     <string name="skill_d_stats_val">نجاح %1$d / فشل %2$d</string>
     <string name="skill_d_instructions">التعليمات</string>
 
+    <!-- aMiNo 1.5.0-alpha — Sharingan Live -->
+    <string name="sharingan_service_label">aMiNo شارينغان لايف</string>
+    <string name="sharingan_service_description">لوحة تحكم شارينغان لايف: بعد التفعيل يفتح زر إمكانية الوصول لوحة عائمة فيها «نفّذ» و«تسجيل» — تلتقط سياق الشاشة الحي (إطارات تُحوَّل إلى نص) وتسلّمه لوكيل aMiNo ليعمل بعيون مفتوحة. البكسلات تبقى على الجهاز، ويُستخدم النص المستخرج فقط.</string>
+    <string name="sharingan_btn_execute">نفّذ ⚡</string>
+    <string name="sharingan_btn_record">تسجيل ⏺</string>
+    <string name="sharingan_btn_stop">إيقاف ⏹</string>
+    <string name="sharingan_status_ready">جاهز</string>
+    <string name="sharingan_status_recording">تسجيل %1$d إطار (%2$d متغيّر)</string>
+    <string name="sharingan_status_offline">الخدمة غير موصولة — شغّل خدمة aMiNo أولاً</string>
+    <string name="sharingan_toast_offline">خدمة aMiNo غير موصولة — شغّلها أولاً (القائمة ← Adb)</string>
+    <string name="sharingan_toast_record_started">بدأ التسجيل (٥ دقائق كحد أقصى)</string>
+    <string name="sharingan_toast_record_stopped">توقف التسجيل — السياق جاهز لأمرك القادم</string>
+    <string name="sharingan_context_ready">👁️ سياق شارينغان جاهز — اكتب أمرك</string>
+
 </resources>

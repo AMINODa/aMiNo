@@ -82,6 +82,14 @@ object AgentIdentity {
                     (if (p.hasUnapprovedScripts) " — ⚠has UNAPPROVED scripts" else ""))
             }
         }
+        // aMiNo 1.5.0-alpha — Sharingan Live: staged visual context from the
+        // floating panel (read-once). Built ONLY from real captured frames;
+        // TRACE TRUTH: cite trace_id, verify with screen_read before acting.
+        val sharinganTraceId = moe.shizuku.manager.sharingan.SharinganContextHub.consume()
+        if (sharinganTraceId != null) {
+            val block = moe.shizuku.manager.sharingan.TraceStore.buildContextBlock(context, sharinganTraceId)
+            if (block.isNotBlank()) sb.appendLine(block)
+        }
         return sb.toString().trim()
     }
 }

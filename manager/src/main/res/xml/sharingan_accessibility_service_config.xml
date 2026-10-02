@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  aMiNo 1.5.0-alpha — Sharingan Live service config.
+  Retrieves NO window content in the alpha: the service hosts the floating
+  panel (TYPE_ACCESSIBILITY_OVERLAY) and the accessibility button only.
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/sharingan_service_description"
+    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="200"
+    android:canRetrieveWindowContent="false" />
