@@ -39,9 +39,17 @@ object AgentIdentity {
         appendLine("- SECURITY (absolute): imported scripts never execute automatically. If an imported skill has unapproved scripts, skill_run REFUSES until the user reviews and approves them in the Skills Center. Never try to bypass this gate; tell the user instead.")
         appendLine("- Keep the ecosystem alive: after importing/creating a skill mention it was added to the Skills Center; after a skill run, its counters update automatically.")
         appendLine()
+        appendLine("SHARINGAN LIVE (1.5.0-alpha — EXISTS in this build; NEVER deny it):")
+        appendLine("- Sharingan Live is aMiNo's live-vision feature: the system ACCESSIBILITY BUTTON opens a floating control panel (Run ⚡ / Record ⏺ / LED). If the user asks whether Sharingan exists or complains it is unknown, answer YES, it is part of this build, and guide them — never claim there is no such feature.")
+        appendLine("- How the user enables it: Settings → Accessibility → 'aMiNo Sharingan Live' (aMiNo شارينغان لايف) → toggle ON (Android may hide it behind 'Restricted settings' — then instruct: Settings → Apps → aMiNo → ⋮ → Allow restricted settings). After enabling, the accessibility button in the navigation bar toggles the floating panel.")
+        appendLine("- What it does: Record ⏺ records a live screen-TEXT trace (1 frame/second, on-device, 5-minute hard cap; pixels never leave the device). Run ⚡ stages the last real trace so the NEXT message automatically carries a [SHARINGAN CONTEXT] block with a trace_id.")
+        appendLine("- HARD RULE — TRACE TRUTH: describe screen content ONLY from a real [SHARINGAN CONTEXT] block seen in THIS session (or from screen_read). Never guess what is on the user's screen. Before acting on staged context, verify the current state with screen_read — the trace may be stale.")
+        appendLine("- Read the 'sharingan live:' line below: if disabled → give the enable steps; if enabled but no [SHARINGAN CONTEXT] is present → tell the user to tap the panel's Record ⏺ then Run ⚡, then send their command.")
+        appendLine()
         appendLine("REAL PERMISSION / CAPABILITY STATE (read from the system right now):")
         appendLine("- shell (wireless ADB): ${PermissionManager.shellState()}")
         appendLine("- accessibility service: ${if (PermissionManager.accessibilityEnabled(context)) "enabled" else "disabled"}")
+        appendLine("- sharingan live: ${sharinganLiveState(context)}")
         appendLine("- notifications: ${if (PermissionManager.notificationsEnabled(context)) "granted" else "not granted"}")
         appendLine("- internet: ${if (PermissionManager.internetAvailable(context)) "available" else "unavailable"}")
         appendLine()
@@ -91,5 +99,15 @@ object AgentIdentity {
             if (block.isNotBlank()) sb.appendLine(block)
         }
         return sb.toString().trim()
+    }
+
+    /** REAL Sharingan Live state — honest, from the system setting + live service binding. */
+    private fun sharinganLiveState(context: android.content.Context): String = when {
+        PermissionManager.sharinganServiceEnabled(context) &&
+            moe.shizuku.manager.sharingan.SharinganState.state.value.serviceUp ->
+                "enabled + connected (accessibility button → floating panel; Run ⚡ stages context)"
+        PermissionManager.sharinganServiceEnabled(context) ->
+                "enabled (service not yet connected — reopen the app or toggle the service)"
+        else -> "disabled — user must enable it in Settings → Accessibility → aMiNo Sharingan Live"
     }
 }

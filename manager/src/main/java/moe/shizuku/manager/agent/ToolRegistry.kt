@@ -739,6 +739,18 @@ object PermissionManager {
         return enabled.contains(context.packageName)
     }
 
+    /** TRUE only when the SHARINGAN service itself (not just any aMiNo service) is enabled. */
+    fun sharinganServiceEnabled(context: Context): Boolean {
+        val enabled = Settings.Secure.getString(
+            context.contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+        ) ?: return false
+        if (enabled.contains("SharinganAccessibilityService")) return true
+        val comp = android.content.ComponentName(
+            context, moe.shizuku.manager.sharingan.SharinganAccessibilityService::class.java
+        )
+        return enabled.contains(comp.flattenToString())
+    }
+
     fun notificationsEnabled(context: Context): Boolean =
         androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
 
