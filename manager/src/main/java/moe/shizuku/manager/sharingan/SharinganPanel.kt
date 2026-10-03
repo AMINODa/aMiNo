@@ -304,6 +304,13 @@ object SharinganPanel {
         try { windowManager?.removeView(v) } catch (_: Throwable) {}
         rootView = null; led = null; recordBtn = null; statusLine = null; input = null
         SharinganState.update { it.copy(panelVisible = false) }
+        // r1414 — the ONE button always comes back: the moment the panel goes
+        // away (auto-hide, toggle), the eye bubble returns so the user is
+        // never left without an on-screen entry point. While the service is
+        // shutting down, instance is already null → no re-show there.
+        SharinganAccessibilityService.instance?.let {
+            try { SharinganBubble.show(it) } catch (_: Throwable) {}
+        }
     }
 
     fun toggle(service: android.content.Context) {
@@ -341,9 +348,19 @@ object SharinganPanel {
                     val f = ScreenCapture.capture() ?: return@run null
                     runCatching { TraceStore.snapshot(service, f) }.getOrNull()
                 }
-            if (id != null) SharinganContextHub.stage(id)
+            val withContext = id != null
+            if (withContext) SharinganContextHub.stage(id!!)
             launch(Dispatchers.Main) {
-                Toast.makeText(service, service.getString(R.string.sharingan_toast_sent), Toast.LENGTH_SHORT).show()
+                // r1414: HONEST toast — say whether the screen context was
+                // really attached (TRACE TRUTH applies to UI too).
+                Toast.makeText(
+                    service,
+                    service.getString(
+                        if (withContext) R.string.sharingan_toast_sent
+                        else R.string.sharingan_toast_sent_nocontext
+                    ),
+                    Toast.LENGTH_SHORT
+                ).show()
                 val i = Intent(service, AgentHomeActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 service.startActivity(i)

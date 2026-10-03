@@ -666,6 +666,11 @@
     <string name="sharingan_btn_later">لاحقاً</string>
     <string name="sharingan_hint_command">اكتب أمرك… (يُرفق سياق الشاشة تلقائياً)</string>
     <string name="sharingan_toast_sent">أُرسل مع سياق الشاشة — aMiNo يجيب في المحادثة</string>
+    <string name="sharingan_toast_sent_nocontext">أُرسل بدون سياق الشاشة — التقاط الشاشة غير متاح الآن</string>
     <string name="adb_pairing_service_label">aMiNo التقاط إقران ADB (للاتصال اللاسلكي)</string>
+
+    <!-- aMiNo 1.5.0-alpha r1414 — the ONE button (floating eye bubble) -->
+    <string name="sharingan_bubble_cd">شارينغان لايف — اضغط لفتح اللوحة</string>
+    <string name="sharingan_bubble_hint">هذه العين هي زر شارينغان — اضغطها لفتح اللوحة، واسحبها لتحريكها. لإزالتها: الإعدادات ← إمكانية الوصول ← أوقف «aMiNo شارينغان لايف».</string>
 
 </resources>

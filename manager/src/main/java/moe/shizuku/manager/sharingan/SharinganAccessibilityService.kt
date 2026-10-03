@@ -44,6 +44,10 @@ class SharinganAccessibilityService : AccessibilityService() {
             .registerAccessibilityButtonCallback(cb, Handler(Looper.getMainLooper()))
         SharinganState.update { it.copy(serviceUp = true) }
         instance = this
+        // r1414 — THE ONE BUTTON: the floating eye appears as soon as the
+        // service is up, over any app. No nav-bar button, no system chooser,
+        // no extra settings — one tap on it opens the command panel.
+        try { SharinganBubble.show(this) } catch (_: Throwable) {}
     }
 
     // We do not consume events in the alpha (canRetrieveWindowContent=false);
@@ -55,6 +59,7 @@ class SharinganAccessibilityService : AccessibilityService() {
         SharinganState.update { it.copy(serviceUp = false) }
         if (instance === this) instance = null
         SharinganPanel.hide()
+        SharinganBubble.hide()
         try {
             buttonCallback?.let { getAccessibilityButtonController().unregisterAccessibilityButtonCallback(it) }
         } catch (_: Throwable) {}
@@ -66,6 +71,7 @@ class SharinganAccessibilityService : AccessibilityService() {
         SharinganState.update { it.copy(serviceUp = false) }
         if (instance === this) instance = null
         SharinganPanel.hide()
+        SharinganBubble.hide()
         super.onDestroy()
     }
 

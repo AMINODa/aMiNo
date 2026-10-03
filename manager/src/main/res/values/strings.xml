@@ -692,6 +692,11 @@
     <string name="sharingan_btn_later">Later</string>
     <string name="sharingan_hint_command">Type your command… (screen context attached)</string>
     <string name="sharingan_toast_sent">Sent with screen context — aMiNo is answering in chat</string>
+    <string name="sharingan_toast_sent_nocontext">Sent WITHOUT screen context — screen capture is unavailable right now</string>
     <string name="adb_pairing_service_label">aMiNo ADB pairing capture (wireless shell setup)</string>
+
+    <!-- aMiNo 1.5.0-alpha r1414 — the ONE button (floating eye bubble) -->
+    <string name="sharingan_bubble_cd">Sharingan Live — tap to open the panel</string>
+    <string name="sharingan_bubble_hint">This eye is Sharingan\'s button — tap it to open the panel, drag to move it. To remove it: Settings → Accessibility → turn off \"aMiNo Sharingan Live\".</string>
 
 </resources>
