@@ -48,6 +48,10 @@ class AdbClient(private val host: String, private val port: Int, private val key
         socket.connect(address, 5000)
 
         socket.tcpNoDelay = true
+        // r1416: read timeout — a silent adbd (or a never-ending shell command)
+        // used to block command()/read() FOREVER, locking the agent busy with
+        // no visible outcome. 20s of stream silence = honest failure instead.
+        socket.soTimeout = 20_000
         plainInputStream = DataInputStream(socket.getInputStream())
         plainOutputStream = DataOutputStream(socket.getOutputStream())
 

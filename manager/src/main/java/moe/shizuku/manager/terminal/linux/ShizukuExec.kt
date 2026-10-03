@@ -96,6 +96,25 @@ object ShizukuExec {
         val errT = Thread {
             try { p.stderr.copyTo(errBuf) } catch (_: Throwable) {}
         }.apply { isDaemon = true; start() }
+        // r1416 TIMEOUT FIX (was dead code — a wedged service binder or a
+        // never-exiting child blocked the read loop FOREVER, which locked the
+        // agent busy and looked exactly like "Sharingan does nothing").
+        // Watchdog: poll isAlive() (works on every API), destroy() on expiry —
+        // destroy closes the pipes, which unblocks the read loop below.
+        var timedOut = false
+        val watchdog = Thread {
+            val deadline = System.currentTimeMillis() + timeoutMs
+            try {
+                while (System.currentTimeMillis() < deadline) {
+                    if (!p.isAlive) return@Thread
+                    Thread.sleep(100)
+                }
+            } catch (_: Throwable) { return@Thread }
+            if (p.isAlive) {
+                timedOut = true
+                try { p.destroy() } catch (_: Throwable) {}
+            }
+        }.apply { isDaemon = true; start() }
         val out = StringBuilder()
         var rc = -1
         try {
@@ -109,10 +128,15 @@ object ShizukuExec {
         } catch (e: Throwable) {
             Log.w(TAG, "oneShot io failed", e)
         } finally {
+            try { watchdog.join(2000) } catch (_: Throwable) {}
             try { errT.join(1000) } catch (_: Throwable) {}
-            p.destroy()
+            try { p.destroy() } catch (_: Throwable) {}
         }
-        val text = (out.toString() + errBuf.toString()).trim()
+        var text = (out.toString() + errBuf.toString()).trim()
+        if (timedOut) {
+            text = "timeout_after_${timeoutMs}ms (partial output kept): " + text.take(2000)
+            rc = -1
+        }
         if (rc != 0 && text.isNotBlank()) Log.w(TAG, "oneShot rc=$rc: ${text.take(200)}")
         Shot(rc, text)
     }

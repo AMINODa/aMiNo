@@ -705,7 +705,15 @@
     <string name="sharingan_task_done_title">aMiNo finished your command ✅</string>
     <string name="sharingan_task_err_title">aMiNo could not finish — tap for details</string>
     <string name="sharingan_task_busy">aMiNo is already running a task — wait for it to finish, then send again</string>
-    <string name="sharingan_task_no_notif">Result will appear in the aMiNo chat — notifications are currently off</string>
+    <string name="sharingan_task_no_notif">Notifications are off — the result appears HERE in the panel (and in the aMiNo chat)</string>
     <string name="sharingan_toast_bg_sent">Running in the background with screen context — you\'ll get a notification with the result</string>
+
+    <!-- aMiNo 1.5.0-alpha r1416 — honest pre-flight + in-panel results -->
+    <string name="sharingan_panel_hint">Write a command and press ⚡ — it runs in the background; live progress and the result appear right here.</string>
+    <string name="sharingan_status_thinking">Thinking…</string>
+    <string name="sharingan_status_exec">Executing: %1$s</string>
+    <string name="sharingan_status_verifying">Verifying the result…</string>
+    <string name="sharingan_no_apikey">No API key — open aMiNo → Settings → API keys first</string>
+    <string name="sharingan_shell_down">shell disconnected — device actions need it (open aMiNo → Adb)</string>
 
 </resources>

@@ -46,9 +46,18 @@ object AgentTools {
                 else out.append(line).append('\n')
             }
             val clean = out.toString().trimEnd('\n').take(4000)
-            val ok = rc == 0 || rc == null // adb shell may not print rc for busybox-less output
+            // r1416 HONESTY FIX: rc==null used to count as SUCCESS — but the
+            // `echo __AMINO_RC_$?` marker ALWAYS prints for a completed shell
+            // line, so a missing marker means the stream was cut short
+            // (timeout/disconnect). That is a FAILURE and must be shown as one;
+            // pretending rc==0 let failed actions display ✓.
+            val ok = rc == 0
             Log.d("AgentTools", "shell rc=$rc len=${clean.length}")
-            ToolResult(ok, if (clean.isEmpty()) "(no output, exit=$rc)" else clean)
+            ToolResult(ok, when {
+                clean.isEmpty() && rc == null -> "(no output, no exit marker — stream cut short)"
+                clean.isEmpty() -> "(no output, exit=$rc)"
+                else -> clean
+            })
         } catch (e: Exception) {
             ToolResult(false, "shell_error: ${e.message ?: e.javaClass.simpleName}")
         }

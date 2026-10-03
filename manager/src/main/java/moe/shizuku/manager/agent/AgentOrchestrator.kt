@@ -185,6 +185,77 @@ object AgentOrchestrator {
         }
     }
 
+    /**
+     * r1416 — the Sharingan panel's DEDICATED entry (user report: commands
+     * died silently; expert audit found staging ran on the PANEL's scope so
+     * auto-hide could cancel a send mid-capture, and dropped sends were
+     * invisible).
+     *
+     * Differences from [send]:
+     *  - Returns FALSE (caller shows an honest toast) when busy or not
+     *    configured — a command is NEVER accepted then silently dropped.
+     *  - Context staging runs HERE, on the orchestrator's own scope: hiding
+     *    the panel can no longer cancel it (F4).
+     *  - try/finally GUARANTEES a terminal SharinganTaskNotifier.taskDone —
+     *    even if persistence or anything before runLoop crashes (F7). The
+     *    posted text is the REAL last assistant row, verbatim.
+     */
+    fun sendSharingan(context: Context, userText: String): Boolean {
+        init(context)
+        if (_state.value.busy) return false
+        val text = userText.trim()
+        if (text.isEmpty()) return false
+        if (!providerReady(context)) {
+            _state.value = _state.value.copy(status = AgentStatus.NotConfigured)
+            return false
+        }
+        cancelled = false
+        scope.launch {
+            val ctx = appContext ?: return@launch
+            // Stage REAL screen context inside THIS scope (TRACE TRUTH: last
+            // trace or a fresh live snapshot — never invented). Staged moments
+            // before the loop consumes it, so a concurrent chat send can no
+            // longer steal it in practice.
+            val id = SharinganState.state.value.lastTraceId
+                ?.takeIf { moe.shizuku.manager.sharingan.TraceStore.exists(ctx, it) }
+                ?: moe.shizuku.manager.sharingan.ScreenCapture.capture()?.let {
+                    runCatching { moe.shizuku.manager.sharingan.TraceStore.snapshot(ctx, it) }.getOrNull()
+                }
+            if (id != null) moe.shizuku.manager.sharingan.SharinganContextHub.stage(id)
+
+            var convId = -1L
+            try {
+                convId = _state.value.conversationId
+                if (convId <= 0) convId = MemoryRepository.createConversation(ctx, text)
+                val msgs = MemoryRepository.messages(ctx, convId)
+                if (msgs.none { it.role == "user" }) MemoryRepository.touchConversation(ctx, convId, text)
+                MemoryRepository.addMessage(ctx, convId, "user", text)
+                MemoryRepository.saveWorking(ctx, convId, goal = text, stepsJson = "[]", status = "running")
+                publish(ctx, convId, AgentStatus.Thinking)
+                moe.shizuku.manager.sharingan.SharinganTaskNotifier.taskStarted(ctx, text)
+
+                runLoop(ctx, convId, text)
+            } catch (t: Throwable) {
+                Log.e(TAG, "sharingan task crashed", t)
+                runCatching {
+                    MemoryRepository.addMessage(ctx, convId, "assistant",
+                        "⚠️ " + (t.message ?: t.javaClass.simpleName))
+                }
+            } finally {
+                // EVERY path ends visibly: answer, honest error, cancel note —
+                // or this explicit fallback when no assistant row exists at all.
+                val last = if (convId > 0) MemoryRepository.messages(ctx, convId)
+                    .lastOrNull { it.role == "assistant" && it.toolName == null } else null
+                moe.shizuku.manager.sharingan.SharinganTaskNotifier.taskDone(
+                    ctx,
+                    last?.content?.takeIf { it.isNotBlank() }
+                        ?: "⚠️ The task ended without a result row (internal error) — reopen the chat to check the conversation."
+                )
+            }
+        }
+        return true
+    }
+
     private suspend fun runLoop(context: Context, convId: Long, userText: String) {
         val provider: LlmProvider = when (ApiKeysStore.provider(context)) {
             ApiKeysStore.PROVIDER_CLOUDFLARE -> CloudflareProvider

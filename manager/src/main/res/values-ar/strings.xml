@@ -679,7 +679,15 @@
     <string name="sharingan_task_done_title">aMiNo أنهى أمرك ✅</string>
     <string name="sharingan_task_err_title">aMiNo لم يُكمل الأمر — اضغط للتفاصيل</string>
     <string name="sharingan_task_busy">aMiNo ينفّذ مهمة أخرى — انتظر انتهاءها ثم أعد الإرسال</string>
-    <string name="sharingan_task_no_notif">النتيجة ستظهر في محادثة aMiNo — الإشعارات معطّلة حالياً</string>
+    <string name="sharingan_task_no_notif">الإشعارات معطّلة — الناتج سيظهر هنا في اللوحة (وفي محادثة aMiNo)</string>
     <string name="sharingan_toast_bg_sent">التنفيذ جارٍ في الخلفية مع سياق الشاشة — ستصلك إشعار بالنتيجة</string>
+
+    <!-- aMiNo 1.5.0-alpha r1416 — honest pre-flight + in-panel results -->
+    <string name="sharingan_panel_hint">اكتب أمرك واضغط ⚡ — يُنفَّذ في الخلفية؛ التقدّم والناتج يظهران هنا مباشرة.</string>
+    <string name="sharingan_status_thinking">يفكّر…</string>
+    <string name="sharingan_status_exec">ينفّذ: %1$s</string>
+    <string name="sharingan_status_verifying">يتحقق من الناتج…</string>
+    <string name="sharingan_no_apikey">لا يوجد مفتاح API — افتح aMiNo ← الإعدادات ← مفاتيح API أولاً</string>
+    <string name="sharingan_shell_down">الـshell غير موصول — أفعال الجهاز تحتاجه (افتح aMiNo ← Adb)</string>
 
 </resources>

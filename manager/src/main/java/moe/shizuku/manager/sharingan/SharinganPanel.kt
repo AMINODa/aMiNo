@@ -25,6 +25,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import moe.shizuku.manager.R
 import moe.shizuku.manager.agent.AgentOrchestrator
+import moe.shizuku.manager.agent.AgentStatus
+import moe.shizuku.manager.keys.ApiKeysStore
+import moe.shizuku.manager.shell.ShellSession
 
 /**
  * The Sharingan Live floating panel v2 (PLAN_aMiNo2.md §2.2, r1413 redesign
@@ -54,11 +57,17 @@ object SharinganPanel {
     private var recordBtn: TextView? = null
     private var statusLine: TextView? = null
     private var input: EditText? = null
+    // r1416: the panel SHOWS the result itself — the expert audit found the
+    // outcome channel was notifications-only; with notifications off the
+    // command succeeded and the user saw nothing anywhere (F2).
+    private var resultView: TextView? = null
+    private var hintView: TextView? = null
 
     private val autoHideRunnable: Runnable = object : Runnable {
         override fun run() {
-            if (input?.hasFocus() == true) {
-                // user is typing — reschedule instead of stealing the panel away
+            // r1416: a running background task ALSO postpones the hide — the
+            // user must be able to come back and read the result HERE.
+            if (input?.hasFocus() == true || AgentOrchestrator.state.value.busy) {
                 mainHandler.postDelayed(this, AUTO_HIDE_MS)
                 return
             }
@@ -158,6 +167,18 @@ object SharinganPanel {
         row2.addView(sendBtn)
         panel.addView(row2)
 
+        // -- r1416: HOW IT WORKS hint (user: "ولا أفهم كيف يعمل") ----------------
+        val hint = TextView(service).apply {
+            text = service.getString(R.string.sharingan_panel_hint)
+            setTextColor(Color.parseColor("#78909C"))
+            textSize = 11f
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(6, panel) }
+        }
+        hintView = hint
+        panel.addView(hint)
+
         // ── Row 3: Record ⏺ / Stop + context-only Execute (kept compact) ─────
         val row3 = LinearLayout(service).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -197,6 +218,19 @@ object SharinganPanel {
         }
         statusLine = status
         panel.addView(status)
+
+        // -- r1416: RESULT AREA — the agent's real final answer, in the panel --
+        val result = TextView(service).apply {
+            setTextColor(Color.parseColor("#CFD8DC"))
+            textSize = 12f
+            maxLines = 8
+            visibility = View.GONE
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(6, panel) }
+        }
+        resultView = result
+        panel.addView(result)
 
         // ── window params (top-right start) ──────────────────────────────────
         // r1413: NOT_FOCUSABLE is GONE — the input must be typeable. The panel
@@ -277,14 +311,49 @@ object SharinganPanel {
                     recBtn.text = service.getString(
                         if (s.recording) R.string.sharingan_btn_stop else R.string.sharingan_btn_record
                     )
-                    statusLine?.text = when {
-                        !s.serviceUp -> service.getString(R.string.sharingan_status_offline)
-                        s.recording -> service.getString(
-                            R.string.sharingan_status_recording,
-                            s.framesCaptured, s.framesChanged
-                        )
-                        s.lastError != null -> s.lastError
-                        else -> service.getString(R.string.sharingan_status_ready)
+                    // r1416: recording/offline/error keep this line; the IDLE
+                    // line is owned by the agent collector below (shell note).
+                    if (!(s.serviceUp && !s.recording && s.lastError == null &&
+                        !AgentOrchestrator.state.value.busy)) {
+                        statusLine?.text = when {
+                            !s.serviceUp -> service.getString(R.string.sharingan_status_offline)
+                            s.recording -> service.getString(
+                                R.string.sharingan_status_recording,
+                                s.framesCaptured, s.framesChanged
+                            )
+                            else -> s.lastError ?: service.getString(R.string.sharingan_status_ready)
+                        }
+                    }
+                }
+            }
+            // r1416: agent state → live progress + the REAL result, in-panel
+            // (audit F2: notifications-only outcomes were invisible when
+            // notifications were disabled — now the panel shows everything).
+            cs.launch {
+                AgentOrchestrator.state.collect { s ->
+                    if (s.busy) {
+                        statusLine?.text = when (val st = s.status) {
+                            is AgentStatus.ExecutingTool ->
+                                service.getString(R.string.sharingan_status_exec, st.name)
+                            is AgentStatus.Verifying ->
+                                service.getString(R.string.sharingan_status_verifying)
+                            else -> service.getString(R.string.sharingan_status_thinking)
+                        }
+                    } else if (s.status is AgentStatus.NotConfigured) {
+                        statusLine?.text = service.getString(R.string.sharingan_no_apikey)
+                    } else {
+                        val shellOk = ShellSession.state.value is ShellSession.ConnectionState.Connected
+                        statusLine?.text = service.getString(R.string.sharingan_status_ready) +
+                            if (!shellOk) " • " + service.getString(R.string.sharingan_shell_down) else ""
+                    }
+                    val last = s.items.lastOrNull {
+                        it.role == "assistant" && it.toolName == null && it.text.isNotBlank()
+                    }
+                    if (last != null) {
+                        hintView?.visibility = View.GONE
+                        resultView?.visibility = View.VISIBLE
+                        resultView?.text = last.text.take(600) +
+                            if (last.text.length > 600) "…" else ""
                     }
                 }
             }
@@ -301,6 +370,7 @@ object SharinganPanel {
         mainHandler.removeCallbacks(autoHideRunnable)
         try { windowManager?.removeView(v) } catch (_: Throwable) {}
         rootView = null; led = null; recordBtn = null; statusLine = null; input = null
+        resultView = null; hintView = null
         SharinganState.update { it.copy(panelVisible = false) }
         // r1414 — the ONE button always comes back: the moment the panel goes
         // away (auto-hide, toggle), the eye bubble returns so the user is
@@ -330,47 +400,46 @@ object SharinganPanel {
     }
 
     /**
-     * ⚡ SEND (r1415 — FULLY BACKGROUND):
-     * stage a REAL screen context (last trace or live snapshot — TRACE TRUTH:
-     * nothing invented), then hand the typed text to the agent which executes
-     * in the BACKGROUND — the chat activity is NEVER opened and the user stays
-     * in whatever app they were using; the REAL final answer arrives as a
-     * notification. Empty input is ignored; a busy agent gets an honest
-     * "wait" toast instead of silently dropping the command.
+     * ⚡ SEND (r1416 — honest pre-flight, nothing silent):
+     * expert audit found two silent deaths: no-API-key and busy dropped the
+     * command AFTER the optimistic toast; staging ran on the panel's scope so
+     * auto-hide could cancel a send mid-capture. Now: pre-flight REJECTS
+     * visibly, and [AgentOrchestrator.sendSharingan] owns staging + task
+     * notifications + a guaranteed terminal result. The outcome is visible
+     * THREE ways: live status + result area HERE, notification, and the chat.
      */
     private fun sendCommand(service: android.content.Context) {
         val text = input?.text?.toString()?.trim().orEmpty()
         if (text.isEmpty()) return
+        if (!ApiKeysStore.hasKey(service)) {
+            statusLine?.text = service.getString(R.string.sharingan_no_apikey)
+            Toast.makeText(service, service.getString(R.string.sharingan_no_apikey), Toast.LENGTH_LONG).show()
+            return
+        }
         if (AgentOrchestrator.state.value.busy) {
             Toast.makeText(service, service.getString(R.string.sharingan_task_busy), Toast.LENGTH_LONG).show()
             return
         }
         input?.setText("")
-        scope?.launch(Dispatchers.IO) {
-            val id = SharinganState.state.value.lastTraceId
-                ?.takeIf { TraceStore.exists(service, it) }
-                ?: run {
-                    val f = ScreenCapture.capture() ?: return@run null
-                    runCatching { TraceStore.snapshot(service, f) }.getOrNull()
-                }
-            val withContext = id != null
-            if (withContext) SharinganContextHub.stage(id!!)
-            launch(Dispatchers.Main) {
-                // r1415: honest toast — say whether the screen context was
-                // really attached AND where the result will land (TRACE TRUTH
-                // applies to UI too).
-                val msg = when {
-                    withContext -> service.getString(R.string.sharingan_toast_bg_sent)
-                    androidx.core.app.NotificationManagerCompat.from(service).areNotificationsEnabled() ->
-                        service.getString(R.string.sharingan_toast_sent_nocontext)
-                    else -> service.getString(R.string.sharingan_task_no_notif)
-                }
-                Toast.makeText(service, msg, Toast.LENGTH_LONG).show()
-                // NO startActivity — the task runs in the background; the
-                // staged context is consumed by THIS run's contextBlock.
-                AgentOrchestrator.send(service, text, fromSharingan = true)
-            }
+        resetAutoHide()
+        val accepted = AgentOrchestrator.sendSharingan(service, text)
+        if (!accepted) {
+            // busy/not-configured race between the check and the call — still visible
+            Toast.makeText(service, service.getString(R.string.sharingan_task_busy), Toast.LENGTH_LONG).show()
+            return
         }
+        // Honest channel messaging — notifications state FIRST (audit F2: the
+        // old toast promised a notification even when notifications were off).
+        val notifOk = androidx.core.app.NotificationManagerCompat
+            .from(service).areNotificationsEnabled()
+        Toast.makeText(
+            service,
+            service.getString(
+                if (notifOk) R.string.sharingan_toast_bg_sent
+                else R.string.sharingan_task_no_notif
+            ),
+            Toast.LENGTH_LONG
+        ).show()
     }
 
     /**
