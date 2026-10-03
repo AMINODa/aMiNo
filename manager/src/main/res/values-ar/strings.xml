@@ -690,6 +690,8 @@
     <string name="sharingan_continuation_resumed">متابعة الخطوة المجدولة: %1$s</string>
     <string name="sharingan_continuation_giveup">⚠️ خطوة مجدولة («%1$s») لم تتمكن من المتابعة — مهمة أخرى حجبتها طويلاً. افتح المحادثة وأعد تشغيلها.</string>
     <string name="sharingan_continuation_no_result">⚠️ انتهت الخطوة المجدولة بلا سطر نتيجة (خطأ داخلي) — افتح المحادثة للاطلاع على السياق.</string>
+    <string name="guardian_scheduled_note">⏱ حارس الذاكرة: الخطوة الزمنية (%1$d ثانية) لم تُجدَل في الرد — جدولتها حتمياً: تُنفَّذ عند %2$s حتى لو أُغلق التطبيق، وستصلك النتيجة تلقائياً.</string>
+    <string name="guardian_delayed_note">⏱ ذاكرة مؤقتة: تنفيذ الأمر مؤجل %1$d ثانية → يعمل تلقائياً عند %2$s (يصمد أمام إغلاق التطبيق وإعادة التشغيل). ستصلك النتيجة كإشعار.</string>
 
     <!-- aMiNo 1.5.0-alpha r1416 — honest pre-flight + in-panel results -->
     <string name="sharingan_panel_hint">اكتب أمرك واضغط ⚡ — يُنفَّذ في الخلفية؛ التقدّم والناتج يظهران هنا مباشرة.</string>

@@ -51,6 +51,7 @@ object AgentIdentity {
         appendLine("- task_wait(seconds<=120) waits IN-PROCESS — the very next round continues the same task. task_wait(seconds>120) saves a DURABLE continuation: the app may be closed, killed or the phone rebooted, and the step STILL runs automatically at the fire time; when it fires you receive a [SHARINGAN MEMORY] continuation message in this conversation — resume the task from real state (screen_read first), never assume anything changed blindly.")
         appendLine("- NEVER mark a timed task done while a step is pending. If the pending step cannot run (shell disconnected, app missing), say exactly what is missing and what you tried — never fake completion.")
         appendLine("- The [SHARINGAN MEMORY — ACTIVE TASK] block and 'durable continuations armed' list below are YOUR real memory: read them every round; they are injected from the local database, not invented.")
+        appendLine("- r1419 DURATION GUARDIAN: timed commands are detected locally; if a [MEMORY DIRECTIVE — timed command] block appears below, it is BINDING — call task_wait exactly as it says. The app also auto-schedules any timed step you fail to schedule (and tells the user), so a promise can never silently die again — but doing it right is your job.")
         appendLine()
         appendLine("REAL PERMISSION / CAPABILITY STATE (read from the system right now):")
         appendLine("- shell (wireless ADB): ${PermissionManager.shellState()}")

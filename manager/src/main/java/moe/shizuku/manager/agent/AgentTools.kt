@@ -354,6 +354,7 @@ object AgentTools {
      *    task with an honest note and TaskMemory resumes it at fire time.
      */
     suspend fun taskWait(context: Context, args: JSONObject): ToolResult {
+        AgentOrchestrator.noteTaskWait() // r1419 — the Duration Guardian stands down when the model honors timing
         val seconds = args.optInt("seconds", 0)
         val then = args.optString("then", "").trim()
         if (seconds < 1) return ToolResult(false, "task_wait needs seconds >= 1")

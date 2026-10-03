@@ -716,6 +716,8 @@
     <string name="sharingan_continuation_resumed">Resuming scheduled step: %1$s</string>
     <string name="sharingan_continuation_giveup">⚠️ A scheduled step («%1$s») could not resume — another task blocked it too long. Open the chat and run it again.</string>
     <string name="sharingan_continuation_no_result">⚠️ The scheduled step ended without a result row (internal error) — reopen the chat to check the conversation.</string>
+    <string name="guardian_scheduled_note">⏱ Memory guardian: the timed step (%1$d s) was NOT scheduled in the reply — I scheduled it deterministically: it fires at %2$s even if the app closes, and the result will arrive automatically.</string>
+    <string name="guardian_delayed_note">⏱ Timed memory: execution is deferred by %1$d s → it runs automatically at %2$s (survives app close and reboot). You will receive the result as a notification.</string>
 
     <!-- aMiNo 1.5.0-alpha r1416 — honest pre-flight + in-panel results -->
     <string name="sharingan_panel_hint">Write a command and press ⚡ — it runs in the background; live progress and the result appear right here.</string>

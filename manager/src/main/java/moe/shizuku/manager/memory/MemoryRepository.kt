@@ -283,15 +283,26 @@ object MemoryRepository {
             arrayOf(conversationId.toString()), null, null, "id DESC", "1"
         ).use { c -> if (c.moveToFirst()) contFromRow(c) else null }
 
-    /** All still-scheduled rows (boot re-arm + overdue sweep). */
+    /** All still-scheduled rows (boot re-arm + overdue sweep).
+     *  r1419: includes status='guard' (Duration Guardian rows) — if the process
+     *  died mid-task, the boot/overdue sweep must still recover them. */
     fun scheduledContinuations(context: Context): List<ContinuationItem> =
         db(context).readableDatabase.query(
-            AminoDb.T_CONTINUATIONS, null, "status='scheduled'", null, null, null, "fire_at ASC"
+            AminoDb.T_CONTINUATIONS, null, "status IN ('scheduled','guard')", null, null, null, "fire_at ASC"
         ).use { c ->
             val out = ArrayList<ContinuationItem>()
             while (c.moveToNext()) out.add(contFromRow(c))
             out
         }
+
+    /** r1419 — Duration Guardian: move/promote a row's fire time (overdue → now+2s). */
+    fun setContinuationFireAt(context: Context, id: Long, fireAt: Long) {
+        db(context).writableDatabase.update(
+            AminoDb.T_CONTINUATIONS,
+            ContentValues().apply { put("fire_at", fireAt) },
+            "id=?", arrayOf(id.toString())
+        )
+    }
 
     fun setContinuationStatus(context: Context, id: Long, status: String) {
         db(context).writableDatabase.update(

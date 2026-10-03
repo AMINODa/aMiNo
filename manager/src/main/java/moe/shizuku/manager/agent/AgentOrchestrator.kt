@@ -81,6 +81,33 @@ object AgentOrchestrator {
     /** r1418 — busy-retry counters for continuations that fired mid-task (M6). */
     private val continuationRetries = ConcurrentHashMap<Long, Int>()
 
+    /**
+     * r1419 — DURATION GUARDIAN state. The field truth (user tried r1418 and the
+     * 10s recording STILL never stopped) proved the timed step cannot depend on
+     * the model VOLUNTARILY calling task_wait: a text promise, a 12-round UI
+     * burnout or a mid-task provider error all ended the task with the pending
+     * step dead. The guardian arms a REAL continuation row (SQLite + alarm) at
+     * send time and promotes it at task end if the model never honored the
+     * timing — the pending step fires at the deadline NO MATTER WHAT.
+     */
+    data class TimedGuard(
+        val rowId: Long,
+        val conversationId: Long,
+        val durationSec: Int,
+        @Volatile var fireAt: Long,
+        @Volatile var taskWaits: Int = 0,
+        @Volatile var toolRounds: Int = 0
+    )
+
+    @Volatile
+    private var activeGuard: TimedGuard? = null
+
+    /** Called by AgentTools.taskWait — a real task_wait call means the model
+     *  honored the timing; the guardian then stands down at task end. */
+    fun noteTaskWait() {
+        activeGuard?.taskWaits?.let { w -> activeGuard?.taskWaits = w + 1 }
+    }
+
     private var appContext: Context? = null
 
     // ---------- conversation lifecycle ----------
@@ -171,12 +198,31 @@ object AgentOrchestrator {
         scope.launch {
             val ctx = appContext ?: return@launch
             TaskMemory.holdWake(ctx) // r1418 (M2): CPU stays on during in-process waits
+            var guard: TimedGuard? = null
             try {
                 var convId = _state.value.conversationId
                 if (convId <= 0) convId = MemoryRepository.createConversation(ctx, text)
                 val msgs = MemoryRepository.messages(ctx, convId)
                 if (msgs.none { it.role == "user" }) MemoryRepository.touchConversation(ctx, convId, text)
                 MemoryRepository.addMessage(ctx, convId, "user", text)
+
+                // r1419 — DURATION GUARDIAN: detect timing locally BEFORE the loop.
+                when (val plan = TimedCommandParser.detect(text)) {
+                    is TimedCommandParser.DelayedStart -> {
+                        // «بعد 10 ثواني افعل X» — nothing runs now; the whole
+                        // command fires at the deadline (SQLite + alarm, survives
+                        // app close / process death / reboot).
+                        scheduleDelayedStart(ctx, convId, text, plan.seconds)
+                        return@launch
+                    }
+                    is TimedCommandParser.DurationStop -> {
+                        // Start now; the deferred stop is ALREADY armed in durable
+                        // memory — even a text promise cannot kill it anymore.
+                        guard = armGuard(ctx, convId, text, plan.seconds)
+                    }
+                    null -> {}
+                }
+
                 MemoryRepository.saveWorking(ctx, convId, goal = text, stepsJson = "[]", status = "running")
                 publish(ctx, convId, AgentStatus.Thinking)
                 if (fromSharingan) SharinganTaskNotifier.taskStarted(ctx, text)
@@ -192,6 +238,7 @@ object AgentOrchestrator {
                     if (last != null) SharinganTaskNotifier.taskDone(ctx, last.content)
                 }
             } finally {
+                finalizeGuard(ctx, guard, cancelled)
                 TaskMemory.dropWake()
             }
         }
@@ -237,12 +284,30 @@ object AgentOrchestrator {
             if (id != null) moe.shizuku.manager.sharingan.SharinganContextHub.stage(id)
 
             var convId = -1L
+            var guard: TimedGuard? = null
+            var delayedOnly = false
             try {
                 convId = _state.value.conversationId
                 if (convId <= 0) convId = MemoryRepository.createConversation(ctx, text)
                 val msgs = MemoryRepository.messages(ctx, convId)
                 if (msgs.none { it.role == "user" }) MemoryRepository.touchConversation(ctx, convId, text)
                 MemoryRepository.addMessage(ctx, convId, "user", text)
+
+                // r1419 — DURATION GUARDIAN (the panel is the user's real path):
+                // detect timing locally BEFORE the loop; never trust the model
+                // to represent the timed step by itself again.
+                when (val plan = TimedCommandParser.detect(text)) {
+                    is TimedCommandParser.DelayedStart -> {
+                        scheduleDelayedStart(ctx, convId, text, plan.seconds)
+                        delayedOnly = true
+                        return@launch
+                    }
+                    is TimedCommandParser.DurationStop -> {
+                        guard = armGuard(ctx, convId, text, plan.seconds)
+                    }
+                    null -> {}
+                }
+
                 MemoryRepository.saveWorking(ctx, convId, goal = text, stepsJson = "[]", status = "running")
                 publish(ctx, convId, AgentStatus.Thinking)
                 moe.shizuku.manager.sharingan.SharinganTaskNotifier.taskStarted(ctx, text)
@@ -255,6 +320,10 @@ object AgentOrchestrator {
                         "⚠️ " + (t.message ?: t.javaClass.simpleName))
                 }
             } finally {
+                // r1419 — guardian verdict BEFORE reading the final row: a
+                // promoted guard appends its own honest note row, which then
+                // becomes the taskDone notification (visible proof of memory).
+                finalizeGuard(ctx, guard, cancelled)
                 TaskMemory.dropWake()
                 // EVERY path ends visibly: answer, honest error, cancel note —
                 // or this explicit fallback when no assistant row exists at all.
@@ -267,7 +336,8 @@ object AgentOrchestrator {
                 )
                 // r1418 — auto-lesson (strong memory loop): the outcome of every
                 // Sharingan task lands in episodic memory, failures included.
-                runCatching {
+                // (skipped for delayed-start — nothing executed yet)
+                if (!delayedOnly) runCatching {
                     last?.content?.let { c ->
                         MemoryRepository.addExperience(ctx, text,
                             if (c.startsWith("⚠️")) "fail" else "success",
@@ -277,6 +347,84 @@ object AgentOrchestrator {
             }
         }
         return true
+    }
+
+    /**
+     * r1419 — arms the Duration Guardian: a REAL continuation row (status
+     * 'guard') in SQLite + an AlarmManager wake-up at t0 + N. While the task
+     * runs it is INVISIBLE to the runLoop park check (different status). At
+     * task end [finalizeGuard] decides its fate.
+     */
+    private fun armGuard(ctx: Context, convId: Long, goal: String, seconds: Int): TimedGuard? = runCatching {
+        val fireAt = System.currentTimeMillis() + seconds * 1000L
+        val rowId = MemoryRepository.addContinuation(ctx, convId, goal,
+            "Execute the deferred completion step of the original command NOW " +
+                "(screen_read FIRST to verify the real state, then act — e.g. stop the recording / " +
+                "finalize what was started), then report the real result.", seconds, fireAt)
+        MemoryRepository.setContinuationStatus(ctx, rowId, "guard")
+        TaskMemory.armAlarm(ctx, rowId, fireAt)
+        val g = TimedGuard(rowId, convId, seconds, fireAt)
+        activeGuard = g
+        Log.i(TAG, "duration guardian armed #$rowId in ${seconds}s")
+        g
+    }.getOrNull()
+
+    /** r1419 — «بعد N وحدة + أمر»: defer the WHOLE command (nothing runs now). */
+    private fun scheduleDelayedStart(ctx: Context, convId: Long, text: String, seconds: Int) {
+        runCatching {
+            val fireAt = System.currentTimeMillis() + seconds * 1000L
+            val rowId = MemoryRepository.addContinuation(ctx, convId, text, text, seconds, fireAt)
+            MemoryRepository.setContinuationStatus(ctx, rowId, "scheduled")
+            TaskMemory.armAlarm(ctx, rowId, fireAt)
+            val at = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(fireAt))
+            MemoryRepository.addMessage(ctx, convId, "assistant",
+                ctx.getString(R.string.guardian_delayed_note, seconds, at))
+            SharinganTaskNotifier.taskScheduled(ctx, text.take(120), fireAt)
+            refresh(ctx)
+            Log.i(TAG, "delayed start #$rowId in ${seconds}s")
+        }.onFailure { Log.w(TAG, "scheduleDelayedStart failed: ${it.message}") }
+    }
+
+    /**
+     * r1419 — the guardian's verdict at task end. THE NET:
+     *  - user cancelled OR the model called task_wait ≥1 time  → stand down
+     *    (cancel row + alarm; the timing was honored by the normal path).
+     *  - the model ran tools but never scheduled the timed step (text promise,
+     *    round burnout, mid-task error) → PROMOTE: the row becomes 'scheduled',
+     *    the alarm stays, an honest note row tells the user the stop fires at
+     *    HH:MM — the pending step runs even if the app closes next second.
+     *  - nothing executed at all (round-0 provider error) → stand down; the
+     *    real error is the outcome and there is nothing pending to protect.
+     */
+    private fun finalizeGuard(ctx: Context, guard: TimedGuard?, userCancelled: Boolean) {
+        if (guard == null) return
+        if (activeGuard === guard) activeGuard = null
+        runCatching {
+            when {
+                userCancelled || guard.taskWaits > 0 -> {
+                    MemoryRepository.setContinuationStatus(ctx, guard.rowId, "cancelled")
+                    TaskMemory.cancelAlarm(ctx, guard.rowId)
+                    Log.i(TAG, "guard #${guard.rowId} stands down (taskWaits=${guard.taskWaits}, cancelled=$userCancelled)")
+                }
+                guard.toolRounds > 0 -> {
+                    val now = System.currentTimeMillis()
+                    if (guard.fireAt <= now + 1_000) guard.fireAt = now + 2_000
+                    MemoryRepository.setContinuationFireAt(ctx, guard.rowId, guard.fireAt)
+                    MemoryRepository.setContinuationStatus(ctx, guard.rowId, "scheduled")
+                    TaskMemory.armAlarm(ctx, guard.rowId, guard.fireAt)
+                    val at = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(guard.fireAt))
+                    MemoryRepository.addMessage(ctx, guard.conversationId, "assistant",
+                        ctx.getString(R.string.guardian_scheduled_note, guard.durationSec, at))
+                    Log.i(TAG, "guard #${guard.rowId} PROMOTED — model skipped task_wait; fires at $at")
+                }
+                else -> {
+                    MemoryRepository.setContinuationStatus(ctx, guard.rowId, "cancelled")
+                    TaskMemory.cancelAlarm(ctx, guard.rowId)
+                    Log.i(TAG, "guard #${guard.rowId} stands down (nothing executed)")
+                }
+            }
+        }.onFailure { Log.w(TAG, "finalizeGuard failed: ${it.message}") }
+        runCatching { refresh(ctx) }
     }
 
     private suspend fun runLoop(context: Context, convId: Long, userText: String) {
@@ -297,6 +445,13 @@ object AgentOrchestrator {
         val baseUrl = ApiKeysStore.baseUrl(context)
 
         val steps = JSONArray()
+        // r1419 — park-check guard: only a continuation CREATED BY THIS RUN may
+        // park the task. Previously ANY still-scheduled row of the conversation
+        // (e.g. a delayed-start waiting to fire) parked every subsequent task
+        // after its first tool round — a stale-memory landmine.
+        val preExistingScheduledId = runCatching {
+            MemoryRepository.newestScheduled(context, convId)?.id
+        }.getOrNull()
         try {
             var round = 0
             while (true) {
@@ -349,9 +504,10 @@ object AgentOrchestrator {
                         // r1418 (M1/M3): a DURABLE continuation was armed this round
                         // (task_wait > 120s). Park the task honestly — the pending
                         // step lives in SQLite + AlarmManager now, NOT in a promise.
+                        // r1419: ONLY rows created by THIS run may park it.
                         val sched = runCatching {
                             MemoryRepository.newestScheduled(context, convId)
-                        }.getOrNull()
+                        }.getOrNull()?.takeIf { it.id != preExistingScheduledId }
                         if (sched != null) {
                             val at = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(sched.fireAt))
                             val note = context.getString(R.string.sharingan_continuation_note,
@@ -411,6 +567,16 @@ object AgentOrchestrator {
             sb.appendLine("[SHARINGAN MEMORY — ACTIVE TASK]")
             sb.appendLine("goal: ${wm.first.take(300)}")
         }
+        // r1419 — the guardian's directive, injected EVERY round while its task
+        // runs (never persisted into chat rows). The model is told the net
+        // exists — compliance rises, and non-compliance no longer matters.
+        activeGuard?.takeIf { it.conversationId == convId }?.let { g ->
+            sb.appendLine()
+            sb.appendLine("[MEMORY DIRECTIVE — timed command, NON-NEGOTIABLE]")
+            sb.appendLine("The user's command carries a timed constraint: ${g.durationSec}s anchored at command start.")
+            sb.appendLine("After the start action you MUST call task_wait(seconds=${g.durationSec}, then=\"the exact pending step\") BEFORE any final reply.")
+            sb.appendLine("If your final reply has no task_wait for this command, the app auto-schedules the pending step itself and reports it — never rely on that; call task_wait.")
+        }
         val mine = runCatching { MemoryRepository.scheduledContinuations(context) }
             .getOrDefault(emptyList()).filter { it.conversationId == convId }
         if (mine.isNotEmpty()) {
@@ -440,7 +606,9 @@ object AgentOrchestrator {
             val ctx = appContext ?: return@launch
             val row = runCatching { MemoryRepository.continuation(ctx, continuationId) }.getOrNull()
                 ?: return@launch
-            if (row.status != "scheduled") return@launch
+            // r1419: 'guard' rows (Duration Guardian, process died mid-task) are
+            // also fireable — the alarm is their only remaining lifeline.
+            if (row.status != "scheduled" && row.status != "guard") return@launch
 
             if (_state.value.busy) {
                 val attempts = (continuationRetries[continuationId] ?: 0) + 1
@@ -503,6 +671,9 @@ object AgentOrchestrator {
     private suspend fun executeToolCall(context: Context, convId: Long, call: ToolCall, steps: JSONArray) {
         // Tool Router: only registered tools are executed - unknown names are rejected.
         val tool = ToolRegistry.get(call.name)
+        // r1419 — the guardian counts REAL executed tool rounds (a text promise
+        // with zero executed rounds never arms a phantom stop).
+        if (tool != null) activeGuard?.takeIf { it.conversationId == convId }?.toolRounds++
         if (tool == null) {
             val msg = "rejected_unknown_tool: ${call.name}"
             MemoryRepository.addMessage(context, convId, "tool", msg, call.name, false)
