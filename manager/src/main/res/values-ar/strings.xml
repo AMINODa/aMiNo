@@ -682,6 +682,15 @@
     <string name="sharingan_task_no_notif">الإشعارات معطّلة — الناتج سيظهر هنا في اللوحة (وفي محادثة aMiNo)</string>
     <string name="sharingan_toast_bg_sent">التنفيذ جارٍ في الخلفية مع سياق الشاشة — ستصلك إشعار بالنتيجة</string>
 
+    <!-- aMiNo 1.5.0-alpha r1418 — الذاكرة الدائمة للمهام (task_wait / الاستكمالات) -->
+    <string name="sharingan_task_scheduled_title">⏳ aMiNo سيُكمل تلقائياً</string>
+    <string name="sharingan_task_scheduled_body">الخطوة المعلّقة: «%1$s» — تُنفَّذ عند %2$s تقريباً (تنجو من إغلاق التطبيق وإعادة التشغيل)</string>
+    <string name="sharingan_continuation_note">⏳ ما سبق أُنجز. سأُكمل تلقائياً عند %2$s الخطوة: %1$s — ستعمل حتى لو أغلقت التطبيق (ذاكرة دائمة).</string>
+    <string name="sharingan_continuation_prompt">[ذاكرة الشارينغان] انتهى الانتظار المجدول (%1$d ثانية). المهمة الأصلية: «%2$s». الخطوة التي وعدت بها: «%3$s». نفّذها الآن — تحقّق أولاً من الحالة الحقيقية (screen_read إن كانت إجراءً على الشاشة)، أكمل الخطوة، ثم أبلغ بما حدث فعلاً بصدق.</string>
+    <string name="sharingan_continuation_resumed">متابعة الخطوة المجدولة: %1$s</string>
+    <string name="sharingan_continuation_giveup">⚠️ خطوة مجدولة («%1$s») لم تتمكن من المتابعة — مهمة أخرى حجبتها طويلاً. افتح المحادثة وأعد تشغيلها.</string>
+    <string name="sharingan_continuation_no_result">⚠️ انتهت الخطوة المجدولة بلا سطر نتيجة (خطأ داخلي) — افتح المحادثة للاطلاع على السياق.</string>
+
     <!-- aMiNo 1.5.0-alpha r1416 — honest pre-flight + in-panel results -->
     <string name="sharingan_panel_hint">اكتب أمرك واضغط ⚡ — يُنفَّذ في الخلفية؛ التقدّم والناتج يظهران هنا مباشرة.</string>
     <string name="sharingan_status_thinking">يفكّر…</string>

@@ -18,6 +18,14 @@ import android.database.sqlite.SQLiteOpenHelper
  *  - skills (v1.4)            : Skills Center metadata index — the skill FILES in
  *                               filesDir/skills/ are the source of truth; this table
  *                               is a searchable index (rebuildable via reconcile()).
+ *  - task_continuations (r1418): DURABLE TASK MEMORY — timed continuations the
+ *                               agent scheduled via task_wait(seconds>120). Each row
+ *                               is a pending step of a RUNNING task ("stop the
+ *                               recording at T"); fires through AlarmManager and
+ *                               survives process death AND reboot (boot receiver
+ *                               re-arms). This is what makes multi-step timed
+ *                               commands actually finish (the LangGraph-checkpointer
+ *                               pattern: persist the pending step, resume from it).
  *
  * Implemented with plain SQLiteOpenHelper instead of Room on purpose: same local
  * isolation, zero annotation-processor/build risk, full SQL control.
@@ -27,7 +35,7 @@ class AminoDb private constructor(context: Context) :
 
     companion object {
         const val DB_NAME = "amino_agent.db"
-        const val DB_VERSION = 3
+        const val DB_VERSION = 4
 
         const val T_CONVERSATIONS = "conversations"
         const val T_MESSAGES = "messages"
@@ -36,6 +44,7 @@ class AminoDb private constructor(context: Context) :
         const val T_KNOWLEDGE = "knowledge"
         const val T_EXPERIENCES = "experiences"
         const val T_SKILLS = "skills"
+        const val T_CONTINUATIONS = "task_continuations"
 
         @Volatile
         private var instance: AminoDb? = null
@@ -47,6 +56,18 @@ class AminoDb private constructor(context: Context) :
                 outcome TEXT NOT NULL,
                 lessons TEXT,
                 skill_id TEXT,
+                created_at INTEGER NOT NULL
+            )""".trimIndent()
+
+        val CREATE_CONTINUATIONS = """
+            CREATE TABLE $T_CONTINUATIONS(
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                conversation_id INTEGER NOT NULL,
+                goal TEXT NOT NULL,
+                action TEXT NOT NULL,
+                seconds INTEGER NOT NULL DEFAULT 0,
+                fire_at INTEGER NOT NULL,
+                status TEXT NOT NULL,
                 created_at INTEGER NOT NULL
             )""".trimIndent()
 
@@ -120,6 +141,7 @@ class AminoDb private constructor(context: Context) :
             )""")
         db.execSQL(CREATE_EXPERIENCES)
         db.execSQL(CREATE_SKILLS)
+        db.execSQL(CREATE_CONTINUATIONS)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -127,5 +149,7 @@ class AminoDb private constructor(context: Context) :
         if (oldVersion < 2) db.execSQL(CREATE_EXPERIENCES)
         // v3 (1.4): skills metadata index — additive only (files remain the truth).
         if (oldVersion < 3) db.execSQL(CREATE_SKILLS)
+        // v4 (r1418): durable timed continuations — additive only.
+        if (oldVersion < 4) db.execSQL(CREATE_CONTINUATIONS)
     }
 }

@@ -708,6 +708,15 @@
     <string name="sharingan_task_no_notif">Notifications are off — the result appears HERE in the panel (and in the aMiNo chat)</string>
     <string name="sharingan_toast_bg_sent">Running in the background with screen context — you\'ll get a notification with the result</string>
 
+    <!-- aMiNo 1.5.0-alpha r1418 — DURABLE TASK MEMORY (task_wait / continuations) -->
+    <string name="sharingan_task_scheduled_title">⏳ aMiNo will continue automatically</string>
+    <string name="sharingan_task_scheduled_body">Pending step: «%1$s» — runs at ~%2$s (survives app close &amp; reboot)</string>
+    <string name="sharingan_continuation_note">⏳ Done so far. I\'ll continue automatically at %2$s and then: %1$s — this runs even if you close the app (durable memory).</string>
+    <string name="sharingan_continuation_prompt">[SHARINGAN MEMORY] The scheduled wait (%1$d s) has elapsed. Original task: «%2$s». Pending step you promised: «%3$s». Execute it NOW — first verify the real current state (screen_read if it is a screen action), complete the step, then report honestly what actually happened.</string>
+    <string name="sharingan_continuation_resumed">Resuming scheduled step: %1$s</string>
+    <string name="sharingan_continuation_giveup">⚠️ A scheduled step («%1$s») could not resume — another task blocked it too long. Open the chat and run it again.</string>
+    <string name="sharingan_continuation_no_result">⚠️ The scheduled step ended without a result row (internal error) — reopen the chat to check the conversation.</string>
+
     <!-- aMiNo 1.5.0-alpha r1416 — honest pre-flight + in-panel results -->
     <string name="sharingan_panel_hint">Write a command and press ⚡ — it runs in the background; live progress and the result appear right here.</string>
     <string name="sharingan_status_thinking">Thinking…</string>

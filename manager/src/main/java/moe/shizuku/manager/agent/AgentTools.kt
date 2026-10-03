@@ -341,5 +341,47 @@ object AgentTools {
         }
     }
 
+    /**
+     * r1418 — task_wait: the timing primitive the agent never had (audit M1).
+     * "ابدأ التصوير وتوقف بعد 10 ثوانٍ" died because the loop exited after the
+     * start action; there was no way to represent "do X at time T".
+     *
+     * Two honest tiers:
+     *  - seconds <= 120 : REAL in-process wait (WakeLock held by the task) —
+     *    the runLoop continues to the next round and executes the pending step.
+     *  - seconds > 120  : DURABLE continuation — persisted in SQLite +
+     *    AlarmManager; survives process death AND reboot. runLoop parks the
+     *    task with an honest note and TaskMemory resumes it at fire time.
+     */
+    suspend fun taskWait(context: Context, args: JSONObject): ToolResult {
+        val seconds = args.optInt("seconds", 0)
+        val then = args.optString("then", "").trim()
+        if (seconds < 1) return ToolResult(false, "task_wait needs seconds >= 1")
+        if (seconds > TaskMemory.SCHEDULE_MAX_SECONDS) {
+            return ToolResult(false, "task_wait max ${TaskMemory.SCHEDULE_MAX_SECONDS}s (24h) — chain several task_wait calls for longer plans")
+        }
+        if (seconds <= TaskMemory.IN_PROCESS_MAX_SECONDS) {
+            kotlinx.coroutines.delay(seconds * 1000L)
+            return ToolResult(true,
+                "waited ${seconds}s (REAL elapsed time). The task is STILL RUNNING — now execute the pending step" +
+                (if (then.isNotBlank()) " «$then»" else "") +
+                ". If it is a screen action, screen_read FIRST to verify the real state, then act, then screen_read again.")
+        }
+        // durable path (> 120s)
+        val convId = AgentOrchestrator.state.value.conversationId
+        if (convId <= 0) return ToolResult(false, "no active conversation — cannot schedule a continuation")
+        val goal = moe.shizuku.manager.memory.MemoryRepository.working(context, convId)?.first
+            ?.takeIf { it.isNotBlank() } ?: "task"
+        val action = if (then.isNotBlank()) then
+        else "continue the task: verify the real state (screen_read), then complete any pending step"
+        val id = TaskMemory.schedule(context, convId, goal, action, seconds)
+        val fireAt = System.currentTimeMillis() + seconds * 1000L
+        moe.shizuku.manager.sharingan.SharinganTaskNotifier.taskScheduled(context, action, fireAt)
+        return ToolResult(true,
+            "SCHEDULED_CONTINUATION id=$id fires_in=${seconds}s — the pending step «${action.take(200)}» is saved in " +
+            "DURABLE MEMORY (survives app close, process death and reboot) and WILL run automatically. " +
+            "Do NOT claim the pending step already ran; your reply must state the resume plan only.")
+    }
+
     data class ToolResult(val ok: Boolean, val output: String)
 }

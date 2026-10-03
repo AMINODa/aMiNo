@@ -237,6 +237,70 @@ object MemoryRepository {
         }
     }
 
+    // ---------- Task Continuations (r1418 — durable timed task memory) ----------
+
+    /**
+     * One pending step of a RUNNING task, scheduled to fire at [fireAt] via
+     * AlarmManager. Statuses: scheduled -> fired -> done | cancelled.
+     * This is the row that makes "start recording, stop after 10 minutes"
+     * actually finish: the pending step lives in SQLite, not in a coroutine.
+     */
+    data class ContinuationItem(
+        val id: Long, val conversationId: Long, val goal: String, val action: String,
+        val seconds: Int, val fireAt: Long, val status: String
+    )
+
+    fun addContinuation(
+        context: Context, conversationId: Long, goal: String, action: String,
+        seconds: Int, fireAt: Long
+    ): Long {
+        val cv = ContentValues().apply {
+            put("conversation_id", conversationId)
+            put("goal", goal.take(500))
+            put("action", action.take(500))
+            put("seconds", seconds)
+            put("fire_at", fireAt)
+            put("status", "scheduled")
+            put("created_at", System.currentTimeMillis())
+        }
+        return db(context).writableDatabase.insert(AminoDb.T_CONTINUATIONS, null, cv)
+    }
+
+    private fun contFromRow(c: Cursor) = ContinuationItem(
+        c.getLong(0), c.getLong(1), c.getString(2) ?: "", c.getString(3) ?: "",
+        c.getInt(4), c.getLong(5), c.getString(6) ?: ""
+    )
+
+    fun continuation(context: Context, id: Long): ContinuationItem? =
+        db(context).readableDatabase.query(
+            AminoDb.T_CONTINUATIONS, null, "id=?", arrayOf(id.toString()), null, null, null
+        ).use { c -> if (c.moveToFirst()) contFromRow(c) else null }
+
+    /** Newest still-scheduled row for a conversation — the one runLoop honors. */
+    fun newestScheduled(context: Context, conversationId: Long): ContinuationItem? =
+        db(context).readableDatabase.query(
+            AminoDb.T_CONTINUATIONS, null, "conversation_id=? AND status='scheduled'",
+            arrayOf(conversationId.toString()), null, null, "id DESC", "1"
+        ).use { c -> if (c.moveToFirst()) contFromRow(c) else null }
+
+    /** All still-scheduled rows (boot re-arm + overdue sweep). */
+    fun scheduledContinuations(context: Context): List<ContinuationItem> =
+        db(context).readableDatabase.query(
+            AminoDb.T_CONTINUATIONS, null, "status='scheduled'", null, null, null, "fire_at ASC"
+        ).use { c ->
+            val out = ArrayList<ContinuationItem>()
+            while (c.moveToNext()) out.add(contFromRow(c))
+            out
+        }
+
+    fun setContinuationStatus(context: Context, id: Long, status: String) {
+        db(context).writableDatabase.update(
+            AminoDb.T_CONTINUATIONS,
+            ContentValues().apply { put("status", status) },
+            "id=?", arrayOf(id.toString())
+        )
+    }
+
     // ---------- utils ----------
 
     private fun <T> Cursor.toList(map: (Cursor) -> T): List<T> {

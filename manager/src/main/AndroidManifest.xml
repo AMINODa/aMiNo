@@ -42,6 +42,14 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- aMiNo r1418 — durable task memory: PARTIAL_WAKE_LOCK keeps the CPU on
+         during an in-process task_wait (<=120s) so timed steps really tick;
+         SCHEDULE_EXACT_ALARM lets a durable continuation (task_wait >120s,
+         stored in SQLite) fire at the promised time. SCHEDULE_EXACT_ALARM is
+         user-granted on API 33+ — TaskMemory falls back to
+         setAndAllowWhileIdle and honest "approximately" wording when denied. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- aMiNo r1384: Termux handoff for package installs (real detection + RUN_COMMAND;
@@ -343,6 +351,25 @@
         <receiver android:name=".receiver.NotifAttemptReceiver" />
         <receiver android:name=".receiver.NotifCancelReceiver" />
         <receiver android:name=".receiver.NotifRestoreReceiver" />
+
+        <!-- aMiNo r1418 — DURABLE TASK MEMORY (Sharingan): a task_wait >120s
+             parks a pending step in SQLite and arms one of these. The alarm
+             target is explicit + non-exported (nothing external can inject a
+             resume); the boot receiver re-arms rows after a reboot so a
+             promised step survives even a full restart. -->
+        <receiver
+            android:name=".receiver.SharinganContinuationReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <receiver
+            android:name=".receiver.SharinganBootReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

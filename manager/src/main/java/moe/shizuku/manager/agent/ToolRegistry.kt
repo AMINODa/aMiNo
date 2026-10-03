@@ -601,6 +601,28 @@ object ToolRegistry {
         },
         RegisteredTool(
             ToolSpec(
+                "task_wait",
+                "Wait REAL time, then CONTINUE the same task. MANDATORY for any timed instruction " +
+                    "(\"record for 10 seconds then stop\", \"wait 5 minutes then close it\"): run step 1, " +
+                    "call task_wait(seconds, then=\"pending step\"), then execute the pending step and VERIFY. " +
+                    "seconds<=120 waits in-process (task stays live); >120 is saved as a DURABLE continuation " +
+                    "in local memory — it survives app close, process death and reboot, and auto-resumes at " +
+                    "the fire time. NEVER reply with a promise like 'I will stop it later' and NEVER end a " +
+                    "task with a pending step — represent the wait with THIS tool.",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject()
+                        .put("seconds", JSONObject().put("type", "integer")
+                            .put("description", "How long to wait in seconds, 1..86400 (24h max)"))
+                        .put("then", JSONObject().put("type", "string")
+                            .put("description", "The EXACT pending step to execute after the wait, e.g. 'stop the video recording'")))
+                    .put("required", org.json.JSONArray().put("seconds"))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            runBlocking { AgentTools.taskWait(ctx, args) }
+        },
+        RegisteredTool(
+            ToolSpec(
                 "skill_search",
                 "Search installed skills by keyword (matches name, description, trigger, instructions, tags, " +
                     "id) and optional category. Use this to find a relevant skill before doing a task manually.",

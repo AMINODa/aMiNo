@@ -19,6 +19,10 @@ import moe.shizuku.manager.sharingan.SharinganTaskNotifier
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 /** Agent status shown in the chat UI. */
 sealed class AgentStatus {
@@ -73,6 +77,9 @@ object AgentOrchestrator {
 
     @Volatile
     private var cancelled = false
+
+    /** r1418 — busy-retry counters for continuations that fired mid-task (M6). */
+    private val continuationRetries = ConcurrentHashMap<Long, Int>()
 
     private var appContext: Context? = null
 
@@ -163,24 +170,29 @@ object AgentOrchestrator {
         cancelled = false
         scope.launch {
             val ctx = appContext ?: return@launch
-            var convId = _state.value.conversationId
-            if (convId <= 0) convId = MemoryRepository.createConversation(ctx, text)
-            val msgs = MemoryRepository.messages(ctx, convId)
-            if (msgs.none { it.role == "user" }) MemoryRepository.touchConversation(ctx, convId, text)
-            MemoryRepository.addMessage(ctx, convId, "user", text)
-            MemoryRepository.saveWorking(ctx, convId, goal = text, stepsJson = "[]", status = "running")
-            publish(ctx, convId, AgentStatus.Thinking)
-            if (fromSharingan) SharinganTaskNotifier.taskStarted(ctx, text)
+            TaskMemory.holdWake(ctx) // r1418 (M2): CPU stays on during in-process waits
+            try {
+                var convId = _state.value.conversationId
+                if (convId <= 0) convId = MemoryRepository.createConversation(ctx, text)
+                val msgs = MemoryRepository.messages(ctx, convId)
+                if (msgs.none { it.role == "user" }) MemoryRepository.touchConversation(ctx, convId, text)
+                MemoryRepository.addMessage(ctx, convId, "user", text)
+                MemoryRepository.saveWorking(ctx, convId, goal = text, stepsJson = "[]", status = "running")
+                publish(ctx, convId, AgentStatus.Thinking)
+                if (fromSharingan) SharinganTaskNotifier.taskStarted(ctx, text)
 
-            runLoop(ctx, convId, text)
+                runLoop(ctx, convId, text)
 
-            if (fromSharingan) {
-                // Every runLoop exit path saves an assistant row first
-                // (final answer / honest error / cancellation note) — surface
-                // THAT row verbatim, never a re-invented summary.
-                val last = MemoryRepository.messages(ctx, convId)
-                    .lastOrNull { it.role == "assistant" && it.toolName == null }
-                if (last != null) SharinganTaskNotifier.taskDone(ctx, last.content)
+                if (fromSharingan) {
+                    // Every runLoop exit path saves an assistant row first
+                    // (final answer / honest error / cancellation note) — surface
+                    // THAT row verbatim, never a re-invented summary.
+                    val last = MemoryRepository.messages(ctx, convId)
+                        .lastOrNull { it.role == "assistant" && it.toolName == null }
+                    if (last != null) SharinganTaskNotifier.taskDone(ctx, last.content)
+                }
+            } finally {
+                TaskMemory.dropWake()
             }
         }
     }
@@ -212,6 +224,7 @@ object AgentOrchestrator {
         cancelled = false
         scope.launch {
             val ctx = appContext ?: return@launch
+            TaskMemory.holdWake(ctx) // r1418 (M2): CPU lifeline for in-process waits
             // Stage REAL screen context inside THIS scope (TRACE TRUTH: last
             // trace or a fresh live snapshot — never invented). Staged moments
             // before the loop consumes it, so a concurrent chat send can no
@@ -242,6 +255,7 @@ object AgentOrchestrator {
                         "⚠️ " + (t.message ?: t.javaClass.simpleName))
                 }
             } finally {
+                TaskMemory.dropWake()
                 // EVERY path ends visibly: answer, honest error, cancel note —
                 // or this explicit fallback when no assistant row exists at all.
                 val last = if (convId > 0) MemoryRepository.messages(ctx, convId)
@@ -251,6 +265,15 @@ object AgentOrchestrator {
                     last?.content?.takeIf { it.isNotBlank() }
                         ?: "⚠️ The task ended without a result row (internal error) — reopen the chat to check the conversation."
                 )
+                // r1418 — auto-lesson (strong memory loop): the outcome of every
+                // Sharingan task lands in episodic memory, failures included.
+                runCatching {
+                    last?.content?.let { c ->
+                        MemoryRepository.addExperience(ctx, text,
+                            if (c.startsWith("⚠️")) "fail" else "success",
+                            "background task → ${c.take(220)}")
+                    }
+                }
             }
         }
         return true
@@ -279,8 +302,19 @@ object AgentOrchestrator {
             while (true) {
                 if (cancelled) { saveCancelled(context, convId, steps); return }
 
-                val history = toLlmHistory(MemoryRepository.messages(context, convId, HISTORY_LIMIT))
-                val systemPrompt = AgentIdentity.systemPrompt(context, AgentIdentity.contextBlock(context, userText))
+                // r1418 (M5): PAIR-AWARE history window — a raw takeLast(12) could
+                // start on a tool row whose assistant marker row was evicted, which
+                // sends an orphaned role:"tool"/functionResponse to the provider
+                // (hard 400 = another mid-task death). Drop leading orphans.
+                var recentRows = MemoryRepository.messages(context, convId, HISTORY_LIMIT * 4)
+                    .takeLast(HISTORY_LIMIT)
+                while (recentRows.isNotEmpty() && recentRows.first().role == "tool") {
+                    recentRows = recentRows.drop(1)
+                }
+                val history = toLlmHistory(recentRows)
+                val systemPrompt = AgentIdentity.systemPrompt(
+                    context,
+                    AgentIdentity.contextBlock(context, userText) + taskMemoryBlock(context, convId))
                 val decision = provider.chat(systemPrompt, history, ToolRegistry.specs(), apiKey, model, baseUrl)
 
                 when (decision) {
@@ -311,6 +345,21 @@ object AgentOrchestrator {
                             if (cancelled) { saveCancelled(context, convId, steps); return }
                             executeToolCall(context, convId, call, steps)
                             publish(context, convId, AgentStatus.Verifying)
+                        }
+                        // r1418 (M1/M3): a DURABLE continuation was armed this round
+                        // (task_wait > 120s). Park the task honestly — the pending
+                        // step lives in SQLite + AlarmManager now, NOT in a promise.
+                        val sched = runCatching {
+                            MemoryRepository.newestScheduled(context, convId)
+                        }.getOrNull()
+                        if (sched != null) {
+                            val at = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(sched.fireAt))
+                            val note = context.getString(R.string.sharingan_continuation_note,
+                                sched.action.take(140), at)
+                            MemoryRepository.addMessage(context, convId, "assistant", note)
+                            MemoryRepository.saveWorking(context, convId, sched.goal, steps.toString(), "waiting")
+                            publish(context, convId, AgentStatus.Ready)
+                            return
                         }
                     }
                 }
@@ -346,6 +395,110 @@ object AgentOrchestrator {
                 else -> LlmMessage(m.role, m.content, m.toolName, null, m.toolOk)
             }
         }
+
+    /**
+     * r1418 (M4): working memory was WRITE-ONLY — persisted but never shown to
+     * the model, so a resumed/long task lost its goal the moment history rows
+     * were evicted. Now the active goal + every armed durable continuation are
+     * injected into the system prompt EVERY round: the loop literally cannot
+     * forget what it is doing or what is still pending.
+     */
+    private fun taskMemoryBlock(context: Context, convId: Long): String {
+        val sb = StringBuilder()
+        val wm = runCatching { MemoryRepository.working(context, convId) }.getOrNull()
+        if (wm != null && wm.third == "running" && wm.first.isNotBlank()) {
+            sb.appendLine()
+            sb.appendLine("[SHARINGAN MEMORY — ACTIVE TASK]")
+            sb.appendLine("goal: ${wm.first.take(300)}")
+        }
+        val mine = runCatching { MemoryRepository.scheduledContinuations(context) }
+            .getOrDefault(emptyList()).filter { it.conversationId == convId }
+        if (mine.isNotEmpty()) {
+            val fmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+            sb.appendLine("durable continuations armed (they WILL fire even if the app closes):")
+            for (c in mine) {
+                val inSec = ((c.fireAt - System.currentTimeMillis()).coerceAtLeast(0)) / 1000
+                sb.appendLine("- in ${inSec}s (at ${fmt.format(Date(c.fireAt))}): ${c.action.take(150)}")
+            }
+        }
+        return sb.toString()
+    }
+
+    /**
+     * r1418 — the durable memory WOKE UP: a scheduled continuation's alarm fired
+     * (process may have been dead and even rebooted — the row survived in
+     * SQLite; SharinganBootReceiver / TaskMemory.rescheduleAll re-armed it).
+     *
+     * Appends a [SHARINGAN MEMORY] continuation message to the SAME conversation
+     * (the LLM sees the original goal + all prior steps in history) and re-enters
+     * runLoop. If another task is mid-run, the resume is RE-ARMED (busy-retry,
+     * M6) — a pending step is never dropped, never silently lost.
+     */
+    fun resumeScheduled(context: Context, continuationId: Long) {
+        init(context)
+        scope.launch {
+            val ctx = appContext ?: return@launch
+            val row = runCatching { MemoryRepository.continuation(ctx, continuationId) }.getOrNull()
+                ?: return@launch
+            if (row.status != "scheduled") return@launch
+
+            if (_state.value.busy) {
+                val attempts = (continuationRetries[continuationId] ?: 0) + 1
+                if (attempts <= TaskMemory.MAX_RETRIES) {
+                    continuationRetries[continuationId] = attempts
+                    TaskMemory.armAlarm(ctx, continuationId,
+                        System.currentTimeMillis() + TaskMemory.RETRY_DELAY_MS)
+                    Log.i(TAG, "continuation #$continuationId deferred (busy), retry $attempts/${TaskMemory.MAX_RETRIES}")
+                } else {
+                    continuationRetries.remove(continuationId)
+                    MemoryRepository.setContinuationStatus(ctx, continuationId, "cancelled")
+                    val msg = ctx.getString(R.string.sharingan_continuation_giveup, row.action.take(140))
+                    MemoryRepository.addMessage(ctx, row.conversationId, "assistant", msg)
+                    SharinganTaskNotifier.taskDone(ctx, msg)
+                }
+                return@launch
+            }
+            continuationRetries.remove(continuationId)
+            MemoryRepository.setContinuationStatus(ctx, continuationId, "fired")
+            SharinganTaskNotifier.cancelScheduled(ctx)
+            TaskMemory.holdWake(ctx)
+            cancelled = false
+            try {
+                val convId = row.conversationId
+                if (convId <= 0) return@launch
+                MemoryRepository.addMessage(ctx, convId, "user",
+                    ctx.getString(R.string.sharingan_continuation_prompt,
+                        row.seconds, row.goal.take(300), row.action.take(300)))
+                MemoryRepository.saveWorking(ctx, convId, goal = row.goal, stepsJson = "[]", status = "running")
+                publish(ctx, convId, AgentStatus.Thinking)
+                SharinganTaskNotifier.taskStarted(ctx,
+                    ctx.getString(R.string.sharingan_continuation_resumed, row.action.take(80)))
+                runLoop(ctx, convId, row.goal)
+            } catch (t: Throwable) {
+                Log.e(TAG, "continuation resume crashed", t)
+                runCatching {
+                    MemoryRepository.addMessage(ctx, row.conversationId, "assistant",
+                        "⚠️ " + (t.message ?: t.javaClass.simpleName))
+                }
+            } finally {
+                val last = if (row.conversationId > 0) MemoryRepository.messages(ctx, row.conversationId)
+                    .lastOrNull { it.role == "assistant" && it.toolName == null } else null
+                SharinganTaskNotifier.taskDone(
+                    ctx,
+                    last?.content?.takeIf { it.isNotBlank() }
+                        ?: ctx.getString(R.string.sharingan_continuation_no_result))
+                MemoryRepository.setContinuationStatus(ctx, continuationId, "done")
+                runCatching {
+                    last?.content?.let { c ->
+                        MemoryRepository.addExperience(ctx, row.goal,
+                            if (c.startsWith("⚠️")) "fail" else "success",
+                            "scheduled continuation «${row.action.take(120)}» → ${c.take(220)}")
+                    }
+                }
+                TaskMemory.dropWake()
+            }
+        }
+    }
 
     private suspend fun executeToolCall(context: Context, convId: Long, call: ToolCall, steps: JSONArray) {
         // Tool Router: only registered tools are executed - unknown names are rejected.

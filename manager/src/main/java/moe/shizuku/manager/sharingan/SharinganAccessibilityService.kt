@@ -44,6 +44,11 @@ class SharinganAccessibilityService : AccessibilityService() {
             .registerAccessibilityButtonCallback(cb, Handler(Looper.getMainLooper()))
         SharinganState.update { it.copy(serviceUp = true) }
         instance = this
+        // r1418 — overdue durable continuations: if the process died or the
+        // alarm was missed while the service was down, any still-scheduled
+        // step whose time already passed resumes NOW. The pending step is in
+        // SQLite — the memory survives the service lifecycle.
+        try { moe.shizuku.manager.agent.TaskMemory.rescheduleAll(this) } catch (_: Throwable) {}
         // r1414 — THE ONE BUTTON: the floating eye appears as soon as the
         // service is up, over any app. No nav-bar button, no system chooser,
         // no extra settings — one tap on it opens the command panel.

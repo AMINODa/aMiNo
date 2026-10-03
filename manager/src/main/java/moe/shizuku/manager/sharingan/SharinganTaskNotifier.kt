@@ -32,6 +32,7 @@ object SharinganTaskNotifier {
 
     private const val CHANNEL_TASKS = "sharingan_tasks"
     private const val ID_TASK = 3001
+    private const val ID_SCHEDULED = 3003 // r1418 — armed durable continuation card
     private const val MAX_NOTIF_TEXT = 450
 
     fun ensureChannel(context: Context) {
@@ -77,6 +78,34 @@ object SharinganTaskNotifier {
             .setContentIntent(chatIntent(context))
             .build()
         runCatching { NotificationManagerCompat.from(context).notify(ID_TASK, n) }
+    }
+
+    /**
+     * r1418 — a DURABLE continuation was armed (task_wait > 120s): the pending
+     * step is saved in local memory and will run even if the app is closed.
+     * Ongoing card so the user always sees what is still pending (M1 honesty).
+     */
+    fun taskScheduled(context: Context, action: String, fireAt: Long) {
+        if (!canPost(context)) return
+        ensureChannel(context)
+        val fmt = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+        val body = context.getString(R.string.sharingan_task_scheduled_body, action.take(80), fmt.format(java.util.Date(fireAt)))
+        val n = NotificationCompat.Builder(context, CHANNEL_TASKS)
+            .setSmallIcon(R.drawable.ic_system_icon)
+            .setColor(0xFFE53935.toInt())
+            .setContentTitle(context.getString(R.string.sharingan_task_scheduled_title))
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(chatIntent(context))
+            .build()
+        runCatching { NotificationManagerCompat.from(context).notify(ID_SCHEDULED, n) }
+    }
+
+    /** The continuation fired (or was abandoned) — the pending-step card is obsolete. */
+    fun cancelScheduled(context: Context) {
+        runCatching { NotificationManagerCompat.from(context).cancel(ID_SCHEDULED) }
     }
 
     /**

@@ -77,7 +77,10 @@ object GeminiProvider : LlmProvider {
             )
             body.put("tools", arr(JSONObject().put("functionDeclarations", decls)))
         }
-        body.put("generationConfig", JSONObject().put("temperature", 0.3).put("maxOutputTokens", 2048))
+        // r1418 (M8): 2048 silently truncated long self-contained reports
+        // (notification replies MUST be complete) — raised + finishReason now
+        // surfaces truncation honestly instead of mid-sentence cuts.
+        body.put("generationConfig", JSONObject().put("temperature", 0.3).put("maxOutputTokens", 4096))
 
         val base = (baseUrl?.trim()?.trimEnd('/')).takeIf { !it.isNullOrBlank() } ?: DEFAULT_BASE
         val url = "$base/models/${model}:generateContent"
@@ -120,7 +123,13 @@ object GeminiProvider : LlmProvider {
             }
         }
         return if (calls.isNotEmpty()) LlmDecision.ToolCalls(calls)
-        else LlmDecision.Text(texts.toString().ifBlank { "(empty reply)" })
+        else LlmDecision.Text(
+            texts.toString().ifBlank { "(empty reply)" } +
+                // r1418 (M8): honest truncation marker — the user must know when
+                // a reply was cut by the model's token limit.
+                (if (candidates.getJSONObject(0).optString("finishReason", "") == "MAX_TOKENS")
+                    "\n\n⚠️ (reply cut by the model's token limit — may be incomplete)" else "")
+        )
     }
 
     private fun obj(k: String, v: String) = JSONObject().put(k, v)
