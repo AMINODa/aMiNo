@@ -106,11 +106,11 @@ object ShizukuExec {
             val deadline = System.currentTimeMillis() + timeoutMs
             try {
                 while (System.currentTimeMillis() < deadline) {
-                    if (!p.isAlive) return@Thread
+                    if (!p.alive()) return@Thread
                     Thread.sleep(100)
                 }
             } catch (_: Throwable) { return@Thread }
-            if (p.isAlive) {
+            if (p.alive()) {
                 timedOut = true
                 try { p.destroy() } catch (_: Throwable) {}
             }

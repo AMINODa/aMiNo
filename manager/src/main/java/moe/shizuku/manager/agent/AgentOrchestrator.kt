@@ -216,7 +216,7 @@ object AgentOrchestrator {
             // trace or a fresh live snapshot — never invented). Staged moments
             // before the loop consumes it, so a concurrent chat send can no
             // longer steal it in practice.
-            val id = SharinganState.state.value.lastTraceId
+            val id = moe.shizuku.manager.sharingan.SharinganState.state.value.lastTraceId
                 ?.takeIf { moe.shizuku.manager.sharingan.TraceStore.exists(ctx, it) }
                 ?: moe.shizuku.manager.sharingan.ScreenCapture.capture()?.let {
                     runCatching { moe.shizuku.manager.sharingan.TraceStore.snapshot(ctx, it) }.getOrNull()
