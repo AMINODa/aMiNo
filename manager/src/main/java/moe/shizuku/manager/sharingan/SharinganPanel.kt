@@ -34,7 +34,9 @@ import moe.shizuku.manager.ui.AgentHomeActivity
  */
 object SharinganPanel {
 
-    private const val AUTO_HIDE_MS = 10_000L
+    // r1412: 60s (was 10s) — field report: the panel was never noticed before
+    // auto-hiding; one full minute gives the user time to see and grab it.
+    private const val AUTO_HIDE_MS = 60_000L
 
     private var windowManager: WindowManager? = null
     private var rootView: LinearLayout? = null

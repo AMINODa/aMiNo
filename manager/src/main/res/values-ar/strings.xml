@@ -658,5 +658,11 @@
     <string name="sharingan_toast_record_started">بدأ التسجيل (٥ دقائق كحد أقصى)</string>
     <string name="sharingan_toast_record_stopped">توقف التسجيل — السياق جاهز لأمرك القادم</string>
     <string name="sharingan_context_ready">👁️ سياق شارينغان جاهز — اكتب أمرك</string>
+    <string name="sharingan_menu">لوحة شارينغان</string>
+    <string name="sharingan_toast_panel">ظهرت اللوحة — اسحبها لأي مكان، واضغطها للطي</string>
+    <string name="sharingan_need_enable_title">شارينغان لايف غير مفعّلة</string>
+    <string name="sharingan_need_enable_msg">تعمل اللوحة العائمة عبر خدمة إمكانية الوصول. إعداد لمرة واحدة: فعّل «aMiNo شارينغان لايف» من الإعدادات ← إمكانية الوصول، ثم اضغط زر العين هنا فتظهر اللوحة فوراً.</string>
+    <string name="sharingan_btn_enable">فتح الإعدادات</string>
+    <string name="sharingan_btn_later">لاحقاً</string>
 
 </resources>

@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
+    <!-- 1.5.0-alpha r1412 — THE one-tap Sharingan button: always visible in the
+         top bar; tapping toggles the floating panel via the connected
+         accessibility service (no dependence on the system nav-bar button). -->
+    <item
+        android:id="@+id/action_sharingan"
+        android:icon="@drawable/ic_sharingan"
+        android:title="@string/sharingan_menu"
+        app:showAsAction="always" />
     <item
         android:id="@+id/action_new_chat"
         android:title="@string/agent_new_chat"

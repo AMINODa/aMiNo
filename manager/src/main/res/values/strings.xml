@@ -684,5 +684,11 @@
     <string name="sharingan_toast_record_started">Recording started (max 5 minutes)</string>
     <string name="sharingan_toast_record_stopped">Recording stopped — context staged for your next command</string>
     <string name="sharingan_context_ready">👁️ Sharingan context ready — type your command</string>
+    <string name="sharingan_menu">Sharingan panel</string>
+    <string name="sharingan_toast_panel">Panel shown — drag it anywhere, tap it to fold</string>
+    <string name="sharingan_need_enable_title">Sharingan Live is off</string>
+    <string name="sharingan_need_enable_msg">The floating panel runs through the accessibility service. One-time setup: enable \"aMiNo Sharingan Live\" in Settings → Accessibility, then tap the eye button here and the panel appears instantly.</string>
+    <string name="sharingan_btn_enable">Open Settings</string>
+    <string name="sharingan_btn_later">Later</string>
 
 </resources>

@@ -1,6 +1,7 @@
 package moe.shizuku.manager.ui
 
 import android.content.Intent
+import android.widget.Toast
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -54,6 +55,29 @@ open class AgentHomeActivity : AppActivity() {
         binding.toolbar.inflateMenu(R.menu.menu_agent_home)
         binding.toolbar.setOnMenuItemClickListener { mi ->
             when (mi.itemId) {
+                // 1.5.0-alpha r1412 — THE one-tap Sharingan button (user request:
+                // "زر واحد عند الضغط تظهر اللوحة العائمة"). Uses the CONNECTED
+                // accessibility service as the overlay window token; if the
+                // service is off, guide instead of failing silently.
+                R.id.action_sharingan -> {
+                    val svc = moe.shizuku.manager.sharingan.SharinganAccessibilityService.instance
+                    if (svc != null) {
+                        moe.shizuku.manager.sharingan.SharinganPanel.toggle(svc)
+                        Toast.makeText(this, R.string.sharingan_toast_panel, Toast.LENGTH_SHORT).show()
+                    } else {
+                        androidx.appcompat.app.AlertDialog.Builder(this)
+                            .setTitle(R.string.sharingan_need_enable_title)
+                            .setMessage(R.string.sharingan_need_enable_msg)
+                            .setPositiveButton(R.string.sharingan_btn_enable) { _, _ ->
+                                startActivity(
+                                    Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                )
+                            }
+                            .setNegativeButton(R.string.sharingan_btn_later, null)
+                            .show()
+                    }
+                    true
+                }
                 R.id.action_new_chat -> { AgentOrchestrator.newConversation(this); true }
                 // 1.1.1 — HomeActivity is ABSTRACT (never instantiable): launching it
                 // directly threw InstantiationException and killed the process. The
