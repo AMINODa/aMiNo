@@ -690,5 +690,8 @@
     <string name="sharingan_need_enable_msg">The floating panel runs through the accessibility service. One-time setup: enable \"aMiNo Sharingan Live\" in Settings → Accessibility, then tap the eye button here and the panel appears instantly.</string>
     <string name="sharingan_btn_enable">Open Settings</string>
     <string name="sharingan_btn_later">Later</string>
+    <string name="sharingan_hint_command">Type your command… (screen context attached)</string>
+    <string name="sharingan_toast_sent">Sent with screen context — aMiNo is answering in chat</string>
+    <string name="adb_pairing_service_label">aMiNo ADB pairing capture (wireless shell setup)</string>
 
 </resources>

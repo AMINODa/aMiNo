@@ -7,11 +7,14 @@ import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
+import android.text.InputType
+import android.text.TextWatcher
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.widget.FrameLayout
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -22,20 +25,25 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import moe.shizuku.manager.R
+import moe.shizuku.manager.agent.AgentOrchestrator
 import moe.shizuku.manager.ui.AgentHomeActivity
 
 /**
- * The Sharingan Live floating panel (PLAN_aMiNo2.md §2.2) — created
- * programmatically inside the accessibility service window
- * (TYPE_ACCESSIBILITY_OVERLAY → no SYSTEM_ALERT_WINDOW permission needed).
+ * The Sharingan Live floating panel v2 (PLAN_aMiNo2.md §2.2, r1413 redesign
+ * from the user's field report: "لا يظهر حقل إدخال كما طلبت" — the panel is
+ * now a DIRECT COMMAND BOX: type + send, with the real screen staged as
+ * context automatically).
  *
- * Dark aMiNo styling: bg #F20B0B0E, accent #E53935, LED circle, drag anywhere,
- * auto-hide after 10s idle.
+ * Dark aMiNo styling: bg #F20B0B0E, accent #E53935, LED circle, drag anywhere
+ * (title/status rows), auto-hide after 60s idle — never while typing.
+ * Created inside the accessibility service window
+ * (TYPE_ACCESSIBILITY_OVERLAY → no SYSTEM_ALERT_WINDOW permission needed).
  */
 object SharinganPanel {
 
-    // r1412: 60s (was 10s) — field report: the panel was never noticed before
-    // auto-hiding; one full minute gives the user time to see and grab it.
+    // r1412: 60s (was 10s) — the panel was auto-hiding before the user ever
+    // noticed it; r1413: while the input is focused the hide is POSTPONED, so
+    // it can never vanish under a typing user.
     private const val AUTO_HIDE_MS = 60_000L
 
     private var windowManager: WindowManager? = null
@@ -47,8 +55,18 @@ object SharinganPanel {
     private var led: View? = null
     private var recordBtn: TextView? = null
     private var statusLine: TextView? = null
+    private var input: EditText? = null
 
-    private val autoHideRunnable = Runnable { hide() }
+    private val autoHideRunnable: Runnable = object : Runnable {
+        override fun run() {
+            if (input?.hasFocus() == true) {
+                // user is typing — reschedule instead of stealing the panel away
+                mainHandler.postDelayed(this, AUTO_HIDE_MS)
+                return
+            }
+            hide()
+        }
+    }
 
     private fun dp(v: Int, panel: LinearLayout): Int =
         (v * panel.resources.displayMetrics.density).toInt()
@@ -100,34 +118,76 @@ object SharinganPanel {
         row1.addView(ledView)
         panel.addView(row1)
 
-        // ── Row 2: Execute ⚡ + Record ⏺ ─────────────────────────────────────
+        // ── Row 2: THE COMMAND INPUT + send (r1413 — the user's ask) ─────────
         val row2 = LinearLayout(service).apply {
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
+            gravity = Gravity.CENTER_VERTICAL
         }
-        val execBtn = TextView(service).apply {
-            text = service.getString(R.string.sharingan_btn_execute)
+        val cmdInput = EditText(service).apply {
+            hint = service.getString(R.string.sharingan_hint_command)
+            setTextColor(Color.WHITE)
+            setHintTextColor(Color.parseColor("#78909C"))
+            textSize = 13f
+            inputType = InputType.TYPE_CLASS_TEXT
+            imeOptions = EditorInfo.IME_ACTION_SEND
+            maxLines = 1
+            isSingleLine = true
+            background = rounded(Color.parseColor("#263238"), 12f)
+            setPadding(dp(10, panel), dp(8, panel), dp(10, panel), dp(8, panel))
+            layoutParams = LinearLayout.LayoutParams(0, dp(44, panel), 1f).apply {
+                marginEnd = dp(8, panel); topMargin = dp(10, panel)
+            }
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
+                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) { resetAutoHide() }
+                override fun afterTextChanged(s: android.text.Editable?) {}
+            })
+            setOnEditorActionListener { _, actionId, _ ->
+                if (actionId == EditorInfo.IME_ACTION_SEND) { resetAutoHide(); sendCommand(service); true } else false
+            }
+        }
+        input = cmdInput
+        row2.addView(cmdInput)
+        val sendBtn = TextView(service).apply {
+            text = "⚡"
             setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
-            textSize = 14f
+            textSize = 18f
             gravity = Gravity.CENTER
             background = rounded(Color.parseColor("#E53935"), 12f)
-            layoutParams = LinearLayout.LayoutParams(0, dp(44, panel), 1f).apply { marginEnd = dp(8, panel); topMargin = dp(10, panel) }
+            layoutParams = LinearLayout.LayoutParams(dp(48, panel), dp(44, panel)).apply { topMargin = dp(10, panel) }
+        }
+        row2.addView(sendBtn)
+        panel.addView(row2)
+
+        // ── Row 3: Record ⏺ / Stop + context-only Execute (kept compact) ─────
+        val row3 = LinearLayout(service).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
         }
         val recBtn = TextView(service).apply {
             text = service.getString(R.string.sharingan_btn_record)
             setTextColor(Color.WHITE)
             typeface = Typeface.DEFAULT_BOLD
-            textSize = 14f
+            textSize = 12f
             gravity = Gravity.CENTER
-            background = rounded(Color.parseColor("#37474F"), 12f)
-            layoutParams = LinearLayout.LayoutParams(0, dp(44, panel), 1f).apply { topMargin = dp(10, panel) }
+            background = rounded(Color.parseColor("#37474F"), 10f)
+            layoutParams = LinearLayout.LayoutParams(0, dp(34, panel), 1f).apply { marginEnd = dp(8, panel); topMargin = dp(8, panel) }
         }
         recordBtn = recBtn
-        row2.addView(execBtn); row2.addView(recBtn)
-        panel.addView(row2)
+        val execBtn = TextView(service).apply {
+            text = service.getString(R.string.sharingan_btn_execute)
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            textSize = 12f
+            gravity = Gravity.CENTER
+            background = rounded(Color.parseColor("#37474F"), 10f)
+            layoutParams = LinearLayout.LayoutParams(0, dp(34, panel), 1f).apply { topMargin = dp(8, panel) }
+        }
+        row3.addView(recBtn); row3.addView(execBtn)
+        panel.addView(row3)
 
-        // ── Row 3: status line ───────────────────────────────────────────────
+        // ── Row 4: status line ───────────────────────────────────────────────
         val status = TextView(service).apply {
             text = service.getString(R.string.sharingan_status_ready)
             setTextColor(Color.parseColor("#9E9E9E"))
@@ -135,25 +195,26 @@ object SharinganPanel {
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(8, panel) }
+            ).apply { topMargin = dp(6, panel) }
         }
         statusLine = status
         panel.addView(status)
 
         // ── window params (top-right start) ──────────────────────────────────
+        // r1413: NOT_FOCUSABLE is GONE — the input must be typeable. The panel
+        // still lets touches pass to apps behind it (NOT_TOUCH_MODAL).
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             android.graphics.PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
             x = dp(24, panel); y = dp(180, panel)
         }
 
-        // ── drag + tap-to-collapse + auto-hide ───────────────────────────────
+        // ── drag (title/status rows) + tap-to-collapse + auto-hide ───────────
         val touch = object : View.OnTouchListener {
             private var downX = 0f; private var downY = 0f
             private var startX = 0; private var startY = 0
@@ -177,9 +238,14 @@ object SharinganPanel {
                 return true
             }
         }
-        panel.setOnTouchListener(touch)
+        // r1413: drag lives on the title + status rows only — the EditText and
+        // the buttons must own their own touches (typing/tap), the body stays
+        // tap-to-collapse. Row1/Row4 are pure display views, safe to drag.
+        row1.setOnTouchListener(touch)
+        status.setOnTouchListener(touch)
 
         // ── buttons ──────────────────────────────────────────────────────────
+        sendBtn.setOnClickListener { resetAutoHide(); sendCommand(service) }
         execBtn.setOnClickListener {
             resetAutoHide()
             executeStaged(service)
@@ -236,7 +302,7 @@ object SharinganPanel {
         scope?.cancel(); scope = null
         mainHandler.removeCallbacks(autoHideRunnable)
         try { windowManager?.removeView(v) } catch (_: Throwable) {}
-        rootView = null; led = null; recordBtn = null; statusLine = null
+        rootView = null; led = null; recordBtn = null; statusLine = null; input = null
         SharinganState.update { it.copy(panelVisible = false) }
     }
 
@@ -259,7 +325,36 @@ object SharinganPanel {
     }
 
     /**
-     * نفذ ⚡ — the alpha Execute semantics (PLAN §2.3):
+     * ⚡ SEND (r1413 — the panel's main path):
+     * stage a REAL screen context (last trace or live snapshot — TRACE TRUTH:
+     * nothing invented), then send the typed text to the agent and open the
+     * chat so the user watches the answer. Empty input is ignored.
+     */
+    private fun sendCommand(service: android.content.Context) {
+        val text = input?.text?.toString()?.trim().orEmpty()
+        if (text.isEmpty()) return
+        input?.setText("")
+        scope?.launch(Dispatchers.IO) {
+            val id = SharinganState.state.value.lastTraceId
+                ?.takeIf { TraceStore.exists(service, it) }
+                ?: run {
+                    val f = ScreenCapture.capture() ?: return@run null
+                    runCatching { TraceStore.snapshot(service, f) }.getOrNull()
+                }
+            if (id != null) SharinganContextHub.stage(id)
+            launch(Dispatchers.Main) {
+                Toast.makeText(service, service.getString(R.string.sharingan_toast_sent), Toast.LENGTH_SHORT).show()
+                val i = Intent(service, AgentHomeActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                service.startActivity(i)
+                // staged context is consumed by THIS message's contextBlock
+                AgentOrchestrator.send(service, text)
+            }
+        }
+    }
+
+    /**
+     * نفذ ⚡ — context-only path (kept for the small Execute button):
      * stage the current/last real trace (or take a live snapshot when none),
      * open the agent chat, and let the NEXT message consume the context.
      */

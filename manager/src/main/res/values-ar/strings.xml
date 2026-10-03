@@ -664,5 +664,8 @@
     <string name="sharingan_need_enable_msg">تعمل اللوحة العائمة عبر خدمة إمكانية الوصول. إعداد لمرة واحدة: فعّل «aMiNo شارينغان لايف» من الإعدادات ← إمكانية الوصول، ثم اضغط زر العين هنا فتظهر اللوحة فوراً.</string>
     <string name="sharingan_btn_enable">فتح الإعدادات</string>
     <string name="sharingan_btn_later">لاحقاً</string>
+    <string name="sharingan_hint_command">اكتب أمرك… (يُرفق سياق الشاشة تلقائياً)</string>
+    <string name="sharingan_toast_sent">أُرسل مع سياق الشاشة — aMiNo يجيب في المحادثة</string>
+    <string name="adb_pairing_service_label">aMiNo التقاط إقران ADB (للاتصال اللاسلكي)</string>
 
 </resources>

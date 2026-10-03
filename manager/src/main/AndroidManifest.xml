@@ -263,6 +263,7 @@
 
         <service
             android:name=".adb.AdbPairingAccessibilityService"
+            android:label="@string/adb_pairing_service_label"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
             <intent-filter>
@@ -276,6 +277,7 @@
         <!-- aMiNo 1.5.0-alpha — Sharingan Live: accessibility button → floating control panel -->
         <service
             android:name=".sharingan.SharinganAccessibilityService"
+            android:label="@string/sharingan_service_label"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
             <intent-filter>
