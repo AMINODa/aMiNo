@@ -699,4 +699,13 @@
     <string name="sharingan_bubble_cd">Sharingan Live — tap to open the panel</string>
     <string name="sharingan_bubble_hint">This eye is Sharingan\'s button — tap it to open the panel, drag to move it. To remove it: Settings → Accessibility → turn off \"aMiNo Sharingan Live\".</string>
 
+    <!-- aMiNo 1.5.0-alpha r1415 — background task execution + result notifications -->
+    <string name="sharingan_task_chn">Sharingan tasks</string>
+    <string name="sharingan_task_started_title">aMiNo is running your command in the background</string>
+    <string name="sharingan_task_done_title">aMiNo finished your command ✅</string>
+    <string name="sharingan_task_err_title">aMiNo could not finish — tap for details</string>
+    <string name="sharingan_task_busy">aMiNo is already running a task — wait for it to finish, then send again</string>
+    <string name="sharingan_task_no_notif">Result will appear in the aMiNo chat — notifications are currently off</string>
+    <string name="sharingan_toast_bg_sent">Running in the background with screen context — you\'ll get a notification with the result</string>
+
 </resources>

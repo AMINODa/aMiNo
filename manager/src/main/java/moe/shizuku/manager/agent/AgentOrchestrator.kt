@@ -15,6 +15,7 @@ import moe.shizuku.manager.keys.ApiKeysStore
 import moe.shizuku.manager.keys.SecureStore
 import moe.shizuku.manager.memory.ChatMessage
 import moe.shizuku.manager.memory.MemoryRepository
+import moe.shizuku.manager.sharingan.SharinganTaskNotifier
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -139,7 +140,16 @@ object AgentOrchestrator {
 
     // ---------- the agent loop ----------
 
-    fun send(context: Context, userText: String) {
+    /**
+     * r1415 — `fromSharingan`: commands typed in the floating panel run with
+     * the app in the BACKGROUND (the panel never opens the chat activity).
+     * The orchestrator already runs on its own scope with SQLite persistence,
+     * so the only change is the outcome channel: a task notification carries
+     * the REAL final answer to the user while they stay in whatever app they
+     * were using (Sharingan's actual purpose, user's words: "هذا هو دور
+     * الشارينغان").
+     */
+    fun send(context: Context, userText: String, fromSharingan: Boolean = false) {
         init(context)
         if (_state.value.busy) return
         val text = userText.trim()
@@ -160,8 +170,18 @@ object AgentOrchestrator {
             MemoryRepository.addMessage(ctx, convId, "user", text)
             MemoryRepository.saveWorking(ctx, convId, goal = text, stepsJson = "[]", status = "running")
             publish(ctx, convId, AgentStatus.Thinking)
+            if (fromSharingan) SharinganTaskNotifier.taskStarted(ctx, text)
 
             runLoop(ctx, convId, text)
+
+            if (fromSharingan) {
+                // Every runLoop exit path saves an assistant row first
+                // (final answer / honest error / cancellation note) — surface
+                // THAT row verbatim, never a re-invented summary.
+                val last = MemoryRepository.messages(ctx, convId)
+                    .lastOrNull { it.role == "assistant" && it.toolName == null }
+                if (last != null) SharinganTaskNotifier.taskDone(ctx, last.content)
+            }
         }
     }
 

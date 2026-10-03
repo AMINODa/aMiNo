@@ -673,4 +673,13 @@
     <string name="sharingan_bubble_cd">شارينغان لايف — اضغط لفتح اللوحة</string>
     <string name="sharingan_bubble_hint">هذه العين هي زر شارينغان — اضغطها لفتح اللوحة، واسحبها لتحريكها. لإزالتها: الإعدادات ← إمكانية الوصول ← أوقف «aMiNo شارينغان لايف».</string>
 
+    <!-- aMiNo 1.5.0-alpha r1415 — background task execution + result notifications -->
+    <string name="sharingan_task_chn">مهام شارينغان</string>
+    <string name="sharingan_task_started_title">aMiNo ينفّذ أمرك في الخلفية</string>
+    <string name="sharingan_task_done_title">aMiNo أنهى أمرك ✅</string>
+    <string name="sharingan_task_err_title">aMiNo لم يُكمل الأمر — اضغط للتفاصيل</string>
+    <string name="sharingan_task_busy">aMiNo ينفّذ مهمة أخرى — انتظر انتهاءها ثم أعد الإرسال</string>
+    <string name="sharingan_task_no_notif">النتيجة ستظهر في محادثة aMiNo — الإشعارات معطّلة حالياً</string>
+    <string name="sharingan_toast_bg_sent">التنفيذ جارٍ في الخلفية مع سياق الشاشة — ستصلك إشعار بالنتيجة</string>
+
 </resources>

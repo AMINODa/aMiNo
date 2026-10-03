@@ -1,7 +1,6 @@
 package moe.shizuku.manager.sharingan
 
 import android.annotation.SuppressLint
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -26,7 +25,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import moe.shizuku.manager.R
 import moe.shizuku.manager.agent.AgentOrchestrator
-import moe.shizuku.manager.ui.AgentHomeActivity
 
 /**
  * The Sharingan Live floating panel v2 (PLAN_aMiNo2.md §2.2, r1413 redesign
@@ -332,14 +330,21 @@ object SharinganPanel {
     }
 
     /**
-     * ⚡ SEND (r1413 — the panel's main path):
+     * ⚡ SEND (r1415 — FULLY BACKGROUND):
      * stage a REAL screen context (last trace or live snapshot — TRACE TRUTH:
-     * nothing invented), then send the typed text to the agent and open the
-     * chat so the user watches the answer. Empty input is ignored.
+     * nothing invented), then hand the typed text to the agent which executes
+     * in the BACKGROUND — the chat activity is NEVER opened and the user stays
+     * in whatever app they were using; the REAL final answer arrives as a
+     * notification. Empty input is ignored; a busy agent gets an honest
+     * "wait" toast instead of silently dropping the command.
      */
     private fun sendCommand(service: android.content.Context) {
         val text = input?.text?.toString()?.trim().orEmpty()
         if (text.isEmpty()) return
+        if (AgentOrchestrator.state.value.busy) {
+            Toast.makeText(service, service.getString(R.string.sharingan_task_busy), Toast.LENGTH_LONG).show()
+            return
+        }
         input?.setText("")
         scope?.launch(Dispatchers.IO) {
             val id = SharinganState.state.value.lastTraceId
@@ -351,29 +356,28 @@ object SharinganPanel {
             val withContext = id != null
             if (withContext) SharinganContextHub.stage(id!!)
             launch(Dispatchers.Main) {
-                // r1414: HONEST toast — say whether the screen context was
-                // really attached (TRACE TRUTH applies to UI too).
-                Toast.makeText(
-                    service,
-                    service.getString(
-                        if (withContext) R.string.sharingan_toast_sent
-                        else R.string.sharingan_toast_sent_nocontext
-                    ),
-                    Toast.LENGTH_SHORT
-                ).show()
-                val i = Intent(service, AgentHomeActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                service.startActivity(i)
-                // staged context is consumed by THIS message's contextBlock
-                AgentOrchestrator.send(service, text)
+                // r1415: honest toast — say whether the screen context was
+                // really attached AND where the result will land (TRACE TRUTH
+                // applies to UI too).
+                val msg = when {
+                    withContext -> service.getString(R.string.sharingan_toast_bg_sent)
+                    androidx.core.app.NotificationManagerCompat.from(service).areNotificationsEnabled() ->
+                        service.getString(R.string.sharingan_toast_sent_nocontext)
+                    else -> service.getString(R.string.sharingan_task_no_notif)
+                }
+                Toast.makeText(service, msg, Toast.LENGTH_LONG).show()
+                // NO startActivity — the task runs in the background; the
+                // staged context is consumed by THIS run's contextBlock.
+                AgentOrchestrator.send(service, text, fromSharingan = true)
             }
         }
     }
 
     /**
-     * نفذ ⚡ — context-only path (kept for the small Execute button):
-     * stage the current/last real trace (or take a live snapshot when none),
-     * open the agent chat, and let the NEXT message consume the context.
+     * نفذ ⚡ — context-only path (r1415: stays ON SCREEN too):
+     * stage the current/last real trace (or take a live snapshot when none)
+     * and tell the user to type the command — no activity launch, the next
+     * panel send consumes the context in the background.
      */
     private fun executeStaged(service: android.content.Context) {
         scope?.launch(Dispatchers.IO) {
@@ -392,9 +396,6 @@ object SharinganPanel {
             SharinganContextHub.stage(id)
             launch(Dispatchers.Main) {
                 Toast.makeText(service, service.getString(R.string.sharingan_context_ready), Toast.LENGTH_SHORT).show()
-                val i = Intent(service, AgentHomeActivity::class.java)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                service.startActivity(i)
             }
         }
     }
