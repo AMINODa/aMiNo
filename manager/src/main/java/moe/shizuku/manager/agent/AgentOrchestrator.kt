@@ -78,6 +78,22 @@ object AgentOrchestrator {
     @Volatile
     private var cancelled = false
 
+    // r1420 — ATOMIC SINGLE-FLIGHT ADMISSION. `busy` is a StateFlow set INSIDE
+    // the launched coroutine, so the old `if (busy) return` was check-then-act:
+    // two entries landing in the same instant (double-tap on ⚡, a continuation
+    // alarm firing while the user sends) BOTH passed and ran two runLoops on
+    // ONE conversation — interleaved DB rows, duplicated tool responses,
+    // corrupted pairing. `admission` is a CAS gate acquired SYNCHRONOUSLY
+    // before the coroutine launches and released in every finally, so exactly
+    // ONE loop can ever execute.
+    private val admission = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    private fun tryAdmit(): Boolean = admission.compareAndSet(false, true)
+
+    private fun releaseAdmission() {
+        admission.set(false)
+    }
+
     /** r1418 — busy-retry counters for continuations that fired mid-task (M6). */
     private val continuationRetries = ConcurrentHashMap<Long, Int>()
 
@@ -194,6 +210,11 @@ object AgentOrchestrator {
             return
         }
 
+        // r1420 — ATOMIC ADMISSION before launching: the busy StateFlow is set
+        // INSIDE the coroutine (check-then-act race); admission is a CAS gate —
+        // exactly one runLoop can ever execute, so tool responses can never be
+        // duplicated by two concurrent loops on one conversation.
+        if (!tryAdmit()) return
         cancelled = false
         scope.launch {
             val ctx = appContext ?: return@launch
@@ -240,6 +261,7 @@ object AgentOrchestrator {
             } finally {
                 finalizeGuard(ctx, guard, cancelled)
                 TaskMemory.dropWake()
+                releaseAdmission() // r1420
             }
         }
     }
@@ -268,6 +290,9 @@ object AgentOrchestrator {
             _state.value = _state.value.copy(status = AgentStatus.NotConfigured)
             return false
         }
+        // r1420 — ATOMIC ADMISSION (see [send]): honest FALSE instead of a
+        // second concurrent loop when two commands land in the same instant.
+        if (!tryAdmit()) return false
         cancelled = false
         scope.launch {
             val ctx = appContext ?: return@launch
@@ -325,6 +350,7 @@ object AgentOrchestrator {
                 // becomes the taskDone notification (visible proof of memory).
                 finalizeGuard(ctx, guard, cancelled)
                 TaskMemory.dropWake()
+                releaseAdmission() // r1420
                 // EVERY path ends visibly: answer, honest error, cancel note —
                 // or this explicit fallback when no assistant row exists at all.
                 val last = if (convId > 0) MemoryRepository.messages(ctx, convId)
@@ -610,7 +636,10 @@ object AgentOrchestrator {
             // also fireable — the alarm is their only remaining lifeline.
             if (row.status != "scheduled" && row.status != "guard") return@launch
 
-            if (_state.value.busy) {
+            // r1420 — admission is the authoritative gate; short-circuit `||`
+            // means tryAdmit() is NOT called when busy (nothing to leak), and
+            // the CAS still blocks a second loop if busy was stale.
+            if (_state.value.busy || !tryAdmit()) {
                 val attempts = (continuationRetries[continuationId] ?: 0) + 1
                 if (attempts <= TaskMemory.MAX_RETRIES) {
                     continuationRetries[continuationId] = attempts
@@ -664,6 +693,7 @@ object AgentOrchestrator {
                     }
                 }
                 TaskMemory.dropWake()
+                releaseAdmission() // r1420 — held via tryAdmit() above
             }
         }
     }

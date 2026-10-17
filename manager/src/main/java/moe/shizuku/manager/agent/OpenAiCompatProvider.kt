@@ -25,21 +25,44 @@ object OpenAiCompatProvider : LlmProvider {
         .writeTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    /** Shared message builder (also used by CloudflareProvider). */
+    /**
+     * Shared message builder (also used by Cloudflare/OpenRouter/AgentRouter).
+     *
+     * r1420 — UNIQUE TOOL CALL IDS (field error: "Duplicate tool response for
+     * tool_call_id='call_shell_command'"). The old builder synthesized the id
+     * from the tool NAME, so the SECOND call of the same tool inside one
+     * history window (dumpsys then any other shell command — a normal second
+     * round) produced two identical tool_call ids in one request and every
+     * OpenAI-compatible gateway hard-rejected it with HTTP 400, killing the
+     * task mid-run. Now:
+     *  - every assistant tool-call marker gets a UNIQUE id ("call_<tool>_<n>"),
+     *  - each tool row is paired with the OPEN marker of the same tool that
+     *    directly precedes it (DB order is strictly marker→result pairs, and
+     *    executeToolCall writes them back-to-back),
+     *  - an ORPHAN tool row (its marker evicted by the history window) is
+     *    flattened to plain assistant text — an unpaired tool message is never
+     *    emitted, so "exactly one response per tool_call" always holds.
+     */
     internal fun buildMessages(systemPrompt: String, history: List<LlmMessage>): JSONArray {
         val messages = JSONArray()
         messages.put(JSONObject().put("role", "system").put("content", systemPrompt))
+        val seq = HashMap<String, Int>()                  // tool name -> occurrence index
+        val open = HashMap<String, ArrayDeque<String>>()  // tool name -> ids awaiting their result
         for (m in history) {
             when (m.role) {
                 "user" -> messages.put(JSONObject().put("role", "user").put("content", m.text))
                 "assistant" -> {
                     if (m.toolName != null) {
+                        val n = seq[m.toolName] ?: 0
+                        seq[m.toolName] = n + 1
+                        val id = "call_${m.toolName}_$n"
+                        open.getOrPut(m.toolName) { ArrayDeque() }.addLast(id)
                         val args = runCatching { JSONObject(m.toolArgsJson ?: "{}") }.getOrDefault(JSONObject())
                         messages.put(JSONObject()
                             .put("role", "assistant")
                             .put("content", JSONObject.NULL)
                             .put("tool_calls", JSONArray().put(JSONObject()
-                                .put("id", "call_${m.toolName}")
+                                .put("id", id)
                                 .put("type", "function")
                                 .put("function", JSONObject().put("name", m.toolName)
                                     .put("arguments", args.toString())))))
@@ -47,10 +70,21 @@ object OpenAiCompatProvider : LlmProvider {
                         messages.put(JSONObject().put("role", "assistant").put("content", m.text))
                     }
                 }
-                "tool" -> messages.put(JSONObject()
-                    .put("role", "tool")
-                    .put("tool_call_id", "call_${m.toolName ?: "tool"}")
-                    .put("content", m.text))
+                "tool" -> {
+                    val id = open[m.toolName ?: "tool"]?.removeFirstOrNull()
+                    if (id == null) {
+                        // Orphan result (marker outside the window): flatten to
+                        // assistant text instead of emitting an unpaired tool row.
+                        messages.put(JSONObject()
+                            .put("role", "assistant")
+                            .put("content", "[${m.toolName ?: "tool"}] ${m.text.take(2000)}"))
+                    } else {
+                        messages.put(JSONObject()
+                            .put("role", "tool")
+                            .put("tool_call_id", id)
+                            .put("content", m.text))
+                    }
+                }
             }
         }
         return messages
