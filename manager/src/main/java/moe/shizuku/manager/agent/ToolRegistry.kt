@@ -441,36 +441,6 @@ object ToolRegistry {
                     "{\"type\":\"perceive\",\"max_elements\":30}, or {\"type\":\"wait\",\"ms\":500}. Use {name} " +
                     "placeholders for variable parts and declare them in params_hint. verify = an optional " +
                     "host command that must exit 0 for the skill to count as SUCCESS. Step field \"optional\":true " +
-                    "continues past a failed step.",
-                JSONObject().put("type", "object").put("properties",
-                    JSONObject().put("title", JSONObject().put("type", "string"))
-                        .put("trigger", JSONObject().put("type", "string")
-                            .put("description", "WHEN this skill applies — used to match future requests"))
-                        .put("steps_json", JSONObject().put("type", "string")
-                            .put("description", "JSON array of steps (see description)"))
-                        .put("verify", JSONObject().put("type", "string"))
-                        .put("params_hint", JSONObject().put("type", "string")
-                            .put("description", "Documents the {placeholders}, e.g. '{package}: the app package'")))
-                    .put("required", org.json.JSONArray().put("title").put("steps_json"))
-            ),
-            requiresShell = false
-        ) { ctx, args ->
-            moe.shizuku.manager.agent.skills.SkillEngine.save(
-                ctx, args.optString("title", ""), args.optString("trigger", ""),
-                args.optString("steps_json", ""), args.optString("verify", "").ifBlank { null },
-                args.optString("params_hint", "").ifBlank { null })
-        },
-        RegisteredTool(
-            ToolSpec(
-                "skill_save",
-                "Convert a JUST-SUCCEEDED multi-step procedure into a reusable SKILL (local JSON, survives " +
-                    "restarts). steps_json = JSON array where each step is ONE of: {\"type\":\"shell\",\"cmd\":\"...\"} " +
-                    "(Android HOST command via the aMiNo service), {\"type\":\"terminal\",\"cmd\":\"...\"} (inside " +
-                    "the agent default terminal env — Debian when installed, same validator as terminal_execute), " +
-                    "{\"type\":\"input\",\"action\":\"tap\",\"x\":0,\"y\":0} (any screen_act action), " +
-                    "{\"type\":\"perceive\",\"max_elements\":30}, or {\"type\":\"wait\",\"ms\":500}. Use {name} " +
-                    "placeholders for variable parts and declare them in params_hint. verify = an optional " +
-                    "host command that must exit 0 for the skill to count as SUCCESS. Step field \"optional\":true " +
                     "continues past a failed step. Saved skills are visible to the user in the Skills Center (drawer 🧩).",
                 JSONObject().put("type", "object").put("properties",
                     JSONObject().put("title", JSONObject().put("type", "string"))

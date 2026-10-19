@@ -116,7 +116,7 @@ data class SkillPackage(
 
     /** Writes the package file (the ONLY writer for the new format). */
     fun writeTo(ctx: Context) {
-        fileOf(ctx, id).writeText(toJsonObject().toString(2))
+        atomicWriteText(fileOf(ctx, id), toJsonObject().toString(2)) // 1.6 r1421 crash-safe
     }
 
     companion object {

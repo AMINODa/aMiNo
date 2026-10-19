@@ -471,6 +471,13 @@ object AgentOrchestrator {
         val baseUrl = ApiKeysStore.baseUrl(context)
 
         val steps = JSONArray()
+        // 1.6 (r1421) — honest per-task COST measurement (brief problem 7). Nothing
+        // was ever measured: no round count, no tool-call count, no wall time. The
+        // finally block below logs one line per task to Logcat (no UI change, no
+        // behavior change) so tuning (MAX_TOOL_ROUNDS, prompt size, history window)
+        // can be driven by numbers instead of vibes. `round` was hoisted here for it.
+        val taskStartMs = System.currentTimeMillis()
+        var round = 0
         // r1419 — park-check guard: only a continuation CREATED BY THIS RUN may
         // park the task. Previously ANY still-scheduled row of the conversation
         // (e.g. a delayed-start waiting to fire) parked every subsequent task
@@ -479,7 +486,6 @@ object AgentOrchestrator {
             MemoryRepository.newestScheduled(context, convId)?.id
         }.getOrNull()
         try {
-            var round = 0
             while (true) {
                 if (cancelled) { saveCancelled(context, convId, steps); return }
 
@@ -557,6 +563,24 @@ object AgentOrchestrator {
                 "⚠️ " + context.getString(R.string.agent_err_internal, e.message ?: e.javaClass.simpleName))
             MemoryRepository.saveWorking(context, convId, userText, steps.toString(), "error")
             publish(context, convId, AgentStatus.Ready)
+        } finally {
+            // 1.6 (r1421) — the one-line honest cost report (Logcat only).
+            runCatching {
+                var calls = 0; var reads = 0; var shells = 0; var failed = 0
+                for (i in 0 until steps.length()) {
+                    val o = steps.optJSONObject(i) ?: continue
+                    if (o.optString("type") != "result") continue
+                    calls++
+                    if (!o.optBoolean("ok", false)) failed++
+                    when (o.optString("tool")) {
+                        "screen_read" -> reads++
+                        "shell_command" -> shells++
+                    }
+                }
+                Log.i(TAG, "task perf: conv=$convId rounds=$round toolCalls=$calls " +
+                    "(screenReads=$reads shellCmds=$shells failed=$failed) " +
+                    "ms=${System.currentTimeMillis() - taskStartMs}")
+            }
         }
     }
 

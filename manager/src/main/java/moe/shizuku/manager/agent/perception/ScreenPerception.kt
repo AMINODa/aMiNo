@@ -207,9 +207,18 @@ object ScreenPerception {
 
         val s = ShizukuExec.oneShot("$cmd; echo ACT_RC=\$?", 20_000)
         val ok = s.output.contains("ACT_RC=0")
-        return if (ok) AgentTools.ToolResult(
-            true, "$action OK — VERIFY NOW with a fresh screen_read before telling the user it worked"
-        ) else AgentTools.ToolResult(
+        return if (ok) {
+            // 1.6 (r1421) — SETTLE: `input` returns the instant the injection is
+            // queued; a screen_read fired immediately afterwards used to race the
+            // window transition and show the OLD screen (read() already retries
+            // once after 1200ms, but the wasted round is real cost — brief
+            // problem 7). A bounded settle lets the transition land before the
+            // mandated verify read, without changing act semantics at all.
+            delay(500)
+            AgentTools.ToolResult(
+                true, "$action OK — VERIFY NOW with a fresh screen_read before telling the user it worked"
+            )
+        } else AgentTools.ToolResult(
             false,
             "$action FAILED rc=${s.rc}: ${s.output.replace("ACT_RC=\\d+".toRegex(), "").trim().take(200)}"
         )

@@ -27,7 +27,7 @@ subprojects { subproject ->
 }
 
 def gitCommitCount = Integer.parseInt("git rev-list --count HEAD".execute([], project.rootDir).text.trim())
-def baseVersionName = "1.5.0-alpha"  // 1.5.0-alpha (branch feature/sharingan-live): Sharingan Live — accessibility button → floating panel (TYPE_ACCESSIBILITY_OVERLAY), Record ⏺ 1fps screencap with on-device md5 change skipping + uiautomator text, Execute ⚡ stages [SHARINGAN CONTEXT] (real frames only — TRACE TRUTH) into the next agent message; main stays 1.4.2 until merge
+def baseVersionName = "1.6.0-alpha"  // 1.6.0-alpha (branch feature/sharingan-live): capability REPAIR release — r1421: duplicate 'skill_save' tool spec removed (duplicate function name went to EVERY provider every round; strict gateways 400'd), REAL timeout watchdog in shell_command (dead timeoutMs — streaming commands like logcat locked the agent busy forever), crash-safe atomic skill writes (tmp+fsync+rename), 500ms post-act settle against the screen-transition race, per-task cost log (rounds/toolCalls/screenReads/ms). 1.5.0-alpha base: Sharingan Live panel, memory core, Duration Guardian, single-flight admission (r1414-r1420). Main stays 1.4.2 until merge
 def isBeta = project.hasProperty("beta")
 ext {
     versionCode = gitCommitCount

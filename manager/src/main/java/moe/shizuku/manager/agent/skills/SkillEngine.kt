@@ -126,7 +126,7 @@ object SkillEngine {
             .put("params_hint", paramsHint?.trim().takeUnless { it.isNullOrBlank() } ?: JSONObject.NULL)
             .put("success", 0).put("fail", 0)
             .put("created", System.currentTimeMillis()).put("last_used", 0L)
-        fileOf(ctx, id).writeText(obj.toString(2))
+        fileOf(ctx, id).let { atomicWriteText(it, obj.toString(2)) } // 1.6 r1421 crash-safe
         return AgentTools.ToolResult(
             true,
             "skill saved: id=$id (${steps.length()} steps) — reuse with skill_run {\"id\":\"$id\"}. " +
@@ -146,7 +146,7 @@ object SkillEngine {
             val o = JSONObject(f.readText())
                 .put(if (ok) "success" else "fail", (if (ok) sk.success else sk.fail) + 1)
                 .put("last_used", System.currentTimeMillis())
-            f.writeText(o.toString(2))
+            atomicWriteText(f, o.toString(2)) // 1.6 r1421 crash-safe
         }
     }
 

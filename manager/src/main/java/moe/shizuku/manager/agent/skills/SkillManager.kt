@@ -316,7 +316,7 @@ object SkillManager {
         val pkg = get(ctx, id) ?: return AgentTools.ToolResult(false, "no skill '$id'")
         val dir = File(ctx.filesDir, EXPORT_DIR).apply { mkdirs() }
         val out = File(dir, "${pkg.id}-v${pkg.version}.json")
-        out.writeText(pkg.toJsonObject().toString(2))
+        atomicWriteText(out, pkg.toJsonObject().toString(2)) // 1.6 r1421 crash-safe
         return AgentTools.ToolResult(true, "exported: ${out.absolutePath} (${out.length()} bytes) — share it from the Skills Center")
     }
 

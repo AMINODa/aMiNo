@@ -32,10 +32,39 @@ object AgentTools {
         return try {
             val key = AdbKey(PreferenceAdbKeyStore(moe.shizuku.manager.ShizukuSettings.getPreferences()), "amino")
             val sb = StringBuilder()
+            // 1.6 (r1421) — the timeout is REAL now. `timeoutMs` used to be dead
+            // code (r1416 fixed the twin bug in ShizukuExec.oneShot but missed
+            // this caller): a command that STREAMS continuously (logcat, tail -f,
+            // ping without -c) never trips the socket soTimeout (that only covers
+            // SILENCE) and blocked the read loop FOREVER — the agent stayed busy
+            // with no honest outcome. The deadline is checked inside the output
+            // listener; on expiry the client is closed (unblocks the read loop,
+            // the same mechanism as the ShizukuExec watchdog), partial output is
+            // kept and an honest timeout result is returned.
             val timeoutMs = 15_000L
-            AdbClient("127.0.0.1", st.port, key).use { client ->
-                client.connect()
-                client.command("shell:$command; echo __AMINO_RC_\$?") { bytes -> sb.append(String(bytes)) }
+            val start = System.currentTimeMillis()
+            var timedOut = false
+            try {
+                AdbClient("127.0.0.1", st.port, key).use { client ->
+                    client.connect()
+                    client.command("shell:$command; echo __AMINO_RC_\$?") { bytes ->
+                        sb.append(String(bytes))
+                        if (!timedOut && System.currentTimeMillis() - start > timeoutMs) {
+                            timedOut = true
+                            runCatching { client.close() } // unblocks the read loop, output so far is kept
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                if (!timedOut) throw e // a genuine error — reported honestly by the outer catch
+                // timed-out path: fall through with the partial output below
+            }
+            if (timedOut) {
+                val partial = sb.toString().replace("\r\n", "\n").trim().take(500)
+                return ToolResult(false,
+                    "timeout_after_${timeoutMs / 1000}s — the command kept producing output and was cut " +
+                    "(streaming commands like logcat/tail -f never end; add a limiter such as 'head -n 50' " +
+                    "or a count). Partial output: ${if (partial.isBlank()) "(none)" else partial}")
             }
             val raw = sb.toString().replace("\r\n", "\n").replace('\r', '\n')
             var rc: Int? = null
