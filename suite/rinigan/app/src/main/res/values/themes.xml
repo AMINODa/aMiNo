@@ -1,0 +1,13 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme — aMiNo suite identity: the full background is
+         the aMiNo agent stage (#0B0B0E) from the first frame, so no light flash
+         precedes the Compose content. -->
+    <style name="Theme.Rinigan" parent="android:Theme.DeviceDefault">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">#0B0B0E</item>
+        <item name="android:statusBarColor">#0B0B0E</item>
+        <item name="android:navigationBarColor">#0B0B0E</item>
+        <item name="android:colorBackground">#0B0B0E</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

@@ -727,4 +727,24 @@
     <string name="sharingan_no_apikey">No API key — open aMiNo → Settings → API keys first</string>
     <string name="sharingan_shell_down">shell disconnected — device actions need it (open aMiNo → Adb)</string>
 
+    <!-- aMiNo v2 SUITE — bundled Rinigan + Patcher (installed from one screen) -->
+    <string name="suite_title">aMiNo Suite</string>
+    <string name="suite_rinigan_role">Camera link module — shows a link (site / stream / video) when the camera opens in patched apps</string>
+    <string name="suite_patcher_role">Rootless Xposed patcher — bakes the loader and modules (like Rinigan) into a target app APK</string>
+    <string name="suite_install">Install</string>
+    <string name="suite_open">Open</string>
+    <string name="suite_shell_ready">ADB shell connected — installs run silently</string>
+    <string name="suite_shell_off">ADB shell not connected — installs open the system installer (pair Adb from aMiNo home for silent installs)</string>
+    <string name="suite_status_installed">Installed ✓ — version %1$s</string>
+    <string name="suite_status_missing">Not installed — the bundled copy is ready below</string>
+    <string name="suite_status_bundling">Preparing the bundled copy…</string>
+    <string name="suite_stage_failed">Could not stage the bundled APK</string>
+    <string name="suite_installing_shell">Installing %1$s silently via shell…</string>
+    <string name="suite_install_done">%1$s installed — pm reported Success</string>
+    <string name="suite_install_failed">pm install did not report Success:\n%1$s</string>
+    <string name="suite_install_failed_title">Silent install failed</string>
+    <string name="suite_use_installer">Use system installer</string>
+
+    <string name="suite_hint">The suite ships inside aMiNo: Rinigan runs the camera-link engine, the Patcher bakes the loader into target APKs. Patch a target app with the Patcher and include aMiNo Rinigan as the module.</string>
+
 </resources>

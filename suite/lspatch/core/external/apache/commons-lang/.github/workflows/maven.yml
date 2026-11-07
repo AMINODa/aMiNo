@@ -1,0 +1,62 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#      https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+name: Java CI
+
+on:
+  push:
+    branches:
+      - 'master'
+  pull_request: {}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      max-parallel: 20
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        java: [ 8, 11, 17, 21, 25, 26 ]
+        experimental: [false]
+        include:
+          - java: 27-ea
+            experimental: true
+            os: ubuntu-latest
+          - java: 28-ea
+            experimental: true
+            os: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+    - name: Set up JDK ${{ matrix.java }}
+      uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # 5.7.0
+      with:
+        distribution: ${{ runner.os == 'macOS' && matrix.java == '8' && 'zulu' || 'temurin' }}
+        java-version: ${{ matrix.java }}
+    - name: Build with Maven
+      run: mvn --errors --show-version --batch-mode --no-transfer-progress -Ddoclint=all

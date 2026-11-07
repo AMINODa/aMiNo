@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">aMiNo Rinigan</string>
+    <string name="module_description">Module de caméra virtuelle — remplace le flux de la caméra par une vidéo locale, des images ou un flux réseau (Xposed / LSPosed / LSPatch)</string>
+    <string name="description">Consultez le dépôt en ligne pour les dernières mises à jour</string>
+    <string name="Warning">INTERDIT de l\'utiliser à des fins illégales !! Vous assumez l\'entière responsabilité des conséquences !!</string>
+
+    <!-- Permission -->
+    <string name="permission_switch_text">Accorder l\'autorisation de stockage local</string>
+    <string name="permission_lack_warn">Autorisations manquantes</string>
+    <string name="permission_description">L\'autorisation d\'accès au stockage local sert à configurer les fichiers de configuration.</string>
+    <string name="positive">OK</string>
+    <string name="negative">Refuser</string>
+
+    <!-- Home Screen Status -->
+    <string name="status_no_permission">Pas d\'autorisation</string>
+    <string name="status_working">Actif</string>
+    <string name="status_paused">En pause</string>
+    <string name="status_module_inactive">Module non actif</string>
+    <string name="status_activate_hint">Activez le module dans votre gestionnaire Xposed puis redémarrez</string>
+    <string name="status_grant_permission">Accorder l\'autorisation</string>
+    <string name="status_label_play_mode">Mode de lecture</string>
+    <string name="status_label_mic">Micro</string>
+    <string name="status_label_video_sound">Son de la vidéo</string>
+    <string name="status_label_notification">Contrôle par notification</string>
+    <string name="status_value_on">Activé</string>
+    <string name="status_value_off">Désactivé</string>
+    <string name="status_value_random_play">Lecture aléatoire</string>
+    <string name="status_value_sequential_play">Lecture séquentielle</string>
+    <string name="status_value_mic_mute">Muet</string>
+    <string name="status_value_mic_replace">Remplacement audio</string>
+    <string name="status_value_mic_sync">Synchro vidéo</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_category_general">Paramètres généraux</string>
+    <string name="settings_notification_control">Activer les contrôles de notification</string>
+    <string name="settings_notification_control_desc">Changer rapidement de vidéo depuis la barre de notification</string>
+    <string name="settings_play_sound">Lire le son</string>
+    <string name="settings_play_sound_desc">Jouer l\'audio d\'origine lors du remplacement de la vidéo</string>
+    <string name="settings_mic_hook">Hook du micro</string>
+    <string name="settings_mic_hook_desc">Intercepter l\'entrée du micro</string>
+    <string name="mic_mode_mute">Mode muet</string>
+    <string name="mic_mode_mute_desc">Sortir du silence</string>
+    <string name="mic_mode_replace">Remplacement audio</string>
+    <string name="mic_mode_replace_desc">Injecter un fichier audio personnalisé</string>
+    <string name="mic_mode_video_sync">Synchro vidéo</string>
+    <string name="mic_mode_video_sync_desc">Jouer la piste audio d\'origine de la vidéo</string>
+    <string name="settings_random_play">Lecture aléatoire</string>
+    <string name="settings_random_play_desc">Choix aléatoire dans la liste de vidéos</string>
+    <string name="settings_category_advanced">Paramètres avancés</string>
+    <string name="settings_force_private_dir">Forcer le dossier privé</string>
+    <string name="settings_force_private_dir_desc">Corrige les apps qui ne peuvent pas lire les fichiers</string>
+    <string name="settings_disable_toast">Désactiver les toasts</string>
+    <string name="settings_disable_toast_desc">Masquer toutes les notifications d\'opération</string>
+    <string name="settings_enable_photo_fake">Activer le remplacement de photo</string>
+    <string name="settings_enable_photo_fake_desc">Intercepte les prises de vue et injecte des images vidéo</string>
+    <string name="settings_disable_module">Désactiver le module</string>
+    <string name="settings_disable_module_desc">Désactive temporairement toutes les fonctions de hook</string>
+    <string name="settings_system_permission">Paramètres d\'autorisation système</string>
+    <string name="settings_system_permission_desc">Gérer les autorisations de stockage et de notification</string>
+
+    <!-- Stream Settings -->
+    <string name="settings_category_stream">Paramètres de flux réseau</string>
+    <string name="settings_media_source_type">Type de source média</string>
+    <string name="settings_media_source_local">Fichier local</string>
+    <string name="settings_media_source_stream">Flux réseau</string>
+    <string name="settings_stream_url">URL du flux</string>
+    <string name="settings_stream_url_hint">Saisissez une URL rtsp:// rtmp:// etc.</string>
+    <string name="settings_stream_auto_reconnect">Reconnexion automatique</string>
+    <string name="settings_stream_auto_reconnect_desc">Reconnexion automatique en cas de coupure du flux</string>
+    <string name="settings_stream_local_fallback">Repli local</string>
+    <string name="settings_stream_local_fallback_desc">Revenir à la vidéo locale si le flux est indisponible</string>
+    <string name="settings_stream_transport_hint">Protocole de transport RTSP</string>
+    <string name="settings_stream_transport_auto">Auto</string>
+    <string name="settings_stream_transport_tcp">TCP</string>
+    <string name="settings_stream_transport_udp">UDP</string>
+    <string name="settings_stream_timeout">Délai d\'expiration</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Accueil</string>
+    <string name="nav_manage">Gestion</string>
+    <string name="nav_settings">Paramètres</string>
+
+    <!-- Manage Screen -->
+    <string name="tab_video_manage">Vidéos</string>
+    <string name="tab_audio_manage">Audio</string>
+    <string name="desc_add_media">Ajouter un média</string>
+    <string name="status_no_video">Aucun fichier vidéo</string>
+    <string name="status_no_audio">Aucun fichier audio</string>
+    <string name="import_to_camera_dir">Importer vers le dossier Camera1 (copie)</string>
+    <string name="select_from_storage">Choisir depuis le stockage (référence)</string>
+
+    <!-- Video Link (v6) -->
+    <string name="manage_add_link">Ajouter un lien en direct</string>
+    <string name="link_dialog_title">Lien en direct</string>
+    <string name="link_dialog_desc">Collez N\'IMPORTE QUEL lien — un site web, une page de direct, ou une vidéo directe (mp4/m3u8). Le lien est affiché EN DIRECT à la place de la caméra — aucun téléchargement, aucun écran noir.</string>
+    <string name="link_dialog_hint">Lien de la vidéo</string>
+    <string name="link_dialog_url_placeholder">https://example.com/video.mp4</string>
+    <string name="link_dialog_add">Ajouter</string>
+    <string name="link_adding">Activation du lien en direct…</string>
+    <string name="link_download_failed">Impossible d\'ajouter le lien</string>
+    <string name="link_invalid_url">Lien vidéo invalide</string>
+
+    <!-- About -->
+    <string name="about_title">À propos</string>
+    <string name="about_app_name">aMiNo Rinigan</string>
+    <string name="about_desc">Module de caméra virtuelle basé sur le framework Xposed</string>
+    <string name="support_title">Assistance</string>
+    <string name="support_github">Consulter sur GitHub et signaler des problèmes</string>
+
+    <!-- Misc -->
+    <string name="config_migrated">Configuration migrée automatiquement</string>
+
+    <!-- Notification -->
+    <string name="notif_content">Contrôles de notification Rinigan</string>
+    <string name="notif_action_prev">Précédent</string>
+    <string name="notif_action_next">Suivant</string>
+    <string name="notif_action_exit">Quitter</string>
+    <string name="notif_channel_name">Service de contrôle Rinigan</string>
+    <string name="notif_channel_desc">Affiche les contrôles de changement de vidéo Rinigan</string>
+
+    <!-- Moteur de transformation par application -->
+    <string name="nav_perapp">Par app</string>
+    <string name="perapp_section_engine">Moteur de transformation</string>
+    <string name="perapp_engine_enable">Transformation par application</string>
+    <string name="perapp_engine_enable_desc">Adapte automatiquement l\u2019orientation, le ratio et le miroir de la vidéo de remplacement pour chaque application d\u2019appel</string>
+    <string name="perapp_universal_desc">Repli universel : toute application non classifiée reçoit un flux portrait plein cadre en FIT_CENTER (bandes noires uniquement si les ratios diffèrent)</string>
+    <string name="perapp_section_custom">Profils personnalisés (priorité maximale)</string>
+    <string name="perapp_section_builtin">Préréglages intégrés</string>
+    <string name="perapp_empty">Aucun profil personnalisé. Ajoutez-en un ou importez du JSON.</string>
+    <string name="perapp_add">Ajouter un profil</string>
+    <string name="perapp_json">Importer / exporter JSON</string>
+    <string name="perapp_edit">Modifier</string>
+    <string name="perapp_delete">Supprimer</string>
+    <string name="perapp_save">Enregistrer</string>
+    <string name="perapp_cancel">Annuler</string>
+    <string name="perapp_import">Importer</string>
+    <string name="perapp_badge_custom">PERSO</string>
+    <string name="perapp_badge_builtin">INTÉGRÉ</string>
+    <string name="perapp_rotation">Rotation (horaire)</string>
+    <string name="perapp_scale_mode">Mode d\u2019échelle</string>
+    <string name="perapp_scale_fit">FIT_CENTER \u2014 cadre complet, bandes si nécessaire</string>
+    <string name="perapp_scale_crop">CENTER_CROP \u2014 remplit l\u2019écran, sans bandes noires</string>
+    <string name="perapp_scale_stretch">STRETCH \u2014 remplit l\u2019écran, ratio ignoré</string>
+    <string name="perapp_resolution">Résolution cible (optionnelle)</string>
+    <string name="perapp_resolution_hint">ex. 1080x1920</string>
+    <string name="perapp_flip_h">Miroir horizontal</string>
+    <string name="perapp_flip_v">Miroir vertical</string>
+    <string name="perapp_normalize">Normalisation portrait auto</string>
+    <string name="perapp_normalize_desc">Pivote les vidéos paysage de 90\u00b0 quand l\u2019application consomme un tampon portrait</string>
+    <string name="perapp_package_hint">Nom de paquet, ex. com.whatsapp</string>
+    <string name="perapp_package_invalid">Nom de paquet invalide</string>
+    <string name="perapp_prefix_note">Le profil couvre aussi les sous-paquets (com.app inclut com.app.beta)</string>
+    <string name="perapp_json_invalid">JSON invalide</string>
+    <string name="perapp_builtin_hint">Ces applications sont reconnues automatiquement. Modifier l\u2019une d\u2019elles crée un remplacement personnalisé du même nom de paquet.</string>
+
+    <!-- v6.3 : carte environnement d\u2019affichage de lien -->
+    <string name="link_env_title">Environnement d\u2019affichage du lien</string>
+    <string name="link_env_desc">Affiche votre lien (site ou flux live) dans Rinigan lui-même puis l\u2019injecte dans la caméra de l\u2019application cible — fonctionne même sans permission INTERNET côté cible. Démarrez-la ici, ou elle démarre automatiquement quand la cible ouvre sa caméra.</string>
+    <string name="link_env_start">Démarrer</string>
+    <string name="link_env_stop">Arrêter</string>
+    <string name="link_env_state_running">ACTIVE</string>
+    <string name="link_env_state_stopped">ARRÊTÉE</string>
+    <string name="link_env_state">État</string>
+    <string name="link_env_url">Lien</string>
+    <string name="link_env_frames">Images envoyées</string>
+    <string name="link_env_clients">Applications connectées</string>
+    <string name="link_env_last_error">Dernière erreur</string>
+    <string name="link_env_preview">Aperçu en direct</string>
+    <string name="link_env_events">Événements de l\u2019application cible</string>
+    <string name="link_env_hint">Astuce : ajoutez d\u2019abord votre lien dans Gérer → Ajouter un lien. Si la caméra n\u2019affiche que l\u2019image d\u2019état, cette carte indique exactement quelle étape a échoué.</string>
+</resources>

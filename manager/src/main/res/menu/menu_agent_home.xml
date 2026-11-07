@@ -13,6 +13,13 @@
         android:id="@+id/action_new_chat"
         android:title="@string/agent_new_chat"
         app:showAsAction="never" />
+    <!-- 2.0.0-alpha — aMiNo SUITE: install/open the bundled Rinigan + Patcher
+         apps from one screen (the whole suite ships inside this APK). -->
+    <item
+        android:id="@+id/action_suite"
+        android:icon="@drawable/ic_integration_instructions_24"
+        android:title="@string/suite_title"
+        app:showAsAction="never" />
     <item
         android:id="@+id/action_service_status"
         android:title="@string/nav_service_status"

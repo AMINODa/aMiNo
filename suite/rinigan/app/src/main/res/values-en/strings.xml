@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">aMiNo Rinigan</string>
+    <string name="module_description">Virtual camera module — replace the camera feed with local video, images or network streams (Xposed / LSPosed / LSPatch)</string>
+    <string name="description">Please visit the online repository for the latest updates</string>
+    <string name="Warning">DO NOT USE FOR ANY ILLEGAL PURPOSE!! YOU BEAR FULL RESPONSIBILITY FOR ALL CONSEQUENCES!!</string>
+
+    <!-- Permission -->
+    <string name="permission_switch_text">Grant local storage permission</string>
+    <string name="permission_lack_warn">Missing permissions</string>
+    <string name="permission_description">Permission to access local storage is used to set up configuration files.</string>
+    <string name="positive">OK</string>
+    <string name="negative">Refuse</string>
+
+    <!-- Home Screen Status -->
+    <string name="status_no_permission">No permission</string>
+    <string name="status_working">Working</string>
+    <string name="status_paused">Paused</string>
+    <string name="status_module_inactive">Module not active</string>
+    <string name="status_activate_hint">Activate the module in your Xposed manager and reboot</string>
+    <string name="status_grant_permission">Grant permission</string>
+    <string name="status_label_play_mode">Play mode</string>
+    <string name="status_label_mic">Microphone</string>
+    <string name="status_label_video_sound">Video sound</string>
+    <string name="status_label_notification">Notification control</string>
+    <string name="status_value_on">On</string>
+    <string name="status_value_off">Off</string>
+    <string name="status_value_random_play">Random play</string>
+    <string name="status_value_sequential_play">Sequential play</string>
+    <string name="status_value_mic_mute">Mute</string>
+    <string name="status_value_mic_replace">Audio replace</string>
+    <string name="status_value_mic_sync">Video sync</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_category_general">General settings</string>
+    <string name="settings_notification_control">Enable notification controls</string>
+    <string name="settings_notification_control_desc">Quickly switch videos from the notification bar</string>
+    <string name="settings_play_sound">Play sound</string>
+    <string name="settings_play_sound_desc">Play the original audio when replacing video</string>
+    <string name="settings_mic_hook">Microphone hook</string>
+    <string name="settings_mic_hook_desc">Hook microphone input</string>
+    <string name="mic_mode_mute">Mute mode</string>
+    <string name="mic_mode_mute_desc">Output silence</string>
+    <string name="mic_mode_replace">Audio replace</string>
+    <string name="mic_mode_replace_desc">Inject a custom audio file</string>
+    <string name="mic_mode_video_sync">Video sync</string>
+    <string name="mic_mode_video_sync_desc">Play the video\'s original audio track</string>
+    <string name="settings_random_play">Random play</string>
+    <string name="settings_random_play_desc">Pick randomly from the video list</string>
+    <string name="settings_category_advanced">Advanced settings</string>
+    <string name="settings_force_private_dir">Force private directory</string>
+    <string name="settings_force_private_dir_desc">Fix apps that cannot read files</string>
+    <string name="settings_disable_toast">Disable toasts</string>
+    <string name="settings_disable_toast_desc">Hide all operation hints</string>
+    <string name="settings_enable_photo_fake">Enable photo replacement</string>
+    <string name="settings_enable_photo_fake_desc">Intercept capture requests and inject video frames</string>
+    <string name="settings_disable_module">Disable module</string>
+    <string name="settings_disable_module_desc">Temporarily disable all hook features</string>
+    <string name="settings_system_permission">System permission settings</string>
+    <string name="settings_system_permission_desc">Manage storage and notification permissions</string>
+
+    <!-- Stream Settings -->
+    <string name="settings_category_stream">Network stream settings</string>
+    <string name="settings_media_source_type">Media source type</string>
+    <string name="settings_media_source_local">Local file</string>
+    <string name="settings_media_source_stream">Network stream</string>
+    <string name="settings_stream_url">Stream URL</string>
+    <string name="settings_stream_url_hint">Enter an rtsp:// rtmp:// or similar URL</string>
+    <string name="settings_stream_auto_reconnect">Auto reconnect</string>
+    <string name="settings_stream_auto_reconnect_desc">Reconnect automatically when the stream drops</string>
+    <string name="settings_stream_local_fallback">Local fallback</string>
+    <string name="settings_stream_local_fallback_desc">Fall back to local video when the stream is unavailable</string>
+    <string name="settings_stream_transport_hint">RTSP transport protocol</string>
+    <string name="settings_stream_transport_auto">Auto</string>
+    <string name="settings_stream_transport_tcp">TCP</string>
+    <string name="settings_stream_transport_udp">UDP</string>
+    <string name="settings_stream_timeout">Connection timeout</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_manage">Manage</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Manage Screen -->
+    <string name="tab_video_manage">Videos</string>
+    <string name="tab_audio_manage">Audio</string>
+    <string name="desc_add_media">Add media</string>
+    <string name="status_no_video">No video files yet</string>
+    <string name="status_no_audio">No audio files yet</string>
+    <string name="import_to_camera_dir">Import to Camera1 directory (copy)</string>
+    <string name="select_from_storage">Select from storage (reference)</string>
+
+    <!-- About -->
+    <string name="about_title">About</string>
+    <string name="about_app_name">aMiNo Rinigan</string>
+    <string name="about_desc">Virtual camera module based on the Xposed framework</string>
+    <string name="support_title">Support</string>
+    <string name="support_github">View on GitHub and report issues</string>
+
+    <!-- Misc -->
+    <string name="config_migrated">Configuration migrated automatically</string>
+
+    <!-- Notification -->
+    <string name="notif_content">Rinigan notification controls</string>
+    <string name="notif_action_prev">Previous</string>
+    <string name="notif_action_next">Next</string>
+    <string name="notif_action_exit">Exit</string>
+    <string name="notif_channel_name">Rinigan control service</string>
+    <string name="notif_channel_desc">Shows Rinigan video switching controls</string>
+
+    <!-- Per-App Transformation Engine -->
+    <string name="nav_perapp">Per-App</string>
+    <string name="perapp_section_engine">Transformation engine</string>
+    <string name="perapp_engine_enable">Per-app transformation</string>
+    <string name="perapp_engine_enable_desc">Automatically adapt orientation, aspect ratio and mirroring of the replacement video for every calling app</string>
+    <string name="perapp_universal_desc">Universal fallback: any unclassified app gets a portrait-oriented, full-frame FIT_CENTER stream (black bars only when aspect ratios differ)</string>
+    <string name="perapp_section_custom">Custom profiles (highest priority)</string>
+    <string name="perapp_section_builtin">Built-in presets</string>
+    <string name="perapp_empty">No custom profiles yet. Add one or import JSON.</string>
+    <string name="perapp_add">Add profile</string>
+    <string name="perapp_json">Import / export JSON</string>
+    <string name="perapp_edit">Edit</string>
+    <string name="perapp_delete">Delete</string>
+    <string name="perapp_save">Save</string>
+    <string name="perapp_cancel">Cancel</string>
+    <string name="perapp_import">Import</string>
+    <string name="perapp_badge_custom">CUSTOM</string>
+    <string name="perapp_badge_builtin">BUILT-IN</string>
+    <string name="perapp_rotation">Rotation (clockwise)</string>
+    <string name="perapp_scale_mode">Scale mode</string>
+    <string name="perapp_scale_fit">FIT_CENTER \u2014 full frame, letterbox if needed</string>
+    <string name="perapp_scale_crop">CENTER_CROP \u2014 fill screen, no black bars</string>
+    <string name="perapp_scale_stretch">STRETCH \u2014 fill screen, ignore aspect ratio</string>
+    <string name="perapp_resolution">Target resolution (optional)</string>
+    <string name="perapp_resolution_hint">e.g. 1080x1920</string>
+    <string name="perapp_flip_h">Flip horizontally</string>
+    <string name="perapp_flip_v">Flip vertically</string>
+    <string name="perapp_normalize">Auto portrait normalization</string>
+    <string name="perapp_normalize_desc">Rotates landscape videos by 90\u00b0 when the app consumes a portrait buffer</string>
+    <string name="perapp_package_hint">Package name, e.g. com.whatsapp</string>
+    <string name="perapp_package_invalid">Invalid package name</string>
+    <string name="perapp_prefix_note">The profile also matches sub-packages (com.app covers com.app.beta)</string>
+    <string name="perapp_json_invalid">Invalid JSON</string>
+    <string name="perapp_builtin_hint">Overrides for these apps are honored automatically. Editing one creates a custom override with the same package name.</string>
+</resources>

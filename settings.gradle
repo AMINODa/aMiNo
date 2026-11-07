@@ -23,6 +23,9 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenLocal()
+        // r1422 — Maven Central 429-rate-limits this sandbox; the Aliyun mirror is tried first for
+        // Central-hosted artifacts, mavenCentral stays as the fallback.
+        maven { url = "https://maven.aliyun.com/repository/public" }
         mavenCentral()
         maven {
             url = "https://jitpack.io"

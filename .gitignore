@@ -12,3 +12,14 @@
 /out
 /signing.properties
 /.kotlin
+# aMiNo suite (vendored Rinigan + LSPatch) — build artifacts only, sources ARE committed
+suite/**/build/
+suite/**/.gradle/
+suite/**/local.properties
+suite/**/.cxx/
+suite/**/.kotlin/
+suite/lspatch/out/
+suite/lspatch/manager/build/
+suite/lspatch/core/**/build/
+suite/lspatch/.idea/
+suite/rinigan/.idea/

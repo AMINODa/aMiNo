@@ -701,4 +701,24 @@
     <string name="sharingan_no_apikey">لا يوجد مفتاح API — افتح aMiNo ← الإعدادات ← مفاتيح API أولاً</string>
     <string name="sharingan_shell_down">الـshell غير موصول — أفعال الجهاز تحتاجه (افتح aMiNo ← Adb)</string>
 
+    <!-- aMiNo v2 SUITE — Rinigan وPatcher المدمجان (تثبيت من شاشة واحدة) -->
+    <string name="suite_title">حزمة aMiNo</string>
+    <string name="suite_rinigan_role">وحدة رابط الكاميرا — تعرض رابطاً (موقع / بث / فيديو) عند فتح الكاميرا في التطبيقات المُرقّعة</string>
+    <string name="suite_patcher_role">رقّاع Xposed بلا روت — يدمج المُحمّل والوحدات (مثل Rinigan) داخل APK التطبيق الهدف</string>
+    <string name="suite_install">تثبيت</string>
+    <string name="suite_open">فتح</string>
+    <string name="suite_shell_ready">شل ADB موصول — التثبيت يتم بصمت</string>
+    <string name="suite_shell_off">شل ADB غير موصول — التثبيت سيفتح مثبّت النظام (اقرن Adb من واجهة aMiNo للتثبيت الصامت)</string>
+    <string name="suite_status_installed">مثبّت ✓ — إصدار %1$s</string>
+    <string name="suite_status_missing">غير مثبّت — النسخة المدمجة جاهزة أدناه</string>
+    <string name="suite_status_bundling">تجهيز النسخة المدمجة…</string>
+    <string name="suite_stage_failed">تعذّر تجهيز الـAPK المدمج</string>
+    <string name="suite_installing_shell">تثبيت %1$s بصمت عبر الشل…</string>
+    <string name="suite_install_done">تم تثبيت %1$s — pm أفاد بالنجاح</string>
+    <string name="suite_install_failed">pm install لم يفد بالنجاح:\n%1$s</string>
+    <string name="suite_install_failed_title">فشل التثبيت الصامت</string>
+    <string name="suite_use_installer">استخدم مثبّت النظام</string>
+
+    <string name="suite_hint">الحزمة مدمجة داخل aMiNo: رينيغان يشغّل محرك رابط الكاميرا، والرقّاع يدمج المُحمّل في APK الهدف. رقّع التطبيق الهدف بالرقّاع وأدرج aMiNo Rinigan كوحدة.</string>
+
 </resources>

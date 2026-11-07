@@ -1,0 +1,123 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package org.apache.commons.lang3.compare;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+
+import org.apache.commons.lang3.AbstractLangTest;
+import org.junit.jupiter.api.Test;
+
+/**
+ * Tests {@link ObjectToStringComparator}.
+ */
+class ObjectToStringComparatorTest extends AbstractLangTest {
+
+    private static final class Thing {
+
+        final String string;
+
+        Thing(final String string) {
+            this.string = string;
+        }
+
+        @Override
+        public String toString() {
+            return string;
+        }
+    }
+
+    @Test
+    void testCompareNulls() {
+        final Comparator<Object> comp = ObjectToStringComparator.INSTANCE;
+        assertEquals(0, comp.compare(null, null));
+        final Object o1 = new Thing(null);
+        final Object o2 = new Thing(null);
+        assertEquals(0, comp.compare(o1, o1));
+        assertEquals(0, comp.compare(o1, o2));
+    }
+
+    @Test
+    void testCompareNullWithNonNull() {
+        final Comparator<Object> comp = ObjectToStringComparator.INSTANCE;
+        final Object o1 = new Thing(null);
+        final Object o2 = new Thing("");
+        assertEquals(0, comp.compare(o1, o1));
+        assertEquals(0, comp.compare(o2, o2));
+        assertEquals(1, comp.compare(o1, o2));
+        assertEquals(-1, comp.compare(o2, o1));
+        assertEquals(1, comp.compare(null, o2));
+        assertEquals(-1, comp.compare(o2, null));
+    }
+
+    @Test
+    void testNullLeft() {
+        final Thing thing = new Thing("y");
+        final List<Thing> things = Arrays.asList(null, thing);
+        things.sort(ObjectToStringComparator.INSTANCE);
+        assertEquals("y", things.get(0).string);
+        assertEquals(2, things.size());
+        assertSame(thing, things.get(0));
+        assertNull(things.get(1));
+    }
+
+    @Test
+    void testNullRight() {
+        final Thing thing = new Thing("y");
+        final List<Thing> things = Arrays.asList(thing, null);
+        things.sort(ObjectToStringComparator.INSTANCE);
+        assertEquals(2, things.size());
+        assertSame(thing, things.get(0));
+        assertNull(things.get(1));
+    }
+
+    @Test
+    void testNulls() {
+        final Thing thing = new Thing("y");
+        final List<Thing> things = Arrays.asList(null, thing, null);
+        things.sort(ObjectToStringComparator.INSTANCE);
+        assertEquals("y", things.get(0).string);
+        assertEquals(3, things.size());
+        assertSame(thing, things.get(0));
+        assertNull(things.get(1));
+        assertNull(things.get(2));
+    }
+
+    @Test
+    void testNullToString() {
+        final List<Thing> things = Arrays.asList(new Thing(null), new Thing("y"), new Thing(null));
+        things.sort(ObjectToStringComparator.INSTANCE);
+        assertEquals("y", things.get(0).string);
+        assertNull(things.get(1).string);
+        assertNull(things.get(2).string);
+    }
+
+    @Test
+    void testSortCollection() {
+        final List<Thing> things = Arrays.asList(new Thing("z"), new Thing("y"), new Thing("x"));
+        things.sort(ObjectToStringComparator.INSTANCE);
+        assertEquals("x", things.get(0).string);
+        assertEquals("y", things.get(1).string);
+        assertEquals("z", things.get(2).string);
+    }
+}

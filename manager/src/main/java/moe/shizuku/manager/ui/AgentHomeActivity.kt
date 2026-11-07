@@ -79,6 +79,9 @@ open class AgentHomeActivity : AppActivity() {
                     true
                 }
                 R.id.action_new_chat -> { AgentOrchestrator.newConversation(this); true }
+                // 2.0.0-alpha — aMiNo SUITE: one screen that installs/opens the
+                // bundled suite apps (Rinigan + Patcher ship inside this APK).
+                R.id.action_suite -> { startActivity(Intent(this, moe.shizuku.manager.suite.SuiteActivity::class.java)); true }
                 // 1.1.1 — HomeActivity is ABSTRACT (never instantiable): launching it
                 // directly threw InstantiationException and killed the process. The
                 // concrete manifest-declared subclass MainActivity (the classic home
