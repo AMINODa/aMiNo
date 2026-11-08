@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">aMiNo Rinigan</string>
+    <string name="module_description">وحدة كاميرا افتراضية — استبدال صورة الكاميرا بفيديو محلي أو صور أو بث شبكي (Xposed / LSPosed / LSPatch)</string>
+    <string name="description">يرجى زيارة المستودع الإلكتروني للاطلاع على آخر التحديثات</string>
+    <string name="Warning">يُمنع الاستخدام لأي غرض غير قانوني!! أنت تتحمل كامل المسؤولية عن جميع النتائج!!</string>
+
+    <!-- Permission -->
+    <string name="permission_switch_text">منح إذن التخزين المحلي</string>
+    <string name="permission_lack_warn">الأذونات المطلوبة غير متوفرة</string>
+    <string name="permission_description">يُستخدم إذن الوصول إلى التخزين المحلي لإعداد ملفات التكوين.</string>
+    <string name="positive">موافق</string>
+    <string name="negative">رفض</string>
+
+    <!-- Home Screen Status -->
+    <string name="status_no_permission">لا يوجد إذن</string>
+    <string name="status_working">يعمل الآن</string>
+    <string name="status_paused">متوقف مؤقتاً</string>
+    <string name="status_module_inactive">الوحدة غير مفعّلة</string>
+    <string name="status_activate_hint">فعّل الوحدة في مدير Xposed ثم أعد تشغيل الجهاز</string>
+    <string name="status_grant_permission">منح الإذن</string>
+    <string name="status_label_play_mode">وضع التشغيل</string>
+    <string name="status_label_mic">الميكروفون</string>
+    <string name="status_label_video_sound">صوت الفيديو</string>
+    <string name="status_label_notification">التحكم بالإشعارات</string>
+    <string name="status_value_on">مفعّل</string>
+    <string name="status_value_off">معطّل</string>
+    <string name="status_value_random_play">تشغيل عشوائي</string>
+    <string name="status_value_sequential_play">تشغيل متسلسل</string>
+    <string name="status_value_mic_mute">صامت</string>
+    <string name="status_value_mic_replace">استبدال الصوت</string>
+    <string name="status_value_mic_sync">مزامنة الفيديو</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_category_general">الإعدادات العامة</string>
+    <string name="settings_notification_control">تفعيل التحكم بالإشعارات</string>
+    <string name="settings_notification_control_desc">تبديل الفيديوهات بسرعة من شريط الإشعارات</string>
+    <string name="settings_play_sound">تشغيل الصوت</string>
+    <string name="settings_play_sound_desc">تشغيل الصوت الأصلي عند استبدال الفيديو</string>
+    <string name="settings_mic_hook">خطاف الميكروفون</string>
+    <string name="settings_mic_hook_desc">اعتراض مدخل الميكروفون</string>
+    <string name="mic_mode_mute">الوضع الصامت</string>
+    <string name="mic_mode_mute_desc">إخراج بيانات صامتة</string>
+    <string name="mic_mode_replace">استبدال الصوت</string>
+    <string name="mic_mode_replace_desc">حقن ملف صوتي مخصص</string>
+    <string name="mic_mode_video_sync">مزامنة الفيديو</string>
+    <string name="mic_mode_video_sync_desc">تشغيل المسار الصوتي الأصلي للفيديو</string>
+    <string name="settings_random_play">تشغيل عشوائي</string>
+    <string name="settings_random_play_desc">اختيار عشوائي من قائمة الفيديوهات</string>
+    <string name="settings_category_advanced">الإعدادات المتقدمة</string>
+    <string name="settings_force_private_dir">إجبار المجلد الخاص</string>
+    <string name="settings_force_private_dir_desc">حل مشكلة التطبيقات التي لا تستطيع قراءة الملفات</string>
+    <string name="settings_disable_toast">تعطيل الرسائل المنبثقة</string>
+    <string name="settings_disable_toast_desc">إخفاء جميع تلميحات العمليات</string>
+    <string name="settings_enable_photo_fake">تفعيل استبدال الصور</string>
+    <string name="settings_enable_photo_fake_desc">اعتراض طلبات التصوير وحقن إطارات الفيديو</string>
+    <string name="settings_disable_module">تعطيل الوحدة</string>
+    <string name="settings_disable_module_desc">تعطيل جميع ميزات الاعتراض مؤقتاً</string>
+    <string name="settings_system_permission">إعدادات أذونات النظام</string>
+    <string name="settings_system_permission_desc">إدارة أذونات التخزين والإشعارات</string>
+
+    <!-- Stream Settings -->
+    <string name="settings_category_stream">إعدادات البث الشبكي</string>
+    <string name="settings_media_source_type">نوع مصدر الوسائط</string>
+    <string name="settings_media_source_local">ملف محلي</string>
+    <string name="settings_media_source_stream">بث شبكي</string>
+    <string name="settings_stream_url">عنوان البث</string>
+    <string name="settings_stream_url_hint">أدخل عنواناً مثل rtsp:// أو rtmp://</string>
+    <string name="settings_stream_auto_reconnect">إعادة الاتصال تلقائياً</string>
+    <string name="settings_stream_auto_reconnect_desc">إعادة الاتصال تلقائياً عند انقطاع البث</string>
+    <string name="settings_stream_local_fallback">الاحتياط المحلي</string>
+    <string name="settings_stream_local_fallback_desc">العودة إلى الفيديو المحلي عند تعذر البث</string>
+    <string name="settings_stream_transport_hint">بروتوكول نقل RTSP</string>
+    <string name="settings_stream_transport_auto">تلقائي</string>
+    <string name="settings_stream_transport_tcp">TCP</string>
+    <string name="settings_stream_transport_udp">UDP</string>
+    <string name="settings_stream_timeout">مهلة الاتصال</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">الرئيسية</string>
+    <string name="nav_manage">الإدارة</string>
+    <string name="nav_settings">الإعدادات</string>
+
+    <!-- Manage Screen -->
+    <string name="tab_video_manage">الفيديوهات</string>
+    <string name="tab_audio_manage">الصوتيات</string>
+    <string name="desc_add_media">إضافة وسائط</string>
+    <string name="status_no_video">لا توجد ملفات فيديو بعد</string>
+    <string name="status_no_audio">لا توجد ملفات صوتية بعد</string>
+    <string name="import_to_camera_dir">استيراد إلى مجلد Camera1 (نسخ)</string>
+    <string name="select_from_storage">اختيار من التخزين (مرجع)</string>
+
+    <!-- Video Link (v6) -->
+    <string name="manage_add_link">إضافة رابط مباشر</string>
+    <string name="link_dialog_title">رابط مباشر</string>
+    <string name="link_dialog_desc">الصق أي رابط — موقع إلكتروني، صفحة بث مباشر، أو فيديو مباشر (mp4/m3u8). سيُعرض الرابط مباشرةً مكان الكاميرا — بدون تنزيل وبدون شاشة سوداء.</string>
+    <string name="link_dialog_hint">رابط الفيديو</string>
+    <string name="link_dialog_url_placeholder">https://example.com/video.mp4</string>
+    <string name="link_dialog_add">إضافة</string>
+    <string name="link_adding">جارٍ تنشيط الرابط المباشر…</string>
+    <string name="link_download_failed">تعذّر إضافة الرابط</string>
+    <string name="link_invalid_url">رابط فيديو غير صالح</string>
+
+    <!-- About -->
+    <string name="about_title">حول</string>
+    <string name="about_app_name">aMiNo Rinigan</string>
+    <string name="about_desc">وحدة كاميرا افتراضية مبنية على إطار Xposed</string>
+    <string name="support_title">الدعم</string>
+    <string name="support_github">العرض والإبلاغ عن المشكلات على GitHub</string>
+
+    <!-- Misc -->
+    <string name="config_migrated">تم ترحيل التكوين تلقائياً</string>
+
+    <!-- Notification -->
+    <string name="notif_content">أدوات تحكم rinigan في الإشعارات</string>
+    <string name="notif_action_prev">السابق</string>
+    <string name="notif_action_next">التالي</string>
+    <string name="notif_action_exit">خروج</string>
+    <string name="notif_channel_name">خدمة تحكم rinigan</string>
+    <string name="notif_channel_desc">يعرض أدوات تبديل فيديو rinigan</string>
+
+    <!-- محرك التحويل حسب التطبيق -->
+    <string name="nav_perapp">لكل تطبيق</string>
+    <string name="perapp_section_engine">محرك التحويل</string>
+    <string name="perapp_engine_enable">التحويل حسب التطبيق</string>
+    <string name="perapp_engine_enable_desc">يملئ تلقائيًا توجيه الفيديو البديل ونسبة الأبعاد والانعكاس لكل تطبيق مكالمات</string>
+    <string name="perapp_universal_desc">القاعدة العامة: كل تطبيق غير مصنف يحصل على بث عمودي كامل الإطار بنمط FIT_CENTER (أشرطة سوداء عند اختلاف نسب الأبعاد فقط)</string>
+    <string name="perapp_section_custom">الملفات اللاتة من المستخدم (أعلى أولوية)</string>
+    <string name="perapp_section_builtin">الإعدادات الجاهزة</string>
+    <string name="perapp_empty">لا توجد ملفات تعريف مخصصة بعد. أضف واحدة أو استورد JSON.</string>
+    <string name="perapp_add">إضافة ملف تعريف</string>
+    <string name="perapp_json">استيراد / تصدير JSON</string>
+    <string name="perapp_edit">تعديل</string>
+    <string name="perapp_delete">حذف</string>
+    <string name="perapp_save">حفظ</string>
+    <string name="perapp_cancel">إلغاء</string>
+    <string name="perapp_import">استيراد</string>
+    <string name="perapp_badge_custom">مخصص</string>
+    <string name="perapp_badge_builtin">جاهز</string>
+    <string name="perapp_rotation">الدوران (مع عقارب الساعة)</string>
+    <string name="perapp_scale_mode">نمط التحجيم</string>
+    <string name="perapp_scale_fit">FIT_CENTER — الإطار كاملًا مع أشرطة عند الحاجة</string>
+    <string name="perapp_scale_crop">CENTER_CROP — ملء الشاشة بدون أشرطة سوداء</string>
+    <string name="perapp_scale_stretch">STRETCH — ملء الشاشة مع تجاهل نسبة الأبعاد</string>
+    <string name="perapp_resolution">الدقة الهدف (اختياري)</string>
+    <string name="perapp_resolution_hint">مثال: 1080x1920</string>
+    <string name="perapp_flip_h">انعكاس أفقي</string>
+    <string name="perapp_flip_v">انعكاس رأسي</string>
+    <string name="perapp_normalize">توجيه تلقائي للوضع العمودي</string>
+    <string name="perapp_normalize_desc">يدور الفيديو الأفقي 90° عندما يستهلك التطبيق بوفر عموديًا</string>
+    <string name="perapp_package_hint">اسم الحزمة، مثال: com.whatsapp</string>
+    <string name="perapp_package_invalid">اسم حزمة غير صالح</string>
+    <string name="perapp_prefix_note">ينطبق ملف التعريف أيضًا على الحزمات الفرعية (com.app يشمل com.app.beta)</string>
+    <string name="perapp_json_invalid">JSON غير صالح</string>
+    <string name="perapp_builtin_hint">يتم التعرف تلقائيًا على هذه التطبيقات. تعديل أي منها ينشئ تجاوزًا مخصصًا بنفس اسم الحزمة.</string>
+
+    <!-- v6.3: بطاقة بيئة عرض الرابط -->
+    <string name="link_env_title">بيئة عرض الرابط</string>
+    <string name="link_env_desc">تعرض الرابط (موقع أو بث مباشر) داخل تطبيق رينيغان نفسه ثم تُحقنه في كاميرا التطبيق الهدف — تعمل حتى لو لم يكن للهدف صلاحية إنترنت. شغّلها من هنا أو ستُشغّل تلقائيًا عند فتح الكاميرا في الهدف.</string>
+    <string name="link_env_start">تشغيل</string>
+    <string name="link_env_stop">إيقاف</string>
+    <string name="link_env_state_running">تعمل</string>
+    <string name="link_env_state_stopped">متوقفة</string>
+    <string name="link_env_state">الحالة</string>
+    <string name="link_env_url">الرابط</string>
+    <string name="link_env_frames">الإطارات المرسلة</string>
+    <string name="link_env_clients">التطبيقات المتصلة</string>
+    <string name="link_env_last_error">آخر خطأ</string>
+    <string name="link_env_preview">معاينة حية</string>
+    <string name="link_env_events">أحداث التطبيق الهدف</string>
+    <string name="link_env_hint">نصيحة: أضف رابطك أولًا من «الإدارة ← إضافة رابط». إن ظهرت صورة الحالة فقط في الكاميرا فهذه البطاقة تخبرك بالضبط أي مرحلة فشلت.</string>
+</resources>
