@@ -5,12 +5,12 @@ aMiNo v2 يدمج جناحاً من ثلاثة تطبيقات بنيات بنا�
 | الشجرة | المصدر الأعلى | المرجع المثبت | التعديلات المحلية |
 |---|---|---|---|
 | `suite/rinigan/` | github.com/AMINODa/Rinigan-App | tag `v6.3` (versionCode 35) | إظلال الثيم بألوان aMiNo + تسمية العرض — انظر القسم 2 |
-| `suite/lspatch/` | github.com/JingMatrix/LSPatch | tag `v1.2` | ترقيع fallback للإصدار + إظلال seed — انظر القسم 3 |
+| `suite/lspatch/` | github.com/JingMatrix/LSPatch | canary `492` (كومت `4d57363`، 2026-10-23) | ترقيع fallback للإصدار + إظلال seed + shims AGP 8.11 — انظر القسم 3 |
 | `suite/lspatch/core/` | github.com/JingMatrix/LSPosed | `e00c5c5038bbcc14e0b382ab893301d6993e6989` (submodule core في v1.2) | بلا تعديل |
 
 تم حذف مجلدات `.git` من الأشجار المستوردة (لأنها تُصبح جزءاً من مستودع aMiNo). لذلك:
 
-- `suite/lspatch/VENDORED_VERSION` = `487` — verCode الإصدار الرسمي المطابق (أصول الإصدار: `manager-v1.2-487-release.apk`)، يُقرأ من `build.gradle.kts` عند غياب `.git`.
+- `suite/lspatch/VENDORED_VERSION` = `492` — verCode الإصدار الرسمي المطابق (canary `492`، كومت `4d57363`؛ أصول الـloader المستخرجة حرفياً من `manager-v1.2-492-release.apk`، ومصادر المدير/المحرك متزامنة مع نفس الكومت)، يُقرأ من `build.gradle.kts` عند غياب `.git`.
 - fallback إصدار النواة في `build.gradle.kts` يعرض `1.0-e00c5c5` + هاش الكومت الكامل (للعرض في About فقط — لا استخدام وقت التشغيل).
 
 ## قواعد التحديث لاحقاً

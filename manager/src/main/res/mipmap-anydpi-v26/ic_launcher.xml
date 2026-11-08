@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- aMiNo v2.x — the app-module mipmap/ic_launcher (this adaptive icon) overrides the vendored
+     LSPatch manager library's own mipmap-anydpi-v26/ic_launcher.xml (LSPatch logo): on API 26+
+     the v26 qualifier beats every density bucket, so without this file the merged APK resolved
+     the library's logo everywhere library code draws "the app icon" — including the resident
+     notification (ManagerResidentService setSmallIcon(R.mipmap.ic_launcher)), which is how the
+     LSPatch logo leaked into the notification shade. aMiNo's launcher identity lives here. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@mipmap/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_monochrome" />
+</adaptive-icon>
