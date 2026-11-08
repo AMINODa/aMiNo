@@ -10,7 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import moe.shizuku.manager.R
 import moe.shizuku.manager.app.AppActivity
-import moe.shizuku.manager.lspatch.LSPatchEntryActivity
+import moe.shizuku.manager.lspatch.LspatchEntryActivity
 import moe.shizuku.manager.lspatch.RiniganInstaller
 
 /**
