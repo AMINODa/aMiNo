@@ -6,7 +6,7 @@ import org.matrix.vector.ui.SheetHeading
 import org.matrix.vector.ui.sheetRowColors
 import org.matrix.vector.ui.theme.Mono
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberBottomSheetState
+import org.matrix.vector.ui.rememberBottomSheetState // aMiNo v2.x — AGP 8.11 shim (SheetCompat.kt), identical behaviour
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.NotificationsOff
 import androidx.compose.material.icons.rounded.MoreVert
@@ -56,7 +56,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.ListItem
+import org.matrix.vector.ui.ListItem // aMiNo v2.x — AGP 8.11 shim (SheetCompat.kt), identical row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold

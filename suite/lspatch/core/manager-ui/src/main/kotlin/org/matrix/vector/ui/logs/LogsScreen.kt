@@ -57,7 +57,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.ListItem
+import org.matrix.vector.ui.ListItem // aMiNo v2.x — AGP 8.11 shim (SheetCompat.kt), identical row
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -75,7 +75,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberBottomSheetState
+import org.matrix.vector.ui.rememberBottomSheetState // aMiNo v2.x — AGP 8.11 shim (SheetCompat.kt), identical behaviour
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf

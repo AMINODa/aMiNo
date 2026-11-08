@@ -9,7 +9,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberBottomSheetState
+import org.matrix.vector.ui.rememberBottomSheetState // aMiNo v2.x — AGP 8.11 shim (SheetCompat.kt), identical behaviour
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf

@@ -149,9 +149,11 @@ abstract class HomeActivity : AppBarActivity() {
         }
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    // aMiNo v2.x — androidx.activity 1.10+ (pulled by the merged LSPatch manager stack) made
+    // the intent parameter non-null; same behaviour, no nullability dance needed.
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        intent?.let {
+        intent.let {
             val showDialog = it.getBooleanExtra(HomeActivity.EXTRA_SHOW_PAIRING_DIALOG, false)
             if (showDialog) showAccessibilityDialog()
 

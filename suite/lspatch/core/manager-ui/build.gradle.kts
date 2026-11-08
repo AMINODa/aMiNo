@@ -29,17 +29,22 @@ dependencies {
     implementation(vector.gson)
     implementation(vector.okhttp)
     implementation(vector.okhttp.dnsoverhttps)
-    implementation(vector.androidx.core.ktx)
-    implementation(platform(vector.androidx.compose.bom))
-    implementation(vector.androidx.compose.ui)
-    implementation(vector.androidx.compose.ui.graphics)
-    implementation(vector.androidx.compose.material3)
-    implementation(vector.androidx.compose.material3.adaptive.navigation.suite)
-    implementation(vector.androidx.compose.material.icons.extended)
-    implementation(vector.androidx.lifecycle.viewmodel.compose)
+    // aMiNo v2.x: the androidx pins come from the lspatch catalog (the manager's own line —
+    // BOM 2026.06.01 / core-ktx 1.16 / lifecycle-viewmodel-compose 2.9.2). The vector catalog's
+    // newer pins (BOM 2026.08.00 / core 1.19 / lifecycle 2.11) carry AAR metadata demanding
+    // AGP 9.1+, which aMiNo's 8.11.1 build refuses; the root build.gradle additionally forces
+    // material3 to 1.5.0-alpha17 (the newest line still allowing AGP 8.x).
+    implementation(lspatch.androidx.core.ktx)
+    implementation(platform(lspatch.androidx.compose.bom))
+    implementation(lspatch.androidx.compose.ui)
+    implementation("androidx.compose.ui:ui-graphics") // BOM-governed; the lspatch catalog has no alias for it
+    implementation(lspatch.androidx.compose.material3)
+    implementation(lspatch.androidx.compose.material3.adaptive.navigation.suite)
+    implementation(lspatch.androidx.compose.material.icons.extended)
+    implementation(lspatch.androidx.lifecycle.viewmodel.compose)
     // NavKey and NavBackStack appear in this module's public signatures -- TopLevelDestination
     // carries a route, PanelBar takes one -- so a consumer cannot use the container without them.
-    api(vector.androidx.navigation3.runtime)
-    implementation(vector.androidx.activity.compose)
+    api(lspatch.androidx.navigation3.runtime)
+    implementation(lspatch.androidx.activity.compose)
     implementation(vector.androidx.webkit)
 }

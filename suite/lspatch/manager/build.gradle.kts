@@ -80,6 +80,9 @@ dependencies {
     // ShizukuApi binds aMiNo's own privileged-server AIDL (moe.shizuku.server.IShizukuService).
     implementation(project(":aidl"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    // LSPPackageManager reads picked apks through the SAF DocumentFile; upstream resolved this
+    // transitively (appcompat), which aMiNo excludes globally — declare it explicitly.
+    implementation("androidx.documentfile:documentfile:1.0.1")
 
     implementation(platform(lspatch.androidx.compose.bom))
     compileOnly(lspatch.rikka.hidden.stub)

@@ -13,12 +13,12 @@ import androidx.compose.material.icons.rounded.RadioButtonChecked
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ListItem
+import org.matrix.vector.ui.ListItem // aMiNo v2.x — AGP 8.11 shim (SheetCompat.kt), identical row
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberBottomSheetState
+import org.matrix.vector.ui.rememberBottomSheetState // aMiNo v2.x — AGP 8.11 shim (SheetCompat.kt), identical behaviour
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier

@@ -8,7 +8,7 @@ import androidx.compose.material.icons.rounded.NewReleases
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.rememberBottomSheetState
+import org.matrix.vector.ui.rememberBottomSheetState // aMiNo v2.x — AGP 8.11 shim (SheetCompat.kt), identical behaviour
 import org.matrix.vector.ui.ChoiceRow
 import org.matrix.vector.ui.SheetHeading
 import androidx.compose.foundation.clickable

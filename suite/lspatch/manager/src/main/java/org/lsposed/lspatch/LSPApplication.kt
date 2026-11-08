@@ -21,7 +21,7 @@ import org.lsposed.lspatch.util.ShizukuDebugTrigger
 
 lateinit var lspApp: LSPApplication
 
-class LSPApplication : Application() {
+open class LSPApplication : Application() {
 
     lateinit var prefs: SharedPreferences
 

@@ -131,3 +131,10 @@
 # Room entities/DAOs of the merged manager: the frozen loader (and the AIDL surface) reference
 # them by name across processes.
 -keep class org.lsposed.lspatch.database.entity.** { *; }
+
+# aMiNo v2.x — R8 missing-class suppressions generated for the merged manager stack
+# (vendor window/sidecar extension stubs are compile-only by design; documentfile is a real
+# dependency added to :lspatch-manager — the rule only silences the reflection-time probe).
+-dontwarn androidx.window.extensions.**
+-dontwarn androidx.window.sidecar.**
+-dontwarn androidx.window.core.**
