@@ -33,6 +33,15 @@ object ManagerCloakFlow {
                 onProgress(progress)
             }
 
+        // aMiNo v2.x — the manager is compiled INTO aMiNo (single APK, one launcher icon by
+        // design, per the user's order: no icons may appear separately from aMiNo). Cloaking
+        // would install a standalone org.lsposed.lspatch app and put a second icon on the home
+        // screen. Refuse honestly; the UI structure is untouched.
+        emit(Progress.Error(
+            "The LSPatch manager is built into aMiNo — cloak/revert does not apply here. Update aMiNo itself."
+        ))
+        return
+
         val oldPackage = lspApp.packageName
         try {
             if (!PackageNameValidator.isValid(newPackageName)) {
@@ -120,6 +129,13 @@ object ManagerCloakFlow {
             withContext(Dispatchers.Main.immediate) {
                 onProgress(progress)
             }
+
+        // aMiNo v2.x — reverting would install a standalone org.lsposed.lspatch app (a second
+        // launcher icon). The manager ships inside aMiNo; refuse honestly, UI untouched.
+        emit(Progress.Error(
+            "The LSPatch manager is built into aMiNo — revert does not apply here. Update aMiNo itself."
+        ))
+        return
 
         val currentPackage = lspApp.packageName
         val original = Constants.MANAGER_PACKAGE_NAME

@@ -227,6 +227,17 @@ class UpdateViewModel : ViewModel() {
      * process is replaced and nothing further runs here.
      */
     fun downloadAndInstall() {
+        // aMiNo v2.x — self-update would download a standalone LSPatch manager apk and install
+        // it as org.lsposed.lspatch: a second launcher icon next to aMiNo, exactly what this
+        // build must never produce (user order: no icons separate from aMiNo). The manager
+        // ships inside aMiNo; updating aMiNo updates the manager. Honest failure, UI untouched.
+        val selfUpdateBlocked: Boolean = true
+        if (selfUpdateBlocked) {
+            updateStage = UpdateStage.Failed(
+                "The LSPatch manager is built into aMiNo — update aMiNo itself instead."
+            )
+            return
+        }
         val target = chosenApk?.url ?: return
         if (updateStage is UpdateStage.Downloading || updateStage is UpdateStage.Installing) return
         viewModelScope.launch {
