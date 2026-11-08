@@ -730,6 +730,7 @@
     <string name="lspatch_install_companion">ثبّت مدير LSPatch الأصلي</string>
     <string name="lspatch_install_sent">أُرسل التثبيت — أكّده على الشاشة</string>
     <string name="lspatch_quick_patch">ترقيع سريع (المحرك المدمج)</string>
+    <string name="lspatch_installing">جارٍ تثبيت مدير LSPatch الأصلي…</string>
     <string name="rinigan_title">Rinigan — الكاميرا الافتراضية</string>
     <string name="rinigan_intro">Rinigan يستبدل تغذية الكاميرا في التطبيقات المرقّعة بفيديو محلي أو صورة أو رابط مباشر. ضمّنه في تطبيق هدف من شاشة LSPatch؛ وهذه الصفحة تثبّت تطبيق الوحدة نفسه (وهو حامل محرك الرابط 6.3 وبطاقة التشخيص والإعدادات).</string>
     <string name="rinigan_installed">مثبّت — v%1$s (%2$d)</string>
@@ -737,6 +738,7 @@
     <string name="rinigan_update_available">النسخة المضمّنة 6.3 متاحة — ثبّتها للتحديث</string>
     <string name="rinigan_install">ثبّت الوحدة</string>
     <string name="rinigan_open">افتح Rinigan</string>
+    <string name="rinigan_installing">جارٍ تثبيت وحدة Rinigan…</string>
     <string name="rinigan_to_lspatch">التضمين في تطبيق ← LSPatch</string>
     <string name="rinigan_install_sent">أُرسل ناوي التثبيت — أكّده على الشاشة</string>
     <string name="rinigan_install_silent">ثُبّت Rinigan بصمت عبر خدمة aMiNo للـshell</string>

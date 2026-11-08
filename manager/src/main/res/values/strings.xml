@@ -756,6 +756,7 @@
     <string name="lspatch_install_companion">Install original LSPatch manager</string>
     <string name="lspatch_install_sent">Install sent — confirm it on screen</string>
     <string name="lspatch_quick_patch">Quick patch (built-in engine)</string>
+    <string name="lspatch_installing">Installing the original LSPatch manager…</string>
     <string name="rinigan_title">Rinigan — Virtual camera</string>
     <string name="rinigan_intro">Rinigan replaces the camera feed of patched apps with a local video, an image or a live link. Embed it into a target app from the LSPatch screen; this page installs the module app itself (it carries the v6.3 link engine, the diagnostics card and the settings).</string>
     <string name="rinigan_installed">Installed — v%1$s (%2$d)</string>
@@ -763,6 +764,7 @@
     <string name="rinigan_update_available">Embedded v6.3 available — install to update</string>
     <string name="rinigan_install">Install module</string>
     <string name="rinigan_open">Open Rinigan</string>
+    <string name="rinigan_installing">Installing the aMiNo Rinigan module…</string>
     <string name="rinigan_to_lspatch">Embed into an app → LSPatch</string>
     <string name="rinigan_install_sent">Install intent sent — confirm it on screen</string>
     <string name="rinigan_install_silent">Rinigan installed silently via the aMiNo shell service</string>

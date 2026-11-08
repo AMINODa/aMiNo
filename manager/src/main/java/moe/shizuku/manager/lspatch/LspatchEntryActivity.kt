@@ -10,6 +10,7 @@ import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.launch
 import moe.shizuku.manager.R
 import moe.shizuku.manager.app.AppActivity
+import moe.shizuku.manager.terminal.linux.ShizukuExec
 
 /**
  * aMiNo v2 — LSPatch ENTRY (drawer target). Field truth (user, verbatim):
@@ -30,6 +31,8 @@ class LspatchEntryActivity : AppActivity() {
     private lateinit var installBtn: MaterialButton
     private lateinit var openBtn: MaterialButton
     private var routed = false
+    /** r1428 — the one automatic silent attempt per screen life (no retry loops). */
+    private var autoTried = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -73,6 +76,19 @@ class LspatchEntryActivity : AppActivity() {
     private fun refresh() {
         val pi = LSPatchCompanion.installedVersion(this)
         if (pi == null) {
+            // r1428 — the user asked for «تثبت اوتوماتيكيا» AND for landing in the ORIGINAL
+            // interface, never in a warning page. When the aMiNo shell service is up the
+            // install is silent and reliable (adb-install path over /data/local/tmp), so the
+            // entry fires it BY ITSELF — on success startInstall() launches the original UI
+            // and finishes this hop. Only with no shell does the manual page stay up (honest
+            // fallback, one system confirmation).
+            if (!autoTried && ShizukuExec.available()) {
+                autoTried = true
+                statusLine.text = getString(R.string.lspatch_installing)
+                statusLine.setTextColor(0xFFF2F2F5.toInt())
+                startInstall()
+                return
+            }
             statusLine.text = getString(R.string.lspatch_companion_missing)
             statusLine.setTextColor(0xFFFF5252.toInt())
             noteLine.text = getString(R.string.lspatch_companion_note)

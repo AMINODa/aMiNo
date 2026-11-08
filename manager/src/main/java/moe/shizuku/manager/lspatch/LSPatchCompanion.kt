@@ -62,15 +62,18 @@ object LSPatchCompanion {
     }
 
     /**
-     * Silent path via the aMiNo shell service (`pm install -r`). Returns the real outcome:
-     * null = Shizuku not available (caller falls back), Shot = actual pm result.
+     * Silent path via the aMiNo shell service. r1428 FIX (user screenshot, verbatim:
+     * «Install failed: Error: Unable to open file: /data/user/0/com.amino.manager/...»):
+     * the APK was staged in the app-private noBackupFilesDir, which `pm` (shell uid)
+     * can never read. Now it goes the `adb install` way — streamed to
+     * /data/local/tmp through the shell's own stdin, installed from there, cleaned up.
+     * Returns the real outcome: null = Shizuku not available (caller falls back),
+     * Shot = actual pm result.
      */
     suspend fun silentInstall(context: Context): ShizukuExec.Shot? {
         if (!ShizukuExec.available()) return null
         val apk = embeddedFile(context)
-        return withContext(Dispatchers.IO) {
-            ShizukuExec.oneShot("pm install -r '${apk.absolutePath}'", timeoutMs = 180_000)
-        }
+        return ShizukuExec.installApk(apk, "amino_lspatch_${EMBEDDED_VERSION_CODE}.apk", timeoutMs = 180_000)
     }
 
     /** Platform path: one system confirmation dialog. */

@@ -51,15 +51,16 @@ object RiniganInstaller {
     }
 
     /**
-     * Silent path via the aMiNo shell service (`pm install -r`). Returns the real outcome:
+     * Silent path via the aMiNo shell service. r1428 FIX (same field failure as the
+     * LSPatch companion — «Unable to open file: /data/user/0/...»): the APK now goes
+     * the `adb install` way — streamed to /data/local/tmp through the shell's own
+     * stdin, installed from there, cleaned up. Returns the real outcome:
      * null = Shizuku not available (caller falls back), Shot = actual pm result.
      */
     suspend fun silentInstall(context: Context): ShizukuExec.Shot? {
         if (!ShizukuExec.available()) return null
         val apk = embeddedFile(context)
-        return withContext(Dispatchers.IO) {
-            ShizukuExec.oneShot("pm install -r '${apk.absolutePath}'", timeoutMs = 120_000)
-        }
+        return ShizukuExec.installApk(apk, "amino_rinigan_${EMBEDDED_VERSION_CODE}.apk", timeoutMs = 120_000)
     }
 
     /** Platform path: one system confirmation dialog. */

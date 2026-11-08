@@ -12,6 +12,7 @@ import moe.shizuku.manager.R
 import moe.shizuku.manager.app.AppActivity
 import moe.shizuku.manager.lspatch.LspatchEntryActivity
 import moe.shizuku.manager.lspatch.RiniganInstaller
+import moe.shizuku.manager.terminal.linux.ShizukuExec
 
 /**
  * aMiNo v2 — Rinigan screen. The virtual-camera MODULE app ships embedded inside aMiNo
@@ -25,6 +26,8 @@ class RiniganActivity : AppActivity() {
     private lateinit var noteLine: TextView
     private lateinit var installBtn: MaterialButton
     private lateinit var openBtn: MaterialButton
+    /** r1428 — the one automatic silent attempt per screen life (no retry loops). */
+    private var autoTried = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +57,16 @@ class RiniganActivity : AppActivity() {
     private fun refresh() {
         val pi = RiniganInstaller.installedVersion(this)
         if (pi == null) {
+            // r1428 — same as the LSPatch entry: with the aMiNo shell up, install
+            // silently BY ITSELF (adb-install path over /data/local/tmp) instead of
+            // showing a warning page first. No shell → honest manual page.
+            if (!autoTried && ShizukuExec.available()) {
+                autoTried = true
+                statusLine.text = getString(R.string.rinigan_installing)
+                statusLine.setTextColor(0xFFF2F2F5.toInt())
+                startInstall()
+                return
+            }
             statusLine.text = getString(R.string.rinigan_not_installed)
             statusLine.setTextColor(0xFFFF5252.toInt())
             noteLine.text = getString(R.string.rinigan_embedded_note)

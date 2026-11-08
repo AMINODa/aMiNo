@@ -142,6 +142,35 @@ object ShizukuExec {
     }
 
     /**
+     * aMiNo r1428 — silent APK install through the service, the SAME way `adb install`
+     * works. Field truth (user screenshot, verbatim): «Install failed: Error: Unable to
+     * open file: /data/user/0/com.amino.manager/...» — r1426/r1427 staged the companion
+     * APK in the app-PRIVATE noBackupFilesDir (mode 0700, app uid), while `pm` runs as
+     * the shell identity: it could NEVER read that path, so the silent install failed
+     * on every device and the user stayed stuck on the stub page. The fix is physics,
+     * not policy: stream the bytes to /data/local/tmp (shell-writable everywhere — it
+     * is exactly where `adb install` pushes), `pm install -r` from there, then clean
+     * up. The returned Shot is the REAL pm result — ok==true only on "Success".
+     */
+    suspend fun installApk(
+        local: java.io.File,
+        tmpName: String,
+        timeoutMs: Long = 180_000
+    ): Shot = withContext(Dispatchers.IO) {
+        val tmp = "/data/local/tmp/" + tmpName
+        // stale leftover from any previous attempt must never be trusted
+        oneShot("rm -f " + shellQuote(tmp), 10_000)
+        val push = pushFile(local, tmp)
+        if (!push.ok) {
+            oneShot("rm -f " + shellQuote(tmp), 10_000)
+            return@withContext Shot(push.rc, "push: " + push.output)
+        }
+        val install = oneShot("pm install -r " + shellQuote(tmp), timeoutMs)
+        oneShot("rm -f " + shellQuote(tmp), 10_000)
+        install
+    }
+
+    /**
      * Stream a local file into a remote path through the service
      * (`cat > path`). Verifies the remote size afterwards — real integrity,
      * no assumption.
