@@ -723,6 +723,13 @@
     <string name="lspatch_select_module_none">بلا وحدة — المحرك فقط</string>
     <string name="lspatch_busy">عملية ترقيع جارية بالفعل</string>
     <string name="lspatch_search">ابحث في التطبيقات…</string>
+    <!-- r1426 — original companion manager (org.lsposed.lspatch), auto-installed from assets -->
+    <string name="lspatch_companion_missing">مدير LSPatch الأصلي غير مثبت</string>
+    <string name="lspatch_companion_note">محمّل داخل aMiNo — يثبت تلقائيًا ثم يفتح الواجهة الأصلية</string>
+    <string name="lspatch_companion_intro">يشحن aMiNo مدير LSPatch الأصلي (JingMatrix v1.2) بكل شاشاته وإعداداته وخياراته كما هي — اللون فقط مطابق لهوية aMiNo. يثبت مع aMiNo، وفتحه من هنا ينقلك إلى تلك الواجهة الأصلية.</string>
+    <string name="lspatch_install_companion">ثبّت مدير LSPatch الأصلي</string>
+    <string name="lspatch_install_sent">أُرسل التثبيت — أكّده على الشاشة</string>
+    <string name="lspatch_quick_patch">ترقيع سريع (المحرك المدمج)</string>
     <string name="rinigan_title">Rinigan — الكاميرا الافتراضية</string>
     <string name="rinigan_intro">Rinigan يستبدل تغذية الكاميرا في التطبيقات المرقّعة بفيديو محلي أو صورة أو رابط مباشر. ضمّنه في تطبيق هدف من شاشة LSPatch؛ وهذه الصفحة تثبّت تطبيق الوحدة نفسه (وهو حامل محرك الرابط 6.3 وبطاقة التشخيص والإعدادات).</string>
     <string name="rinigan_installed">مثبّت — v%1$s (%2$d)</string>

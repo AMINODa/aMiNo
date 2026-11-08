@@ -2,9 +2,14 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
     repositories {
-        gradlePluginPortal()
+        mavenLocal() // [aMiNo suite] hand-installed KSP closure lives here
+        // [aMiNo suite] Central 429s from this network and Gradle ABORTS on 5xx — mirrors BEFORE
+        // the portal/mavenCentral (the portal 303-redirects many markers to Central).
+        maven("https://repo.huaweicloud.com/repository/maven")
+        maven("https://mirrors.cloud.tencent.com/nexus/repository/maven-public")
         google()
-        maven("https://maven.aliyun.com/repository/public") // [aMiNo suite] Central is rate-limited here — try the mirror first
+        maven("https://maven.aliyun.com/repository/public")
+        gradlePluginPortal()
         mavenCentral()
         }
 }
@@ -12,8 +17,12 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
     repositories {
+        mavenLocal() // [aMiNo suite] hand-installed KSP closure lives here
         google()
-        maven("https://maven.aliyun.com/repository/public") // [aMiNo suite] Central is rate-limited here — try the mirror first
+        // [aMiNo suite] same mirror ladder as pluginManagement (Central 429 / aliyun 502)
+        maven("https://repo.huaweicloud.com/repository/maven")
+        maven("https://mirrors.cloud.tencent.com/nexus/repository/maven-public")
+        maven("https://maven.aliyun.com/repository/public")
         mavenCentral()
         }
 }

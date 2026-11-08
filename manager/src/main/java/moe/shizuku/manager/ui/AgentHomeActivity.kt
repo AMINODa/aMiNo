@@ -175,7 +175,11 @@ open class AgentHomeActivity : AppActivity() {
         open(binding.dTools, moe.shizuku.manager.tools.ToolsActivity::class.java)
         open(binding.dSkills, moe.shizuku.manager.skills.SkillsActivity::class.java)
         // aMiNo v2 — LSPatch engine + Rinigan virtual camera
-        open(binding.dLspatch, moe.shizuku.manager.lspatch.LspatchActivity::class.java)
+        // r1426 — the LSPatch drawer entry opens the ORIGINAL manager UI (companion app
+        // org.lsposed.lspatch, auto-installed from assets — user: «اريدها كما في النسخة الاصلية
+        // غير فقط اللون»); the built-in quick-patch engine stays as the honest fallback inside
+        // the entry, nothing of the previous build removed.
+        open(binding.dLspatch, moe.shizuku.manager.lspatch.LspatchEntryActivity::class.java)
         open(binding.dRinigan, moe.shizuku.manager.rinigan.RiniganActivity::class.java)
         open(binding.dTerminal, moe.shizuku.manager.ui.TerminalActivity::class.java)
         open(binding.dShell, ShellActivity::class.java)
@@ -204,8 +208,10 @@ open class AgentHomeActivity : AppActivity() {
         }
 
         // aMiNo v2 — embedded components ride with aMiNo: auto-install the Rinigan module
-        // (silent through the aMiNo shell service when it is up, else one honest tap)
+        // and the ORIGINAL LSPatch manager companion (silent through the aMiNo shell service
+        // when it is up, else one honest tap each)
         moe.shizuku.manager.lspatch.RiniganInstaller.ensureInstalledOnStart(this)
+        moe.shizuku.manager.lspatch.LSPatchCompanion.ensureInstalledOnStart(this)
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {

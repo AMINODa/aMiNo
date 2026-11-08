@@ -1,7 +1,10 @@
 .project
 .cache
 .settings
-libxposed
+# r1426 — libxposed/api + libxposed/service are VENDORED SOURCES in this tree now
+# (the submodule mounts were flattened when the suite was vendored; the blanket
+# ignore is what silently dropped them from a previous commit). Never ignore them.
+# libxposed
 *.iml
 .gradle
 /local.properties

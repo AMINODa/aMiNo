@@ -12,7 +12,10 @@ import org.apache.tools.ant.filters.ReplaceTokens
 // Reading the optimised DEX needs a DEX reader; see checkXResourcesIsolation below.
 buildscript {
     repositories {
-        maven("https://maven.aliyun.com/repository/public") // [aMiNo suite] Central is rate-limited here — try the mirror first
+        mavenLocal() // [aMiNo suite] hand-installed artifacts live here
+        maven("https://repo.huaweicloud.com/repository/maven") // [aMiNo suite] Central 429s from this network — mirrors before Central
+        maven("https://mirrors.cloud.tencent.com/nexus/repository/maven-public")
+        maven("https://maven.aliyun.com/repository/public")
         mavenCentral()
     }
     dependencies { classpath(libs.smali.dexlib2) }

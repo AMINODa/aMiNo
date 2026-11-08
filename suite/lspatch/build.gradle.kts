@@ -17,7 +17,10 @@ plugins {
 buildscript {
     repositories {
         google()
-        maven("https://maven.aliyun.com/repository/public") // [aMiNo suite] Central is rate-limited here — try the mirror first
+        maven("https://repo.huaweicloud.com/repository/maven") // [aMiNo suite] Central 429s from this network — mirrors before Central
+        maven("https://mirrors.cloud.tencent.com/nexus/repository/maven-public") // [aMiNo suite] same ladder
+        maven("https://maven.aliyun.com/repository/public")
+        gradlePluginPortal() // [aMiNo suite] plugin MARKERS (e.g. spotless 8.10.0) live only here
         mavenCentral()
     }
     dependencies {

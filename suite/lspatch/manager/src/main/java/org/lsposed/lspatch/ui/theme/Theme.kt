@@ -18,7 +18,6 @@ import androidx.core.view.ViewCompat
 import org.lsposed.lspatch.ui.appearance.LSPATCH_SEED
 import org.matrix.vector.ui.theme.SeedScheme
 import org.matrix.vector.ui.theme.ThemeMode
-import org.matrix.vector.ui.theme.toAmoled
 
 /**
  * The app theme, resolved from the user's appearance choices.

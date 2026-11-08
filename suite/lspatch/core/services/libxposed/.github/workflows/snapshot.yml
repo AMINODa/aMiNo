@@ -1,0 +1,61 @@
+name: Publish Sonatype Snapshot
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_interface:
+        description: 'Deploy interface module'
+        type: boolean
+        default: true
+      deploy_service:
+        description: 'Deploy service module'
+        type: boolean
+        default: true
+      dependency_snapshot:
+        description: 'Use snapshot annotation and lint dependencies'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.event.inputs.deploy_interface == 'true' || github.event.inputs.deploy_service == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: 'recursive'
+        fetch-depth: 0
+
+    - name: set up JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Publish snapshot to Sonatype
+      run: |
+        echo 'org.gradle.caching=true' >> gradle.properties
+        echo 'org.gradle.parallel=true' >> gradle.properties
+        echo 'org.gradle.vfs.watch=true' >> gradle.properties
+        echo 'org.gradle.jvmargs=-Xmx2048m' >> gradle.properties
+        echo 'publishSnapshot=true' >> gradle.properties
+        echo 'dependencySnapshot=${{ github.event.inputs.dependency_snapshot }}' >> gradle.properties
+        TASKS=""
+        if [[ "${{ github.event.inputs.deploy_interface }}" == "true" ]]; then
+          TASKS="$TASKS publishInterfacePublicationToSnapshotsRepository"
+        fi
+        if [[ "${{ github.event.inputs.deploy_service }}" == "true" ]]; then
+          TASKS="$TASKS publishServicePublicationToSnapshotsRepository"
+        fi
+        ./gradlew $TASKS
+        ./gradlew --stop
+      env:
+        ORG_GRADLE_PROJECT_signingKey: ${{ secrets.maven_pgp_signingKey }}
+        ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.maven_pgp_signingPassword }}
+        ORG_GRADLE_PROJECT_snapshotsUsername: ${{ secrets.OSSRHUSERNAME }}
+        ORG_GRADLE_PROJECT_snapshotsPassword: ${{ secrets.OSSRHPASSWORD }}

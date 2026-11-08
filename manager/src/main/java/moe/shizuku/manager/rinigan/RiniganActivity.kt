@@ -10,7 +10,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import moe.shizuku.manager.R
 import moe.shizuku.manager.app.AppActivity
-import moe.shizuku.manager.lspatch.LspatchActivity
+import moe.shizuku.manager.lspatch.LSPatchEntryActivity
 import moe.shizuku.manager.lspatch.RiniganInstaller
 
 /**
@@ -41,7 +41,8 @@ class RiniganActivity : AppActivity() {
         installBtn.setOnClickListener { startInstall() }
         openBtn.setOnClickListener { openRinigan() }
         findViewById<MaterialButton>(R.id.toLspatchBtn).setOnClickListener {
-            startActivity(Intent(this, LspatchActivity::class.java))
+            // r1426 — same routing as the drawer: into the ORIGINAL manager UI when present
+            startActivity(Intent(this, moe.shizuku.manager.lspatch.LspatchEntryActivity::class.java))
         }
     }
 

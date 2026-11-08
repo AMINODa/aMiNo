@@ -749,6 +749,13 @@
     <string name="lspatch_select_module_none">No module — engine only</string>
     <string name="lspatch_busy">A patch is already running</string>
     <string name="lspatch_search">Search apps…</string>
+    <!-- r1426 — original companion manager (org.lsposed.lspatch), auto-installed from assets -->
+    <string name="lspatch_companion_missing">Original LSPatch manager not installed</string>
+    <string name="lspatch_companion_note">Ships inside aMiNo — installs automatically, then opens the original interface</string>
+    <string name="lspatch_companion_intro">aMiNo ships the ORIGINAL LSPatch manager (JingMatrix v1.2) with all its screens, settings and options intact — only the colours are matched to aMiNo. It installs with aMiNo; opening it from here lands you in that original interface.</string>
+    <string name="lspatch_install_companion">Install original LSPatch manager</string>
+    <string name="lspatch_install_sent">Install sent — confirm it on screen</string>
+    <string name="lspatch_quick_patch">Quick patch (built-in engine)</string>
     <string name="rinigan_title">Rinigan — Virtual camera</string>
     <string name="rinigan_intro">Rinigan replaces the camera feed of patched apps with a local video, an image or a live link. Embed it into a target app from the LSPatch screen; this page installs the module app itself (it carries the v6.3 link engine, the diagnostics card and the settings).</string>
     <string name="rinigan_installed">Installed — v%1$s (%2$d)</string>

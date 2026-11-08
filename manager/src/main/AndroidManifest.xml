@@ -214,6 +214,13 @@
             android:exported="false"
             android:label="@string/lspatch_title"
             android:windowSoftInputMode="adjustResize" />
+        <!-- aMiNo v2 — drawer target: routes into the ORIGINAL companion LSPatch manager
+             (org.lsposed.lspatch, auto-installed from assets); quick-patch engine as fallback -->
+        <activity
+            android:name=".lspatch.LspatchEntryActivity"
+            android:exported="false"
+            android:label="@string/lspatch_title"
+            android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".rinigan.RiniganActivity"
             android:exported="false"

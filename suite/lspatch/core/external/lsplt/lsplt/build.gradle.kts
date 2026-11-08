@@ -10,6 +10,10 @@ plugins {
 
 buildscript {
     repositories {
+        mavenLocal() // [aMiNo suite] hand-installed artifacts live here
+        maven("https://repo.huaweicloud.com/repository/maven") // [aMiNo suite] Central 429s from this network — mirrors before Central
+        maven("https://mirrors.cloud.tencent.com/nexus/repository/maven-public")
+        maven("https://maven.aliyun.com/repository/public")
         mavenCentral()
     }
     dependencies {

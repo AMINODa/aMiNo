@@ -2,9 +2,15 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
     repositories {
-        gradlePluginPortal()
+        mavenLocal() // [aMiNo suite] KSP 2.3.2 marker+jar hand-installed here (Central 429s)
         google()
-        maven("https://maven.aliyun.com/repository/public") // [aMiNo suite] Central is rate-limited here — try the mirror first
+        // [aMiNo suite] Central is rate-limited (429) from this build network; Gradle ABORTS
+        // resolution on a 5xx instead of trying the next repo, so the mirrors must come BEFORE
+        // the plugin portal / mavenCentral (the portal 303-redirects many markers to Central).
+        maven("https://repo.huaweicloud.com/repository/maven")
+        maven("https://mirrors.cloud.tencent.com/nexus/repository/maven-public")
+        maven("https://maven.aliyun.com/repository/public")
+        gradlePluginPortal()
         mavenCentral()
         }
 }
@@ -12,8 +18,12 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        mavenLocal() // [aMiNo suite] hand-installed KSP closure lives here
         google()
-        maven("https://maven.aliyun.com/repository/public") // [aMiNo suite] Central is rate-limited here — try the mirror first
+        // [aMiNo suite] same mirror ladder as pluginManagement (Central 429 / aliyun 502)
+        maven("https://repo.huaweicloud.com/repository/maven")
+        maven("https://mirrors.cloud.tencent.com/nexus/repository/maven-public")
+        maven("https://maven.aliyun.com/repository/public")
         mavenCentral()
         }
     versionCatalogs {
