@@ -148,6 +148,9 @@ open class AgentHomeActivity : AppActivity() {
         drawerLabel(binding.dTools, R.string.nav_tools, "🧰")
         // 1.4 — Skills Center: install/import/organize/compose skills (drawer 🧩)
         drawerLabel(binding.dSkills, R.string.nav_skills, "🧩")
+        // aMiNo v2 — LSPatch engine + Rinigan virtual camera, as side-menu options
+        drawerLabel(binding.dLspatch, R.string.nav_lspatch, "📦")
+        drawerLabel(binding.dRinigan, R.string.nav_rinigan, "🎥")
         drawerLabel(binding.dTerminal, R.string.terminal_title, "⌨️")
         drawerLabel(binding.dShell, R.string.nav_shell, "🖥️")
         drawerLabel(binding.dPermissions, R.string.menu_permissions, "🔐")
@@ -171,6 +174,9 @@ open class AgentHomeActivity : AppActivity() {
         open(binding.dMemory, moe.shizuku.manager.memory.MemoryActivity::class.java)
         open(binding.dTools, moe.shizuku.manager.tools.ToolsActivity::class.java)
         open(binding.dSkills, moe.shizuku.manager.skills.SkillsActivity::class.java)
+        // aMiNo v2 — LSPatch engine + Rinigan virtual camera
+        open(binding.dLspatch, moe.shizuku.manager.lspatch.LspatchActivity::class.java)
+        open(binding.dRinigan, moe.shizuku.manager.rinigan.RiniganActivity::class.java)
         open(binding.dTerminal, moe.shizuku.manager.ui.TerminalActivity::class.java)
         open(binding.dShell, ShellActivity::class.java)
         open(binding.dPermissions, AllPermissionsActivity::class.java)
@@ -196,6 +202,10 @@ open class AgentHomeActivity : AppActivity() {
             prefs.edit().putBoolean("welcome_done", true).apply()
             AgentOrchestrator.postWelcome(this, getString(R.string.welcome_body))
         }
+
+        // aMiNo v2 — embedded components ride with aMiNo: auto-install the Rinigan module
+        // (silent through the aMiNo shell service when it is up, else one honest tap)
+        moe.shizuku.manager.lspatch.RiniganInstaller.ensureInstalledOnStart(this)
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {

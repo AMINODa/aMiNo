@@ -65,3 +65,17 @@
 -repackageclasses rikka.shizuku
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# ==== aMiNo v2 — embedded LSPatch engine (:lspatch-engine, frozen v1.2-487) ====
+# The frozen loader runtime (loader.dex, shipped as an asset and embedded into patched
+# APKs) parses assets/lspatch/config.json with gson against the ORIGINAL field names of
+# the share classes — R8 must never rename them. The engine classes are also surfaced in
+# honest logs/crash traces, so keep their names whole.
+-keep class org.lsposed.lspatch.share.** { *; }
+-keep class org.lsposed.patch.** { *; }
+-keep class com.wind.meditor.** { *; }
+-keep class pxb.android.axml.** { *; }
+# gson reflection surface used by the engine's PatchConfig serialization
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken
+-keepattributes *Annotation*

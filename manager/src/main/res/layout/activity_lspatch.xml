@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- aMiNo v2 — LSPatch screen (embedded engine). Full aMiNo identity: black #0B0B0E,
+     cards #131318, strokes #1E1E24, red accents #E53935/#D32F2F/#FF5252/#FF867C. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true"
+    android:background="#0B0B0E">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        app:titleTextColor="#F2F2F5"
+        app:navigationIcon="?attr/homeAsUpIndicator"
+        app:title="@string/lspatch_title" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        android:clipToPadding="false"
+        android:padding="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/intro"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/lspatch_intro"
+                android:textColor="#8A8A94"
+                android:textSize="13sp"
+                android:lineSpacingMultiplier="1.25" />
+
+            <!-- target app -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/targetCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                app:cardBackgroundColor="#131318"
+                app:cardCornerRadius="14dp"
+                app:strokeColor="#1E1E24"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:padding="14dp">
+
+                    <ImageView
+                        android:id="@+id/targetIcon"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:src="@android:drawable/sym_def_app_icon"
+                        android:contentDescription="@string/lspatch_target" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="12dp"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/targetName"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/lspatch_no_target"
+                            android:textColor="#F2F2F5"
+                            android:textSize="15sp"
+                            android:maxLines="1"
+                            android:ellipsize="end" />
+
+                        <TextView
+                            android:id="@+id/targetPackage"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/lspatch_choose_app"
+                            android:textColor="#8A8A94"
+                            android:textSize="12sp"
+                            android:maxLines="1"
+                            android:ellipsize="end" />
+                    </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/targetPick"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/lspatch_choose_app"
+                        android:textColor="#FF5252"
+                        android:textSize="13sp"
+                        android:padding="6dp"
+                        android:background="?attr/selectableItemBackground" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- module + options -->
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:cardBackgroundColor="#131318"
+                app:cardCornerRadius="14dp"
+                app:strokeColor="#1E1E24"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="8dp">
+
+                    <CheckBox
+                        android:id="@+id/moduleRinigan"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:text="@string/lspatch_module_rinigan"
+                        android:textColor="#C9C9D2"
+                        android:textSize="14sp"
+                        android:buttonTint="#D32F2F" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="8dp"
+                        android:paddingBottom="8dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/lspatch_sigbypass"
+                            android:textColor="#C9C9D2"
+                            android:textSize="14sp" />
+
+                        <Spinner
+                            android:id="@+id/sigBypass"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:minWidth="96dp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- patch button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/patchBtn"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:text="@string/lspatch_patch"
+                android:textSize="15sp"
+                android:backgroundTint="#D32F2F"
+                android:textColor="#FFFFFF"
+                app:cornerRadius="14dp" />
+
+            <!-- install button (hidden until a patch succeeds) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/installBtn"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="8dp"
+                android:text="@string/lspatch_install"
+                android:textSize="15sp"
+                android:visibility="gone"
+                android:backgroundTint="#8E1216"
+                android:textColor="#FFFFFF"
+                app:cornerRadius="14dp" />
+
+            <!-- honest console log -->
+            <TextView
+                android:id="@+id/log"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="#131318"
+                android:padding="10dp"
+                android:fontFamily="monospace"
+                android:textSize="11sp"
+                android:textColor="#9EA0AA"
+                android:textIsSelectable="true"
+                android:minLines="3" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

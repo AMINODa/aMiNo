@@ -21,6 +21,11 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // aMiNo v2: aliyun mirrors FIRST — direct mavenCentral rate-limits (HTTP 429)
+        // from this build network; mirrors proxy the same artifacts. Originals kept below.
+        maven { url = "https://maven.aliyun.com/repository/central" }
+        maven { url = "https://maven.aliyun.com/repository/google" }
+        maven { url = "https://maven.aliyun.com/repository/gradle-plugin" }
         google()
         mavenLocal()
         mavenCentral()
@@ -46,6 +51,7 @@ dependencyResolutionManagement {
 }
 
 include ":server", ":starter", ":shell", ":manager", ":common"
+include ":lspatch-engine"  // aMiNo v2 — frozen LSPatch v1.2 patching engine (pure JVM)
 
 def root = "api"
 

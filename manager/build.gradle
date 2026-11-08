@@ -165,6 +165,7 @@ dependencies {
     implementation project(":starter")
     implementation project(":api")
     implementation project(":provider")
+    implementation project(":lspatch-engine")  // aMiNo v2 — embedded LSPatch v1.2 engine
 
     implementation libs.hidden.compat
     compileOnly libs.hidden.stub

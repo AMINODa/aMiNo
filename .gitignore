@@ -12,3 +12,5 @@
 /out
 /signing.properties
 /.kotlin
+# aMiNo v2 — engine module build outputs
+lspatch-engine/build/

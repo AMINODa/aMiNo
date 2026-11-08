@@ -701,4 +701,37 @@
     <string name="sharingan_no_apikey">لا يوجد مفتاح API — افتح aMiNo ← الإعدادات ← مفاتيح API أولاً</string>
     <string name="sharingan_shell_down">الـshell غير موصول — أفعال الجهاز تحتاجه (افتح aMiNo ← Adb)</string>
 
+    <!-- aMiNo v2 — LSPatch (المحرك المدمج) + Rinigan (وحدة الكاميرا الافتراضية) -->
+    <string name="nav_lspatch">LSPatch</string>
+    <string name="nav_rinigan">Rinigan</string>
+    <string name="lspatch_title">LSPatch — إكس بوزد بدون روت</string>
+    <string name="lspatch_intro">رقّع تطبيقًا لتضمين وحدات Xposed بدون روت. يُعاد توقيع الـ APK المرقّع — إن كان التطبيق الأصلي مثبتًا فيجب إزالته أولاً. التطبيقات المرقّعة تتطلب أندرويد 9+.</string>
+    <string name="lspatch_target">التطبيق الهدف</string>
+    <string name="lspatch_choose_app">اختر تطبيقًا…</string>
+    <string name="lspatch_no_target">لم يُختر تطبيق</string>
+    <string name="lspatch_module_rinigan">تضمين Rinigan (الكاميرا الافتراضية)</string>
+    <string name="lspatch_sigbypass">مستوى انتحال التوقيع</string>
+    <string name="lspatch_patch">رقّع الـ APK</string>
+    <string name="lspatch_patching">جارٍ الترقيع…</string>
+    <string name="lspatch_done">اكتمل الترقيع:</string>
+    <string name="lspatch_failed">فشل الترقيع</string>
+    <string name="lspatch_install">ثبّت الـ APK المرقّع</string>
+    <string name="lspatch_install_done">أُرسل ناوي التثبيت — أكّده على الشاشة</string>
+    <string name="lspatch_install_silent">ثُبّت بصمت عبر خدمة aMiNo للـshell</string>
+    <string name="lspatch_install_failed">فشل التثبيت: %1$s</string>
+    <string name="lspatch_copied">جارٍ نسخ الـ APK…</string>
+    <string name="lspatch_select_module_none">بلا وحدة — المحرك فقط</string>
+    <string name="lspatch_busy">عملية ترقيع جارية بالفعل</string>
+    <string name="lspatch_search">ابحث في التطبيقات…</string>
+    <string name="rinigan_title">Rinigan — الكاميرا الافتراضية</string>
+    <string name="rinigan_intro">Rinigan يستبدل تغذية الكاميرا في التطبيقات المرقّعة بفيديو محلي أو صورة أو رابط مباشر. ضمّنه في تطبيق هدف من شاشة LSPatch؛ وهذه الصفحة تثبّت تطبيق الوحدة نفسه (وهو حامل محرك الرابط 6.3 وبطاقة التشخيص والإعدادات).</string>
+    <string name="rinigan_installed">مثبّت — v%1$s (%2$d)</string>
+    <string name="rinigan_not_installed">غير مثبّت</string>
+    <string name="rinigan_update_available">النسخة المضمّنة 6.3 متاحة — ثبّتها للتحديث</string>
+    <string name="rinigan_install">ثبّت الوحدة</string>
+    <string name="rinigan_open">افتح Rinigan</string>
+    <string name="rinigan_to_lspatch">التضمين في تطبيق ← LSPatch</string>
+    <string name="rinigan_install_sent">أُرسل ناوي التثبيت — أكّده على الشاشة</string>
+    <string name="rinigan_install_silent">ثُبّت Rinigan بصمت عبر خدمة aMiNo للـshell</string>
+    <string name="rinigan_embedded_note">الوحدة المضمّنة: v6.3 (كود 36)، بثيم aMiNo</string>
 </resources>

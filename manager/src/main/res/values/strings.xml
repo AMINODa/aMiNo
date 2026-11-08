@@ -727,4 +727,37 @@
     <string name="sharingan_no_apikey">No API key — open aMiNo → Settings → API keys first</string>
     <string name="sharingan_shell_down">shell disconnected — device actions need it (open aMiNo → Adb)</string>
 
+    <!-- aMiNo v2 — LSPatch (embedded engine) + Rinigan (virtual camera module) -->
+    <string name="nav_lspatch">LSPatch</string>
+    <string name="nav_rinigan">Rinigan</string>
+    <string name="lspatch_title">LSPatch — Xposed rootless</string>
+    <string name="lspatch_intro">Patch an app to embed Xposed modules with no root. The patched APK is re-signed — if the original app is installed, it must be removed first. Patched apps require Android 9+.</string>
+    <string name="lspatch_target">Target app</string>
+    <string name="lspatch_choose_app">Choose app…</string>
+    <string name="lspatch_no_target">No app selected</string>
+    <string name="lspatch_module_rinigan">Embed Rinigan (virtual camera)</string>
+    <string name="lspatch_sigbypass">Signature spoofing level</string>
+    <string name="lspatch_patch">Patch APK</string>
+    <string name="lspatch_patching">Patching…</string>
+    <string name="lspatch_done">Patch complete:</string>
+    <string name="lspatch_failed">Patch failed</string>
+    <string name="lspatch_install">Install patched APK</string>
+    <string name="lspatch_install_done">Install intent sent — confirm it on screen</string>
+    <string name="lspatch_install_silent">Installed silently via the aMiNo shell service</string>
+    <string name="lspatch_install_failed">Install failed: %1$s</string>
+    <string name="lspatch_copied">Copying APK…</string>
+    <string name="lspatch_select_module_none">No module — engine only</string>
+    <string name="lspatch_busy">A patch is already running</string>
+    <string name="lspatch_search">Search apps…</string>
+    <string name="rinigan_title">Rinigan — Virtual camera</string>
+    <string name="rinigan_intro">Rinigan replaces the camera feed of patched apps with a local video, an image or a live link. Embed it into a target app from the LSPatch screen; this page installs the module app itself (it carries the v6.3 link engine, the diagnostics card and the settings).</string>
+    <string name="rinigan_installed">Installed — v%1$s (%2$d)</string>
+    <string name="rinigan_not_installed">Not installed</string>
+    <string name="rinigan_update_available">Embedded v6.3 available — install to update</string>
+    <string name="rinigan_install">Install module</string>
+    <string name="rinigan_open">Open Rinigan</string>
+    <string name="rinigan_to_lspatch">Embed into an app → LSPatch</string>
+    <string name="rinigan_install_sent">Install intent sent — confirm it on screen</string>
+    <string name="rinigan_install_silent">Rinigan installed silently via the aMiNo shell service</string>
+    <string name="rinigan_embedded_note">Embedded module: v6.3 (code 36), aMiNo-themed</string>
 </resources>

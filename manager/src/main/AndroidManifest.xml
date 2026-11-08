@@ -67,6 +67,15 @@
         android:name="android.hardware.touchscreen"
         android:required="false" />
 
+    <!-- aMiNo v2 — LSPatch target picker: make launcher apps visible on API 30+ without
+         QUERY_ALL_PACKAGES (patchable apps = apps the user can actually launch). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <permission-group
         android:name="moe.shizuku.manager.permission-group.API"
         android:description="@string/permission_group_description"
@@ -198,6 +207,17 @@
             android:name=".skills.SkillsActivity"
             android:exported="false"
             android:label="@string/skills_title"
+            android:windowSoftInputMode="adjustResize" />
+        <!-- aMiNo v2 — LSPatch (embedded engine) + Rinigan (virtual camera module) -->
+        <activity
+            android:name=".lspatch.LspatchActivity"
+            android:exported="false"
+            android:label="@string/lspatch_title"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".rinigan.RiniganActivity"
+            android:exported="false"
+            android:label="@string/rinigan_title"
             android:windowSoftInputMode="adjustResize" />
         <activity
             android:name=".stealth.StealthTutorialActivity"
