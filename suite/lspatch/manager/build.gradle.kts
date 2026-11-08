@@ -1,31 +1,43 @@
 import java.util.Locale
 
-val defaultManagerPackageName: String by rootProject.extra
-val apiCode: Int by rootProject.extra
-val verCode: Int by rootProject.extra
-val verName: String by rootProject.extra
-val coreVerCode: Int by rootProject.extra
-val coreVerName: String by rootProject.extra
+// aMiNo v2.x — LSPatch manager as an ANDROID LIBRARY inside the single aMiNo APK.
+//
+// Upstream (JingMatrix v1.2) this was a com.android.application built by AGP 9.3 with its
+// built-in Kotlin 2.4.10, producing the standalone "LSPatch" manager app. The user's order for
+// aMiNo (verbatim): «لا اريد ضهور الايقونات منفصلة عن amino ... اريدهم مدموجيم في تطبيق امينو
+// تثبت عند تثبيت amino بدون اتلاف الادوار او الواجهات» — no separate icons, everything merged
+// into the one aMiNo app, roles and interfaces untouched. So this module is now a library on
+// aMiNo's own chain (AGP 8.11.1 / Kotlin 2.2.20); every SCREEN, SETTING and OPTION of the
+// original manager UI is compiled unmodified, and the only behavioural change stays the colour
+// pass already applied to Theme.kt/Color.kt (aMiNo palette). Components declared in the
+// vendored AndroidManifest.xml (MainActivity, ModuleService, XposedPullService,
+// ManagerResidentService, BootReceiver, the patched-apk FileProvider) merge into aMiNo's
+// manifest; the LAUNCHER intent-filter is gone so no second icon ever appears.
+//
+// Manager-mode bindings keep working for freshly patched apps without touching the frozen
+// loader: Patcher.kt writes lspApp.packageName (= com.amino.manager, aMiNo's own package) into
+// each patch's PatchConfig.managerPackageName, and the loader's RemoteApplicationService
+// resolves that field before falling back to Constants.MANAGER_PACKAGE_NAME.
 
 plugins {
-    // Kotlin comes from AGP 9's built-in support; applying org.jetbrains.kotlin.android is an error
-    // since AGP 9.0. The compose / ksp / parcelize plugins still attach to that built-in Kotlin.
-    alias(libs.plugins.agp.app)
-    alias(lspatch.plugins.compose.compiler)
-    alias(lspatch.plugins.google.devtools.ksp)
-    alias(lspatch.plugins.rikka.tools.refine)
-    alias(lspatch.plugins.kotlin.serialization)
+    id("com.android.library")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
     id("org.jetbrains.kotlin.plugin.parcelize")
+    id("com.google.devtools.ksp")
+    id("dev.rikka.tools.refine")
 }
 
 android {
-    defaultConfig {
-        applicationId = defaultManagerPackageName
+    namespace = "org.lsposed.lspatch"
 
+    defaultConfig {
         // The languages the picker offers, listed from the resource folders that carry our own
         // strings.xml -- so one appears the moment a translator's folder lands, and none is offered
         // for a language nothing is translated into. Deliberately not AssetManager.getLocales(),
         // which reports every locale any dependency ships a resource for, pseudo-locales included.
+        // (Upstream logic verbatim — the picker is part of the original UI.)
         val translations =
             (listOf("en") +
                     file("src/main/res")
@@ -38,20 +50,11 @@ android {
         buildConfigField("String", "TRANSLATIONS", "\"${translations.joinToString(",")}\"")
     }
 
-    androidResources {
-        noCompress.add(".so")
-    }
-
     buildTypes {
         release {
-            isMinifyEnabled = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-        all {
-            sourceSets[name].assets.srcDirs(rootProject.projectDir.resolve("out/assets/$name"))
+            // The single APK is minified by the aMiNo :manager app module; the library hands its
+            // shrink contract to R8 through consumer rules instead of minifying itself.
+            consumerProguardFiles("proguard-rules.pro")
         }
     }
 
@@ -61,56 +64,25 @@ android {
         buildConfig = true
     }
 
-    namespace = "org.lsposed.lspatch"
-}
-
-afterEvaluate {
-    android.applicationVariants.forEach { variant ->
-        val variantLowered = variant.name.lowercase()
-        val variantCapped = variant.name.replaceFirstChar { it.uppercase() }
-
-        // The loader dex/so land in out/assets/<variant> (the assets srcDir above) from tasks in the
-        // sibling loader modules. Gradle cannot infer those producers from a shared directory, so the
-        // asset merge names them directly: a dependency routed through an aggregator lifecycle task
-        // carries no output and does not satisfy the input/output validation, which a parallel build
-        // (CI) turns into a hard error rather than a warning.
-        val loaderArtifacts = listOf(
-            ":meta-loader:copyDex$variantCapped",
-            ":patch-loader:copyDex$variantCapped",
-            ":patch-loader:copySo$variantCapped",
-        )
-        tasks.named("merge${variantCapped}Assets") { dependsOn(loaderArtifacts) }
-
-        // Lint reads that same directory to model the variant, and infers its producers no better than
-        // the asset merge does. Undeclared, the validation is a hard error rather than a warning, so
-        // `gradlew build` fails on a project that assembles perfectly well.
-        tasks.matching { it.name.contains("lint", ignoreCase = true) && it.name.contains(variantCapped) }
-            .configureEach { dependsOn(loaderArtifacts) }
-
-        tasks.register<Copy>("build$variantCapped") {
-            dependsOn(tasks["assemble$variantCapped"])
-            from(variant.outputs.map { it.outputFile })
-            into("${rootProject.projectDir}/out/$variantLowered")
-            rename(".*.apk", "manager-v$verName-$verCode-$variantLowered.apk")
-        }
+    kotlinOptions {
+        jvmTarget = "21"
     }
 }
 
 dependencies {
-    implementation(projects.patch)
-    implementation(projects.apkzlib)
-    implementation("vector:axml")
-    implementation("vector:daemon-service")
-    implementation("vector:manager-ui")
-    implementation(projects.share.android)
-    implementation(projects.share.java)
-    implementation(platform(lspatch.androidx.compose.bom))
+    // The frozen v1.2 patching engine aMiNo already embeds (:patch + :apkzlib + share/java with
+    // the official LSPConfig + the vector axml editor). The manager drives THE SAME engine the
+    // in-app quick-patch screen uses — one copy of every class in the final APK.
+    api(project(":lspatch-engine"))
+    implementation(project(":lspatch-share-android"))
+    implementation(project(":lspatch-daemon-service"))
+    implementation(project(":lspatch-manager-ui"))
+    // ShizukuApi binds aMiNo's own privileged-server AIDL (moe.shizuku.server.IShizukuService).
+    implementation(project(":aidl"))
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
-    annotationProcessor(lspatch.androidx.room.compiler)
+    implementation(platform(lspatch.androidx.compose.bom))
     compileOnly(lspatch.rikka.hidden.stub)
-    debugImplementation(lspatch.androidx.compose.ui.tooling)
-    debugImplementation(lspatch.androidx.customview)
-    debugImplementation(lspatch.androidx.customview.poolingcontainer)
     implementation(lspatch.androidx.activity.compose)
     implementation(lspatch.androidx.compose.material.icons.extended)
     implementation(lspatch.androidx.compose.material3)
@@ -128,9 +100,9 @@ dependencies {
     implementation(lspatch.google.accompanist.pager)
     implementation(lspatch.google.accompanist.swiperefresh)
     implementation(lspatch.material)
-    implementation(libs.gson)
-    implementation(libs.okhttp)
-    implementation(libs.okhttp.dnsoverhttps)
+    implementation(vector.gson)
+    implementation(vector.okhttp)
+    implementation(vector.okhttp.dnsoverhttps)
     implementation(lspatch.rikka.shizuku.api)
     implementation(lspatch.rikka.shizuku.provider)
     implementation(lspatch.rikka.refine)

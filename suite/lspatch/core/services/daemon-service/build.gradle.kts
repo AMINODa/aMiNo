@@ -1,6 +1,14 @@
-plugins { alias(libs.plugins.agp.lib) }
+// aMiNo v2.x — core/services/daemon-service compiled inside the aMiNo build (was: composite-build
+// module substituted as `vector:daemon-service`). Daemon IPC surface: the IVectorDaemon /
+// IManagerService / IModuleService / IFrameworkService AIDLs and their parcelables, shared by the
+// manager that now lives inside the single aMiNo APK. Sources verbatim from JingMatrix v1.2.
+plugins {
+    id("com.android.library")
+}
 
 android {
+    namespace = "org.matrix.vector.daemonservice"
+
     buildFeatures { aidl = true }
 
     buildTypes { release { isMinifyEnabled = false } }
@@ -11,13 +19,10 @@ android {
             aidl.directories.addAll(listOf("src/main/aidl", "../libxposed/interface/src/main/aidl"))
         }
     }
-
-    aidlPackagedList += "org/matrix/vector/ipc/LoadedModule.aidl"
-    namespace = "org.matrix.vector.daemonservice"
 }
 
 dependencies {
-    compileOnly(libs.androidx.annotation)
-    compileOnly(libs.libxposed.annotation)
-    compileOnly(projects.hiddenapi.stubs)
+    compileOnly("androidx.annotation:annotation:1.10.0")
+    compileOnly("io.github.libxposed:annotation:1.0.0")
+    compileOnly(libs.hidden.stub)
 }

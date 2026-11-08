@@ -111,10 +111,16 @@ class RiniganActivity : AppActivity() {
     }
 
     private fun openRinigan() {
-        val launch = packageManager.getLaunchIntentForPackage(RiniganInstaller.RINIGAN_PACKAGE) ?: run {
+        // aMiNo v2.x — the module APK no longer carries a launcher activity (user order: no
+        // separate icons on the home screen), so getLaunchIntentForPackage would return null.
+        // Open the module's own UI by explicit component instead — same screen as before.
+        val launch = android.content.Intent()
+            .setClassName(RiniganInstaller.RINIGAN_PACKAGE, "com.rinigan.app.ui.MainActivity")
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            startActivity(launch)
+        } catch (_: Exception) {
             Toast.makeText(this, R.string.rinigan_not_installed, Toast.LENGTH_SHORT).show()
-            return
         }
-        startActivity(launch)
     }
 }

@@ -15,8 +15,14 @@ import org.lsposed.hiddenapibypass.HiddenApiBypass
 import rikka.core.util.BuildUtils.atLeast30
 import rikka.material.app.LocaleDelegate
 import rikka.shizuku.Shizuku
+import org.lsposed.lspatch.LSPApplication
 
-class ShizukuApplication : Application() {
+// aMiNo v2.x — the LSPatch manager runs INSIDE this app (single APK, no companion, no second
+// launcher icon). Extending LSPApplication gives the manager its upstream Application state
+// (lspApp global, prefs, tmp/patched dirs, ShizukuApi.init) through the ordinary
+// super.onCreate() below — zero changes to LSPApplication.kt, and aMiNo's own init order
+// (crash guard first) is preserved.
+class ShizukuApplication : LSPApplication() {
 
     companion object {
 
@@ -52,6 +58,8 @@ class ShizukuApplication : Application() {
         // aMiNo r1374: install the crash guard FIRST so even crashes during app
         // startup are persisted and can be reported on the next launch.
         AminoCrashGuard.install(this)
+        // aMiNo v2.x: super is LSPApplication — brings up the merged LSPatch manager's
+        // Application state (HiddenApiBypass, lspApp, prefs, dirs, ShizukuApi.init).
         super.onCreate()
         application = this
         appContext = applicationContext

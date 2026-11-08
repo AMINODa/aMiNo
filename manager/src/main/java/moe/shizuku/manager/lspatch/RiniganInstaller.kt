@@ -25,7 +25,7 @@ object RiniganInstaller {
 
     const val RINIGAN_PACKAGE = "com.rinigan.app"
     const val RINIGAN_ASSET = "rinigan/rinigan-6.3-amino.apk"
-    const val EMBEDDED_VERSION_CODE = 36 // v6.3 aMiNo-themed rebuild (supersedes official 35)
+    const val EMBEDDED_VERSION_CODE = 37 // v2.x iconless rebuild — no launcher activity, drawer-only entry (36 was the first aMiNo re-skin)
 
     fun embeddedFile(context: Context): File {
         val dir = File(context.noBackupFilesDir, "rinigan").apply { mkdirs() }

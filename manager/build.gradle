@@ -166,6 +166,17 @@ dependencies {
     implementation project(":api")
     implementation project(":provider")
     implementation project(":lspatch-engine")  // aMiNo v2 — embedded LSPatch v1.2 engine
+    // aMiNo v2.x — the LSPatch manager ITSELF compiled into this APK (original UI, aMiNo
+    // palette only): drawer entry opens org.lsposed.lspatch.ui.activity.MainActivity in-process.
+    // No companion APK, no second launcher icon — the library's manifest contributes the manager
+    // components (ModuleService/XposedPullService/ManagerResidentService/BootReceiver) without
+    // any LAUNCHER filter.
+    implementation(project(":lspatch-manager")) {
+        // aMiNo's own :api/:provider modules ARE the rikka.shizuku.* classes (Shizuku fork,
+        // verified API-superset of 13.1.5 for every call the manager makes). Letting the
+        // upstream artifacts in too would duplicate the classes in the dex.
+        exclude group: "dev.rikka.shizuku"
+    }
 
     implementation libs.hidden.compat
     compileOnly libs.hidden.stub

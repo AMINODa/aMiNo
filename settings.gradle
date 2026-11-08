@@ -1,6 +1,11 @@
 pluginManagement {
     repositories {
         google()
+        // aMiNo v2.x (single-APK LSPatch merge) — same mirror ladder the suite builds proved:
+        // this network 429s mavenCentral and Gradle ABORTS resolution on a 5xx, so the mirrors
+        // that actually serve the artifacts (huawei/tencent/aliyun) come before the originals.
+        maven { url = "https://repo.huaweicloud.com/repository/maven" }
+        maven { url = "https://mirrors.cloud.tencent.com/nexus/repository/maven-public" }
         mavenLocal()
         mavenCentral()
         maven {
@@ -12,6 +17,12 @@ pluginManagement {
         id "com.android.library" version "8.11.1"
         id "org.jetbrains.kotlin.android" version "2.2.20"
         id "org.jetbrains.kotlin.plugin.serialization" version "2.2.20"
+        // v2.x — LSPatch manager merged as a library needs the Compose compiler, Parcelize and KSP
+        // pinned to aMiNo's own Kotlin line (manager sources compile on 2.2.20; KSP 2.2.20-2.0.2
+        // is the KSP2 release for that compiler, verified resolvable on the huawei mirror).
+        id "org.jetbrains.kotlin.plugin.compose" version "2.2.20"
+        id "org.jetbrains.kotlin.plugin.parcelize" version "2.2.20"
+        id "com.google.devtools.ksp" version "2.2.20-2.0.2"
         id "dev.rikka.tools.autoresconfig" version "1.2.2"
         id "dev.rikka.tools.materialthemebuilder" version "1.5.1"
         id "dev.rikka.tools.refine" version "4.4.0"
@@ -21,8 +32,11 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        // aMiNo v2: aliyun mirrors FIRST — direct mavenCentral rate-limits (HTTP 429)
+        // aMiNo v2: mirrors FIRST — direct mavenCentral rate-limits (HTTP 429)
         // from this build network; mirrors proxy the same artifacts. Originals kept below.
+        // v2.x: huawei leads (aliyun 502s some KSP 2.2.20 artifacts; Gradle aborts on 5xx).
+        maven { url = "https://repo.huaweicloud.com/repository/maven" }
+        maven { url = "https://mirrors.cloud.tencent.com/nexus/repository/maven-public" }
         maven { url = "https://maven.aliyun.com/repository/central" }
         maven { url = "https://maven.aliyun.com/repository/google" }
         maven { url = "https://maven.aliyun.com/repository/gradle-plugin" }
@@ -50,11 +64,34 @@ dependencyResolutionManagement {
             library("refine-annotation", "dev.rikka.tools.refine", "annotation").versionRef("refine")
             library("refine-annotation-processor", "dev.rikka.tools.refine", "annotation-processor").versionRef("refine")
         }
+        // aMiNo v2.x — the vendored LSPatch manager (merged into this APK as libraries) keeps its
+        // upstream dependency pins verbatim: lspatch.versions.toml is the manager's own catalog,
+        // core's catalog feeds the two shared core modules (manager-ui / daemon-service). Only the
+        // PLUGIN aliases are bypassed (they pin AGP 9.x / Kotlin 2.4.10 — aMiNo builds with its own
+        // 8.11.1 / 2.2.20 chain, see pluginManagement above); every LIBRARY alias is upstream-exact.
+        lspatch {
+            from(files("suite/lspatch/gradle/lspatch.versions.toml"))
+        }
+        vector {
+            from(files("suite/lspatch/core/gradle/libs.versions.toml"))
+        }
     }
 }
 
 include ":server", ":starter", ":shell", ":manager", ":common"
 include ":lspatch-engine"  // aMiNo v2 — frozen LSPatch v1.2 patching engine (pure JVM)
+
+// aMiNo v2.x — THE LSPATCH MANAGER RUNS INSIDE aMiNo (single APK, no companion app, no second
+// launcher icon; the drawer lands in the ORIGINAL org.lsposed.lspatch UI, aMiNo palette only).
+// Four library modules compile the vendored JingMatrix v1.2 manager sources into this build:
+include ":lspatch-manager"        // suite/lspatch/manager — the manager itself (Compose UI + services)
+project(":lspatch-manager").projectDir = file("suite/lspatch/manager")
+include ":lspatch-manager-ui"     // core/manager-ui — shared store/repo/appearance Compose layer
+project(":lspatch-manager-ui").projectDir = file("suite/lspatch/core/manager-ui")
+include ":lspatch-daemon-service" // core/services/daemon-service — daemon IPC AIDL + parcelables
+project(":lspatch-daemon-service").projectDir = file("suite/lspatch/core/services/daemon-service")
+include ":lspatch-share-android"  // share/android — remote services + module loader helpers
+project(":lspatch-share-android").projectDir = file("suite/lspatch/share/android")
 
 def root = "api"
 

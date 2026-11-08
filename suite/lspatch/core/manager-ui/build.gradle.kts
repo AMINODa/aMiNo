@@ -1,11 +1,13 @@
-// Shared manager layer, consumed by both Vector's manager app and LSPatch's manager (via the
-// composite-build substitution vector:manager-ui). Holds the reusable, backend-agnostic Compose --
-// the panel header, search field, ambience, theme seed, the store HTML renderer -- and the shared
-// network stack: the one OkHttp client, the DoH resolver and its status section, so both apps
-// resolve names the same way.
+// aMiNo v2.x — core/manager-ui compiled inside the aMiNo build (was: composite-build module of
+// the vendored Vector core, substituted as `vector:manager-ui`). Holds the reusable manager UI
+// layer — panel header, search field, ambience, theme seed, the store HTML renderer, the shared
+// OkHttp/DoH network stack — consumed by the LSPatch manager that now runs inside the single
+// aMiNo APK. Sources are upstream JingMatrix v1.2 verbatim; only this build file moved onto
+// aMiNo's AGP 8.11.1 / Kotlin 2.2.20 chain (library aliases keep the upstream `vector` catalog).
 plugins {
-    alias(libs.plugins.agp.lib)
-    alias(libs.plugins.kotlin.compose)
+    id("com.android.library")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 kotlin {
@@ -24,20 +26,20 @@ android {
 }
 
 dependencies {
-    implementation(libs.gson)
-    implementation(libs.okhttp)
-    implementation(libs.okhttp.dnsoverhttps)
-    implementation(libs.androidx.core.ktx)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.graphics)
-    implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
-    implementation(libs.androidx.compose.material.icons.extended)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(vector.gson)
+    implementation(vector.okhttp)
+    implementation(vector.okhttp.dnsoverhttps)
+    implementation(vector.androidx.core.ktx)
+    implementation(platform(vector.androidx.compose.bom))
+    implementation(vector.androidx.compose.ui)
+    implementation(vector.androidx.compose.ui.graphics)
+    implementation(vector.androidx.compose.material3)
+    implementation(vector.androidx.compose.material3.adaptive.navigation.suite)
+    implementation(vector.androidx.compose.material.icons.extended)
+    implementation(vector.androidx.lifecycle.viewmodel.compose)
     // NavKey and NavBackStack appear in this module's public signatures -- TopLevelDestination
     // carries a route, PanelBar takes one -- so a consumer cannot use the container without them.
-    api(libs.androidx.navigation3.runtime)
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.webkit)
+    api(vector.androidx.navigation3.runtime)
+    implementation(vector.androidx.activity.compose)
+    implementation(vector.androidx.webkit)
 }

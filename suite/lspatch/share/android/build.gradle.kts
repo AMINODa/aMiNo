@@ -1,5 +1,10 @@
+// aMiNo v2.x — share/android compiled inside the aMiNo build (upstream LSPatch module
+// :share:android, substituted as a plain project dependency of the manager). Remote service
+// contracts (LSPatchModuleService / LSPatchXposedService / preference + file stores / scope
+// source) plus the module loader helpers, consumed by both the patch-loader (frozen dex inside
+// patched apps) and the manager that now lives inside the single aMiNo APK. Sources verbatim.
 plugins {
-    alias(libs.plugins.agp.lib)
+    id("com.android.library")
 }
 
 android {
@@ -12,5 +17,5 @@ android {
 }
 
 dependencies {
-    implementation("vector:daemon-service")
+    implementation(project(":lspatch-daemon-service"))
 }

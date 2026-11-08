@@ -208,10 +208,11 @@ open class AgentHomeActivity : AppActivity() {
         }
 
         // aMiNo v2 — embedded components ride with aMiNo: auto-install the Rinigan module
-        // and the ORIGINAL LSPatch manager companion (silent through the aMiNo shell service
-        // when it is up, else one honest tap each)
+        // (hidden icon since v2.x — no launcher entry on the home screen) silent through the
+        // aMiNo shell service when it is up, else one honest tap. The LSPatch manager needs NO
+        // install since v2.x: it is compiled into this very APK (suite/lspatch/manager) and the
+        // drawer entry opens its MainActivity directly.
         moe.shizuku.manager.lspatch.RiniganInstaller.ensureInstalledOnStart(this)
-        moe.shizuku.manager.lspatch.LSPatchCompanion.ensureInstalledOnStart(this)
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {

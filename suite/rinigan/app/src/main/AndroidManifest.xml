@@ -30,16 +30,15 @@
         android:requestLegacyExternalStorage="true"
         android:usesCleartextTraffic="true">
 
+        <!-- aMiNo v2.x — NO launcher intent-filter (user order: «لا اريد ضهور الايقونات منفصلة
+             عن amino» — Rinigan must not appear as a separate icon on the home screen). The
+             activity stays exported so aMiNo's drawer opens it by explicit component; the
+             Xposed-module role (xposed_init, scope metadata, relay services) is untouched. -->
         <activity
             android:name="com.rinigan.app.ui.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.Rinigan">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.Rinigan" />
 
         <provider
             android:name="com.rinigan.app.VideoProvider"

@@ -24,7 +24,7 @@ android {
         applicationId "com.rinigan.app"
         minSdk 21
         targetSdk 34
-        versionCode 35
+        versionCode 37  // aMiNo v2.x — iconless rebuild (36 was the first aMiNo re-skin; 37 drops the launcher icon)
         versionName "6.3"
 
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"

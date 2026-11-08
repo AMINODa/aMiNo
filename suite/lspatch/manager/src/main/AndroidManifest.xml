@@ -27,21 +27,18 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
-        android:name=".LSPApplication"
         android:allowBackup="true"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.Material3.DayNight.NoActionBar">
+        android:supportsRtl="true">
 
+        <!-- aMiNo v2.x — merged into the single aMiNo APK: NO launcher intent-filter (the user's
+             order: «لا اريد ضهور الايقونات منفصلة عن amino» — no second icon, the drawer is the
+             only entry). The VIEW filter stays: upstream lets a package-archive tap land here, and
+             that role is preserved. The explicit Material3 theme replaces the application-level
+             theme a library manifest may not impose on the host app. -->
         <activity
             android:name=".ui.activity.MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+            android:exported="true"
+            android:theme="@style/Theme.Material3.DayNight.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -100,9 +97,12 @@
 
         <!-- Hands one patched apk to whatever installer the device has, when neither the shell nor
              the platform session could install it. A patched apk lives in this app's private
-             storage, so it can only travel as a granted content uri rather than as a path. -->
+             storage, so it can only travel as a granted content uri rather than as a path.
+             aMiNo v2.x: a FileProvider subclass owned by the aMiNo app module — the manifest
+             merger cannot host two androidx FileProvider nodes with different authorities, and
+             aMiNo's own provider already claims the .fileprovider authority. -->
         <provider
-            android:name="androidx.core.content.FileProvider"
+            android:name="moe.shizuku.manager.lspatch.PatchedApkProvider"
             android:authorities="${applicationId}.patched"
             android:exported="false"
             android:grantUriPermissions="true">
@@ -111,13 +111,10 @@
                 android:resource="@xml/patched_apk_paths" />
         </provider>
 
-        <provider
-            android:name="rikka.shizuku.ShizukuProvider"
-            android:authorities="${applicationId}.shizuku"
-            android:enabled="true"
-            android:exported="true"
-            android:multiprocess="false"
-            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+        <!-- aMiNo v2.x: the upstream ShizukuProvider node is intentionally ABSENT. aMiNo itself is
+             the Shizuku(-class) server and already declares ITS provider at the same
+             ${applicationId}.shizuku authority; a second provider on one authority is an install
+             error, and the manager's Shizuku calls resolve to aMiNo's provider unchanged. -->
     </application>
 
 </manifest>
