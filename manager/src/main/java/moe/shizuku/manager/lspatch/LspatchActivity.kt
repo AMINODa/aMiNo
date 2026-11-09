@@ -97,7 +97,9 @@ class LspatchActivity : AppActivity() {
 
     private val busy = AtomicBoolean(false) // r1420 discipline: one patch at a time, CAS-gated
     private var target: Target? = null
-    private var patchedApk: File? = null
+    // r1433 — ALL engine outputs (base + every split): a split app is structurally
+    // invalid when only the base is installed, so every produced file matters.
+    private var patchedApks: List<File> = emptyList()
 
     private lateinit var targetIcon: ImageView
     private lateinit var targetName: TextView
@@ -250,8 +252,12 @@ class LspatchActivity : AppActivity() {
 
         lifecycleScope.launch {
             try {
-                val out: File? = withContext(Dispatchers.IO) {
+                val outs: List<File> = withContext(Dispatchers.IO) {
                     logLine(getString(R.string.lspatch_copied))
+                    // r1433 — sweep stale outputs from ANY previous run first: workDir is
+                    // shared across targets, old files must never leak into this install
+                    // (the user's «لم يكمل انشاء جميع ملفات» symptom class).
+                    workDir.listFiles()?.forEach { if (it.isFile) it.delete() }
                     // 1. copy target base + splits into our private storage (pm path is readable,
                     //    but our copy is stable while the engine runs)
                     val base = File(workDir, "${t.pkg}-base.apk")
@@ -276,13 +282,16 @@ class LspatchActivity : AppActivity() {
                         .modules(modules)
                         .forceOverwrite(true)
                         .build()
-                    ApkPatcher(engineLogger, spec).patch().firstOrNull()
+                    ApkPatcher(engineLogger, spec).patch()
                 }
-                patchedApk = out
-                out?.let { f ->
-                    logLine("${getString(R.string.lspatch_done)} ${f.absolutePath} (${f.length() / 1024 / 1024}MB)")
+                patchedApks = outs
+                if (outs.isNotEmpty()) {
+                    outs.forEach { f ->
+                        logLine("${getString(R.string.lspatch_done)} ${f.name} (${f.length() / 1024 / 1024}MB)")
+                    }
+                    if (outs.size > 1) logLine("• ${outs.size} output files (base + splits) — install covers ALL of them")
                     installBtn.visibility = View.VISIBLE
-                } ?: run {
+                } else {
                     logLine("✗ ${getString(R.string.lspatch_failed)}: no output")
                 }
             } catch (e: PatchException) {
@@ -299,9 +308,10 @@ class LspatchActivity : AppActivity() {
     // ------------------------------------------------------------------ installing
 
     private fun startInstall() {
-        val apk = patchedApk ?: return
+        val apks = patchedApks
+        if (apks.isEmpty()) return
         lifecycleScope.launch {
-            val shot = withContext(Dispatchers.IO) { silentInstall(apk) }
+            val shot = withContext(Dispatchers.IO) { silentInstall(apks) }
             if (shot != null) {
                 if (shot.ok) {
                     Toast.makeText(this@LspatchActivity, R.string.lspatch_install_silent, Toast.LENGTH_LONG).show()
@@ -309,8 +319,8 @@ class LspatchActivity : AppActivity() {
                 } else {
                     logLine("✗ ${getString(R.string.lspatch_install_failed, shot.output.take(200))}")
                 }
-            } else {
-                installPackage(apk) { ok, msg ->
+            } else if (apks.size == 1) {
+                installPackage(apks[0]) { ok, msg ->
                     Toast.makeText(
                         this@LspatchActivity,
                         if (ok) getString(R.string.lspatch_install_done)
@@ -318,13 +328,25 @@ class LspatchActivity : AppActivity() {
                         Toast.LENGTH_LONG
                     ).show()
                 }
+            } else {
+                // r1433 — a split app cannot be installed base-only (INSTALL_PARSE_FAILED);
+                // without Shizuku there is no honest multi-APK session here — say so.
+                logLine("✗ ${getString(R.string.lspatch_install_failed, "${apks.size} files (base+splits) — silent install via Shizuku is required")}")
             }
         }
     }
 
-    /** Shizuku silent path (same mechanism as RiniganInstaller), for an arbitrary APK file. */
-    private suspend fun silentInstall(apk: File): ShizukuExec.Shot? {
+    /**
+     * r1433 — Shizuku silent path through the REAL installer helper: every file is
+     * pushed to /data/local/tmp (shell-readable) before `pm install -r`, because
+     * `pm` runs as the shell uid and could NEVER read our app-private noBackupFilesDir
+     * (the exact «Unable to open file: /data/user/0/com.amino.manager/...» field failure
+     * ShizukuExec.installApk already fixed for the companion flow in r1428 — this screen
+     * was the last caller left on that broken path). Split apps install ALL parts in
+     * ONE session, exactly like `adb install-multiple`.
+     */
+    private suspend fun silentInstall(apks: List<File>): ShizukuExec.Shot? {
         if (!ShizukuExec.available()) return null
-        return ShizukuExec.oneShot("pm install -r '${apk.absolutePath}'", timeoutMs = 120_000)
+        return ShizukuExec.installApks(apks, "lspatch-patch")
     }
 }

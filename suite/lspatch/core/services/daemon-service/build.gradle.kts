@@ -11,7 +11,14 @@ android {
 
     buildFeatures { aidl = true }
 
-    buildTypes { release { isMinifyEnabled = false } }
+    buildTypes {
+        release {
+            isMinifyEnabled = false
+            // aMiNo v2.x (r1433) — hand the IPC keep-contract to the app's R8 run
+            // (binder parcel round-trips resolve classes BY NAME; see the file).
+            consumerProguardFiles("proguard-rules.pro")
+        }
+    }
 
     sourceSets {
         named("main") {

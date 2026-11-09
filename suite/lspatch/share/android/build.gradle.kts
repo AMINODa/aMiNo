@@ -14,6 +14,14 @@ android {
         androidResources = false
         buildConfig = false
     }
+
+    buildTypes {
+        release {
+            // aMiNo v2.x (r1433) — the remote service contracts are bound BY NAME
+            // from the frozen loader dex inside patched apps; keep them through R8.
+            consumerProguardFiles("proguard-rules.pro")
+        }
+    }
 }
 
 dependencies {

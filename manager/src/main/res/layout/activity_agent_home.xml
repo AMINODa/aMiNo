@@ -338,15 +338,16 @@
                 android:paddingTop="8dp"
                 android:paddingBottom="8dp">
 
+                <!-- aMiNo v2 — LSPatch + Rinigan lead the drawer (user order: «ادخلهم في
+                     اول القائمة الجانبية» — the suite entries are the FIRST two items). -->
+                <TextView android:id="@+id/dLspatch" style="@style/AminoDrawerItem" />
+                <TextView android:id="@+id/dRinigan" style="@style/AminoDrawerItem" />
                 <TextView android:id="@+id/dChat" style="@style/AminoDrawerItem" />
                 <TextView android:id="@+id/dHome" style="@style/AminoDrawerItem" />
                 <TextView android:id="@+id/dKeys" style="@style/AminoDrawerItem" />
                 <TextView android:id="@+id/dMemory" style="@style/AminoDrawerItem" />
                 <TextView android:id="@+id/dTools" style="@style/AminoDrawerItem" />
                 <TextView android:id="@+id/dSkills" style="@style/AminoDrawerItem" />
-                <!-- aMiNo v2 — LSPatch engine + Rinigan virtual camera (side-menu options) -->
-                <TextView android:id="@+id/dLspatch" style="@style/AminoDrawerItem" />
-                <TextView android:id="@+id/dRinigan" style="@style/AminoDrawerItem" />
                 <TextView android:id="@+id/dTerminal" style="@style/AminoDrawerItem" android:textColor="#FF867C" />
                 <TextView android:id="@+id/dShell" style="@style/AminoDrawerItem" />
                 <TextView android:id="@+id/dPermissions" style="@style/AminoDrawerItem" android:textColor="#FF867C" />

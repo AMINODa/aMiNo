@@ -138,6 +138,10 @@ open class AgentHomeActivity : AppActivity() {
         fun drawerLabel(v: TextView, res: Int, emoji: String) {
             v.text = "$emoji ${getString(res)}"
         }
+        // aMiNo v2 — LSPatch + Rinigan LEAD the drawer (user order: «ادخلهم في اول
+        // القائمة الجانبية» — the suite entries are the first two items, r1433).
+        drawerLabel(binding.dLspatch, R.string.nav_lspatch, "📦")
+        drawerLabel(binding.dRinigan, R.string.nav_rinigan, "🎥")
         drawerLabel(binding.dChat, R.string.nav_chat, "💬")
         // aMiNo 1.1 — the classic home (pairing/service/wireless-debugging) is no
         // longer the launcher: it lives here in the drawer, named "Adb" (user request)
@@ -148,9 +152,6 @@ open class AgentHomeActivity : AppActivity() {
         drawerLabel(binding.dTools, R.string.nav_tools, "🧰")
         // 1.4 — Skills Center: install/import/organize/compose skills (drawer 🧩)
         drawerLabel(binding.dSkills, R.string.nav_skills, "🧩")
-        // aMiNo v2 — LSPatch engine + Rinigan virtual camera, as side-menu options
-        drawerLabel(binding.dLspatch, R.string.nav_lspatch, "📦")
-        drawerLabel(binding.dRinigan, R.string.nav_rinigan, "🎥")
         drawerLabel(binding.dTerminal, R.string.terminal_title, "⌨️")
         drawerLabel(binding.dShell, R.string.nav_shell, "🖥️")
         drawerLabel(binding.dPermissions, R.string.menu_permissions, "🔐")
@@ -166,21 +167,18 @@ open class AgentHomeActivity : AppActivity() {
                 startActivity(Intent(this, target))
             }
         }
-        // 1.1.1 — was HomeActivity::class.java (ABSTRACT): tapping "Adb" (or the old
-        // "Pairing" item) crashed with InstantiationException. MainActivity is the
-        // concrete HomeActivity subclass declared in the manifest — same UI.
+        // aMiNo v2 — LSPatch + Rinigan first (user order), then the aMiNo core pages.
+        // r1426 — the LSPatch drawer entry opens the ORIGINAL manager UI in-process
+        // (org.lsposed.lspatch.ui.activity.MainActivity, compiled into this APK — user:
+        // «اريدها كما في النسخة الاصلية غير فقط اللون»); LspatchActivity's quick-patch
+        // engine stays reachable as the honest fallback, nothing removed.
+        open(binding.dLspatch, moe.shizuku.manager.lspatch.LspatchEntryActivity::class.java)
+        open(binding.dRinigan, moe.shizuku.manager.rinigan.RiniganActivity::class.java)
         open(binding.dHome, MainActivity::class.java)
         open(binding.dKeys, moe.shizuku.manager.keys.KeysActivity::class.java)
         open(binding.dMemory, moe.shizuku.manager.memory.MemoryActivity::class.java)
         open(binding.dTools, moe.shizuku.manager.tools.ToolsActivity::class.java)
         open(binding.dSkills, moe.shizuku.manager.skills.SkillsActivity::class.java)
-        // aMiNo v2 — LSPatch engine + Rinigan virtual camera
-        // r1426 — the LSPatch drawer entry opens the ORIGINAL manager UI (companion app
-        // org.lsposed.lspatch, auto-installed from assets — user: «اريدها كما في النسخة الاصلية
-        // غير فقط اللون»); the built-in quick-patch engine stays as the honest fallback inside
-        // the entry, nothing of the previous build removed.
-        open(binding.dLspatch, moe.shizuku.manager.lspatch.LspatchEntryActivity::class.java)
-        open(binding.dRinigan, moe.shizuku.manager.rinigan.RiniganActivity::class.java)
         open(binding.dTerminal, moe.shizuku.manager.ui.TerminalActivity::class.java)
         open(binding.dShell, ShellActivity::class.java)
         open(binding.dPermissions, AllPermissionsActivity::class.java)

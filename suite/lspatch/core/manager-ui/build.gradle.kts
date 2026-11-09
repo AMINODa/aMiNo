@@ -23,6 +23,14 @@ kotlin {
 android {
     namespace = "org.matrix.vector.ui"
     buildFeatures { compose = true }
+
+    buildTypes {
+        release {
+            // aMiNo v2.x (r1433) — uniform consumer-contract surface for all four
+            // vendored libraries; the file itself carries no keeps (direct refs).
+            consumerProguardFiles("proguard-rules.pro")
+        }
+    }
 }
 
 dependencies {

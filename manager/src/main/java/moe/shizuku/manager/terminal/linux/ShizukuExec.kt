@@ -171,6 +171,38 @@ object ShizukuExec {
     }
 
     /**
+     * aMiNo r1433 — silent MULTI-APK install (base + splits), same physics as
+     * installApk: every file is streamed to /data/local/tmp (the shell-writable
+     * staging area `adb install` itself uses), then ONE `pm install -r` receives
+     * ALL paths in a single invocation — the exact `adb install-multiple` contract,
+     * because a split app is structurally INVALID without its splits and a
+     * base-only install can only end in INSTALL_PARSE_FAILED. Each staged file is
+     * removed afterwards; a push failure removes every staged file before returning.
+     */
+    suspend fun installApks(
+        locals: List<java.io.File>,
+        baseName: String,
+        timeoutMs: Long = 180_000
+    ): Shot = withContext(Dispatchers.IO) {
+        val staged = locals.mapIndexed { i, f -> f to ("/data/local/tmp/$baseName-$i.apk") }
+        // stale leftovers from any previous attempt must never be trusted
+        staged.forEach { (_, t) -> oneShot("rm -f " + shellQuote(t), 10_000) }
+        for ((f, t) in staged) {
+            val push = pushFile(f, t)
+            if (!push.ok) {
+                staged.forEach { (_, t2) -> oneShot("rm -f " + shellQuote(t2), 10_000) }
+                return@withContext Shot(push.rc, "push: " + push.output)
+            }
+        }
+        val install = oneShot(
+            "pm install -r " + staged.joinToString(" ") { (_, t) -> shellQuote(t) },
+            timeoutMs
+        )
+        staged.forEach { (_, t) -> oneShot("rm -f " + shellQuote(t), 10_000) }
+        install
+    }
+
+    /**
      * Stream a local file into a remote path through the service
      * (`cat > path`). Verifies the remote size afterwards — real integrity,
      * no assumption.

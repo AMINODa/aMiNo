@@ -214,8 +214,9 @@
             android:exported="false"
             android:label="@string/lspatch_title"
             android:windowSoftInputMode="adjustResize" />
-        <!-- aMiNo v2 — drawer target: routes into the ORIGINAL companion LSPatch manager
-             (org.lsposed.lspatch, auto-installed from assets); quick-patch engine as fallback -->
+        <!-- aMiNo v2 — drawer target: single hop into the ORIGINAL LSPatch manager UI
+             (org.lsposed.lspatch.ui.activity.MainActivity, compiled into this APK);
+             LspatchActivity's quick-patch engine stays as the honest fallback -->
         <activity
             android:name=".lspatch.LspatchEntryActivity"
             android:exported="false"

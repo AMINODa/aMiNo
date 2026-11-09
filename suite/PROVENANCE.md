@@ -18,6 +18,13 @@ aMiNo v2 يدمج جناحاً من ثلاثة تطبيقات بنيات بنا�
 2. Rinigan تُبنى بشهادتها الأصلية `rinigan.keystore` (ترقية موضعية لنسخ المستخدم).
 3. لا يجوز تحديث الثيم بأي لون خارج هوية aMiNo (`#0B0B0E` أسطح `#131318/#16161B` حدود `#2B2B33` أحمر `#D32F2F/#E53935/#FF867C`).
 
+## تدقيق r1433 — المزامنة الكاملة مع canary 492 (مقارنة ملفية ضد `4d57363`)
+- بعد المقارنة الشاملة (سكربت `scripts/diff_upstream.py`) أصبحت الشجرة المورّدة **مطابقة 100% للـ canary 492** باستثناء الفروق الموثقة أعلاه فقط:
+  - ملفات كانت لا تزال من عصر v1.2 وقد نُسخت من 492 حرفياً في r1433: `patch-loader/…/LSPApplication.java`، `patch-loader/…/GmsRedirector.java` (كان مفقوداً كلياً)، `patch/…/{LSPatch,ApkPatcher,ManifestOverrides}.java`، `share/java/…/{Constants,PatchConfig}.java`، `meta-loader/proguard-rules.pro`.
+  - `manager/src/main/assets/keystore` غير موجود في `suite/lspatch/manager` **عمداً**: الأصول مركزية في موديل التطبيق `manager/src/main/assets/` (نفس md5 الموجود في upstream).
+  - قواعد `consumerProguardFiles` أُضيفت للوحدات `daemon-service` (حزم IPC `org.matrix.vector.ipc/daemonservice`) و`share/android` (`org.lsposed.lspatch.share.remote`) و`manager-ui` — عقود binder تُحلّ بالاسم.
+- ملاحظة تشغيلية: الترقيع عبر المحرك يتطلب **API 26+** عملياً (`java.nio.file.Files` في apkzlib؛ مدير upstream نفسه minSdk 28). أقل من ذلك: باقي aMiNo يعمل، والترقيع لا يُدعم — نفس سقف upstream المسموح.
+
 ## طريقة البناء (من جذر amino)
 ```bash
 # Rinigan (AGP 8.2.2 / Gradle 8.7 / JDK 21)
