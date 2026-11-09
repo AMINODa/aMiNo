@@ -36,3 +36,11 @@ cd suite/lspatch && JAVA_HOME=/home/z/jdk-21 ./gradlew buildRelease -Dorg.gradle
 # aMiNo (الجذر)
 JAVA_HOME=/home/z/jdk-21 ./gradlew :manager:assembleRelease --no-daemon ...
 ```
+
+## تدقيق r1434 — جذر فشل التثبيت INSTALL_PARSE_FAILED_MANIFEST_MALFORMED (TikTok)
+- **الدليل الميداني**: مخرجات ترقيع TikTok من المستخدم (17 ملفاً من Drive) + سجل الفشل على الجهاز: `INSTALL_PARSE_FAILED_MANIFEST_MALFORMED` بعد DELETE_SUCCEEDED.
+- **الجذر (واحد وليس عدة أسباب)**: محرر الـmanifest (`com.wind.meditor`) يحتاج جدول معرّفات سمات أندرويد من `assets/public.xml` (`ResourceIdXmlReader.parseIdFromXml`) ليكتب أي سمة `android:*` مضافة (meta-data «lspatch» مثلًا). الملف كان يصل للتطبيق عند upstream عبر وحدة Android library (`core/external/axml/manifest-editor/lib/src/main/assets/public.xml`)، لكن وحدة `:lspatch-engine` عندنا `java-library` نقية — موارد الـjar لا تصل إلى APK أندرويد، و«الأصول المركزية» في `manager/src/main/assets/` لم تشمل public.xml أحداً لم يعلم بوجوده. النتيجة على الجهاز: كل سمة مضافة تُكتب بمعرّف -1 → لا تُسجَّل في خريطة الموارد (`AxmlWriter.updateWithResourceId` يُسجل فقط للمعرفات ≠ -1) → محلل أندرويد يقرأ بالمعرّف لا بالنص → «meta-data missing android:name» → رفض التثبيت. **المفكّكات النصية (pyaxml/androguard) لا ترى العيب لأنها تقرأ النصوص** — لهذا بدا «الفحص الأولي سليماً».
+- **الإصلاح**: (1) `manager/src/main/assets/public.xml` — الملف الأصلي من upstream (md5 9fe353671f43173de8474d419474c05b مطابق). (2) حماية في `ResourceIdXmlReader`: غياب الجدول يفشل الترقيع فوراً برسالة واضحة بدل إخراج APK غير قابل للتثبيت بصمت (فروق aMiNo موثقة، الكود لا يزال upstream وإلا).
+- **مشتتات تم استبعادها بالدليل**: provider «identifierprovider» بلا android:name موجود في TikTok الأصلي نفسه (attrCount=1 في `origin.apk` المضمّن، md5 توقيع music.ly الأصلي) — ليس عيباً وليس سبباً؛ أصل `base-492-lspatched.apk` في الحزمة = TikTok كامل وليس Lite؛ تمريرة C2DM لم تعمل (لا GMS في config.json)؛ `ProviderDeleteVisitor`/المappers لم تُستخدم (null).
+- **التجربة الذهبية للمستخدم مفسَّرة**: «Shizuku المدمج يعمل 100% مع LSPatch الأصلي» — لأن مدير upstream يحمل public.xml؛ نفس Shizuku + المدمج بلا public.xml = فشل. Shizuku لم يكن المتغير أبداً؛ المحتوى كان هو المتغير.
+- **بوابة جديدة دائمة**: ملف APK المُنشر يجب أن يحتوي `assets/public.xml` (تفحص مع البوابات الأربع).

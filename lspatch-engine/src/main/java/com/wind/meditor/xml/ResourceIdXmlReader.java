@@ -34,7 +34,19 @@ public class ResourceIdXmlReader {
             if (cacherId != null && cacherId > 0) {
                 return cacherId;
             } else {
-//                String id = findIdFromXmlFile(new FileInputStream(filePath2), "attr", name);
+                if (inputStream == null) {
+                    // aMiNo r1434: public.xml is the framework attribute-id table this editor needs to
+                    // write ANY added android:* attribute (AxmlWriter only registers a resource id for
+                    // attributes that carry one). Without the table every added attribute is written
+                    // with id -1, the manifest parser cannot resolve it, and pm rejects the patched apk
+                    // with INSTALL_PARSE_FAILED_MANIFEST_MALFORMED -- shown on-device as
+                    // "<meta-data> missing android:name". A build that forgot to package the table can
+                    // only emit uninstallable apks, so fail the patch here, loudly, instead of silently.
+                    throw new IllegalStateException(
+                            "assets/public.xml (the framework attribute-id table) is missing from this"
+                            + " build; patching would produce an apk that pm installs as"
+                            + " INSTALL_PARSE_FAILED_MANIFEST_MALFORMED (\"meta-data missing android:name\")");
+                }
                 String id = findIdFromXmlFile(inputStream, "attr", name);
                 Log.d(String.format("name = %s, id = %s", name, id));
                 if (id != null) {
@@ -42,7 +54,11 @@ public class ResourceIdXmlReader {
                     attrCachedMap.put(name, idInt);
                     return idInt;
                 }
+                Log.e("attribute id not found in public.xml: " + name
+                        + " -- the attribute will be written without a resource id");
             }
+        } catch (IllegalStateException e) {
+            throw e;
         } catch (Exception e) {
             e.printStackTrace();
         }
