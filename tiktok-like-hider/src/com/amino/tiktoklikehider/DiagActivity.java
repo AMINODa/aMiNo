@@ -102,7 +102,6 @@ public class DiagActivity extends Activity {
         body.setTypeface(Typeface.MONOSPACE);
         body.setTextColor(0xFF212121);
         body.setMovementMethod(new ScrollingMovementMethod());
-        body.setTextDirection(0);
         sc.addView(body, new ViewGroup.LayoutParams(-1, -2));
         root.addView(sc, new LinearLayout.LayoutParams(-1, -1));
 
