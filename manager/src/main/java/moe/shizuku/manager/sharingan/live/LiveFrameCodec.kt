@@ -65,6 +65,29 @@ object LiveFrameCodec {
         }
     }
 
+    /**
+     * r1437 — the MediaProjection path: encode an already-decoded screen
+     * bitmap straight to the Gemini-spec JPEG (no shell, no PNG round-trip).
+     * Returns null on honest failure; never fabricates.
+     */
+    fun jpegFromBitmap(src: Bitmap): JpegFrame? {
+        return try {
+            val scaled = scaleToMax(src, MAX_DIM_PX)
+            val w = scaled.width; val h = scaled.height
+            val stream = java.io.ByteArrayOutputStream()
+            scaled.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, stream)
+            if (scaled !== src) scaled.recycle()
+            val bytes = stream.toByteArray()
+            if (bytes.size < 512) null
+            else JpegFrame(
+                base64 = Base64.encodeToString(bytes, Base64.NO_WRAP),
+                mime = MIME, widthPx = w, heightPx = h, bytes = bytes.size)
+        } catch (t: Throwable) {
+            Log.w(TAG, "jpegFromBitmap failed: ${t.message}")
+            null
+        }
+    }
+
     /** Decode a PNG base64 payload → downscaled JPEG base64. null = honest failure. */
     fun jpegFromPngBase64(pngB64: String): JpegFrame? {
         return try {

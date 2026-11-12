@@ -22,51 +22,50 @@ import moe.shizuku.manager.agent.LlmMessage
 import moe.shizuku.manager.agent.LlmDecision
 
 /**
- * aMiNo 2.0 (r1436) — SHARINGAN LIVE ENGINE: the true Gemini-Live-style
- * broadcast loop. This REPLACES r1435's SharinganLiveSession (merged here,
- * then deleted): a passive 2.5s text-ring watcher is not what the user asked
- * for («اريداه مثل Gemini Live بنفس الفعالية»).
+ * aMiNo 2.0 (r1437) — SHARINGAN LIVE ENGINE, the Gemini-Live broadcast loop,
+ * rebuilt on the r1436 researched contract with the field failures removed:
  *
- * WHAT GEMINI LIVE ACTUALLY DOES (researched from the official docs, 2026-11-12)
- * and what this engine now mirrors:
- *  1. SCREEN SHARE PERFORMANCE — video frames are JPEG, max 1 FPS. We capture
- *     through the proven shell path (screencap+md5, direct shell control stays
- *     in the background as the user demands) and compress on-device
- *     (LiveFrameCodec: 720px/JPEG-52 ≈ 60-160KB instead of r1435's 2-8MB PNG).
- *     Adaptive cadence: ~1s while the screen changes, ~3.5s heartbeat when
- *     static, 0.8s while the executor verifies a tool result.
- *  2. PROACTIVITY — "Gemini can proactively decide not to respond if the
- *     content is not relevant" (proactive audio). Equivalent: when a
- *     significant change lands (app switch / strong activity change) and the
- *     user has been quiet, a cheap narrate-or-stay-silent round runs; the
- *     persona answers exactly NO_REPLY unless a spoken remark is worth it.
- *  3. CONTINUOUS VOICE CONVERSATION — one persistent live dialogue with the
- *     newest frame attached to every turn, fast single provider call (NOT a
- *     full agent task per utterance), sentence-chunked TTS with barge-in.
- *  4. THE aMiNo SUPERPOWER — when the user asks for an ACTION, the model
- *     answers with [[ACT]]…[[/ACT]] and the command is routed to
- *     AgentOrchestrator: the REAL execution engine (shell/accessibility/ADB,
- *     Duration Guardian, task memory) — control stays direct via shell in the
- *     background, and every orchestrator round during the broadcast carries
- *     the newest frame (visual verification after tool execution).
+ *  FIXED r1436→r1437 (user verbatim: «زر live لايعمل و يختفي خلال ثواني»):
+ *   - NO shell gate: start() no longer refuses when wireless-ADB is down.
+ *     Frames come from LiveScreenSource — MediaProjection (primary, Gemini's
+ *     own mechanism) or shell screencap (fallback).
+ *   - NO uiautomator ring: the loop is IMAGE-FIRST (the user: «تحلل الصورة
+ *     كما هي ولا تعتمد فقط على ocr»). Screen text stays the orchestrator's
+ *     screen_read tool — auxiliary, never the broadcast's dependency.
+ *   - The session lives in LiveBroadcastService (FGS) — not bound to the
+ *     accessibility service lifecycle.
+ *   - Static screens are reported honestly ("static — no updates") instead
+ *     of a frozen 0-frames counter.
  *
- * HONESTY: every observation in the ring is a real captured frame; every
- * counter in SharinganState is real; capture failures surface as errors;
- * proactive silence is counted, never faked as a reply.
+ * WHAT STAYS THE GEMINI-LIVE CONTRACT (r1436 research, unchanged):
+ *  1. Screen-share performance: JPEG frames ≤1 FPS (1s changing / 3.5s
+ *     heartbeat / 0.8s while the executor verifies), 720px q52 on-device.
+ *  2. Proactivity: app-switch → cheap narrate-or-stay-silent round
+ *     (NO_REPLY discipline) — Gemini's proactive audio equivalent.
+ *  3. Continuous conversation: one persistent live dialogue, the newest
+ *     frame attached to EVERY turn, one fast provider call per utterance,
+ *     sentence-chunked TTS with barge-in (SharinganVoice).
+ *  4. The aMiNo superpower: [[ACT]]…[[/ACT]] → AgentOrchestrator — the REAL
+ *     shell/execution engine runs in the background (direct shell control
+ *     stays, as the user demands) with visual verification from fresh frames.
+ *
+ * HONESTY: every frame is a real capture; counters are real; capture failures
+ * surface in the state (never a blind "watching"); proactive silence is
+ * counted, never faked as a reply.
  */
 object SharinganLiveEngine {
 
     private const val TAG = "SharinganLive"
-    private const val MAX_SESSION_MS = 15 * 60_000L   // battery hard cap
+    private const val MAX_SESSION_MS = 30 * 60_000L   // r1437: 15→30 min (the 15-min cap read as "it disappeared")
     private const val MAX_OBSERVATIONS = 12           // real-change ring
     private const val TICK_ACTIVE_MS = 1_000L         // changing → ≤1 FPS (Gemini spec)
     private const val TICK_IDLE_MS = 3_500L           // static → heartbeat
     private const val TICK_VERIFY_MS = 800L           // executor verifying → fresh frames
-    private const val PROACTIVE_MIN_GAP_MS = 20_000L  // never narrate twice within 20s
-    private const val PROACTIVE_MAX = 24              // per session
-    private const val AFTER_TURN_QUIET_MS = 8_000L    // quiet window after any model turn
-    private const val HISTORY_PAIRS = 6               // live dialogue memory
-    private const val TEXT_EVERY_CHANGES = 3          // uiautomator cost control
+    private const val STATIC_AFTER_MS = 8_000L        // no new frame → honest "static" flag
+    private const val PROACTIVE_MIN_GAP_MS = 20_000L
+    private const val PROACTIVE_MAX = 24
+    private const val AFTER_TURN_QUIET_MS = 8_000L
+    private const val HISTORY_PAIRS = 6
 
     // phases published to SharinganState (eye/overlay/waveform react)
     const val PHASE_WATCHING = "watching"
@@ -75,14 +74,13 @@ object SharinganLiveEngine {
 
     data class Observation(
         val tMs: Long,          // ms since session start
-        val activity: String?,  // real topResumedActivity line
-        val text: String?       // real uiautomator text excerpt (cost-controlled)
+        val activity: String?   // real topResumedActivity line (null when shell down)
     )
 
     /** Result of one conversational turn (say). */
     data class TurnResult(
-        val reply: String?,          // the SPOKEN answer (ACT block stripped)
-        val actionCommand: String?,  // non-null → route to AgentOrchestrator
+        val reply: String?,
+        val actionCommand: String?,
         val latencyMs: Long,
         val refused: Boolean = false,
         val error: String? = null
@@ -92,6 +90,7 @@ object SharinganLiveEngine {
     private var loop: Job? = null
     private var watcher: Job? = null
     private var appContext: Context? = null
+    private var source: LiveScreenSource? = null
     private var startedAt = 0L
 
     private val llmMutex = Mutex()
@@ -108,12 +107,12 @@ object SharinganLiveEngine {
     @Volatile private var lastSpokenAt = 0L
 
     private val observations = ArrayDeque<Observation>()
-    private val liveHistory = ArrayDeque<Pair<String, String>>() // (role,text) pairs
+    private val liveHistory = ArrayDeque<Pair<String, String>>()
     @Volatile private var latestFrame: LiveFrameCodec.JpegFrame? = null
     @Volatile private var latestActivity: String? = null
     @Volatile private var latestFrameAtMs = 0L
+    @Volatile private var lastHash: String? = null
     @Volatile private var verifyBoost = false
-    @Volatile private var changesSinceText = 0
 
     val active: Boolean get() = loop?.isActive == true
     fun observationCount(): Int = synchronized(observations) { observations.size }
@@ -121,122 +120,148 @@ object SharinganLiveEngine {
 
     // ── lifecycle ───────────────────────────────────────────────────────────
 
-    fun start(context: Context): Boolean {
+    /** r1437: the source decides everything — no shell requirement here. */
+    fun start(context: Context, screenSource: LiveScreenSource): Boolean {
         if (active) return true
-        if (!moe.shizuku.manager.terminal.linux.ShizukuExec.available()) {
-            SharinganStateUpdate.update { it.copy(lastError = "shizuku_service_unavailable") }
-            return false
-        }
         appContext = context.applicationContext
+        source = screenSource
         synchronized(observations) { observations.clear() }
         liveHistory.clear()
         framesCaptured = 0; framesChanged = 0; modelCalls = 0
         proactiveTurns = 0; proactiveSilent = 0; lastLatencyMs = 0
         lastModelTurnAt = 0; lastProactiveAt = 0; lastSpokenAt = 0
-        changesSinceText = 0
         latestFrame = null; latestActivity = null; latestFrameAtMs = 0
+        lastHash = null
         startedAt = System.currentTimeMillis()
         moe.shizuku.manager.sharingan.SharinganVisionHub.clear()
         SharinganStateUpdate.update {
             it.copy(
                 lastError = null,
-                liveActive = true, liveFrames = 0, liveObserved = 0,
+                liveActive = true, liveFrames = 0, liveObserved = 0, liveStatic = false,
                 livePhase = PHASE_WATCHING, liveCalls = 0, liveProactive = 0,
                 liveLatencyMs = 0
             )
         }
         loop = scope.launch { perceptionLoop() }
         watcher = scope.launch { orchestratorWatcher() }
-        // Gemini-style UX: end the broadcast only through the user or the cap.
-        Log.i(TAG, "live engine started (gemini-spec jpeg<=1fps)")
+        Log.i(TAG, "live engine started (source=${screenSource.kind} gemini-spec jpeg<=1fps)")
         return true
     }
 
     fun stop(context: Context, autoTimedOut: Boolean = false) {
         val wasActive = active
+        if (!wasActive && !autoTimedOut) return   // idempotent — never wipe an already-clean state
         loop?.cancel(); loop = null
         watcher?.cancel(); watcher = null
         verifyBoost = false
+        source?.close(); source = null
         moe.shizuku.manager.sharingan.SharinganVisionHub.clear()
         SharinganStateUpdate.update {
             it.copy(
-                liveActive = false, livePhase = PHASE_WATCHING,
-                lastError = if (autoTimedOut) "live_session_auto_stopped" else null
+                liveActive = false, liveStatic = false, livePhase = PHASE_WATCHING,
+                lastError = if (autoTimedOut) "live_session_auto_stopped"
+                            else if (wasActive) null else moe.shizuku.manager.sharingan.SharinganState.state.value.lastError
             )
         }
-        if (wasActive) Log.i(TAG, "live engine stopped (auto=$autoTimedOut frames=$framesCaptured " +
-            "changed=$framesChanged calls=$modelCalls proactive=$proactiveTurns silent=$proactiveSilent)")
+        if (wasActive) {
+            Log.i(TAG, "live engine stopped (auto=$autoTimedOut frames=$framesCaptured " +
+                "changed=$framesChanged calls=$modelCalls proactive=$proactiveTurns silent=$proactiveSilent)")
+            // r1437-expert-fix: EVERY stop path closes the whole broadcast —
+            // FGS notification, overlay dock, voice loop. Engine-side stops
+            // (projection lost by system / crash / source null) previously
+            // left the FGS + notification + mic running with a dead engine.
+            // Re-entrancy is safe: service teardown → engine.stop returns
+            // early here (wasActive already false).
+            runCatching {
+                LiveOverlay.hide()
+                if (autoTimedOut) {
+                    SharinganTaskNotifierViaLive.notifyAutoStop(context)
+                }
+                LiveBroadcastService.stopBroadcast(context)
+            }
+        }
         scope.launch { runCatching { moe.shizuku.manager.sharingan.ScreenCapture.pruneOld() } }
     }
 
     // ── perception loop (the screen-share performance core) ────────────────
 
     private suspend fun CoroutineScope.perceptionLoop() {
-        val ctx = appContext ?: return
-        var lastHash: String? = null
         var lastActivityPkg: String? = null
-        var lastCaptureAt = 0L
+        var lastCaptureAt = System.currentTimeMillis()
         try {
             while (isActive) {
                 val elapsed = System.currentTimeMillis() - startedAt
                 if (elapsed >= MAX_SESSION_MS) {
-                    stop(ctx, autoTimedOut = true)
-                    moe.shizuku.manager.sharingan.SharinganPanel.maybeNotifyAutoStop(ctx)
+                    stop(appContext ?: return, autoTimedOut = true)
                     return
                 }
 
-                val frame = moe.shizuku.manager.sharingan.ScreenCapture.capture()
+                val src = source
+                if (src == null) { stop(appContext ?: return); return }
+
+                // ── take a frame (projection: non-blocking; shell: suspend) ──
+                val frame: LiveFrameCodec.JpegFrame? = when (src) {
+                    is LiveScreenSource.ProjectionSource -> src.captureJpeg()
+                    is LiveScreenSource.ShellSource -> src.captureJpegSuspending()
+                }
+
+                if (src is LiveScreenSource.ProjectionSource && src.lost) {
+                    Log.w(TAG, "media projection lost — ending broadcast honestly")
+                    stop(appContext ?: return, autoTimedOut = false)
+                    SharinganStateUpdate.update { it.copy(lastError = "live_projection_stopped_by_system") }
+                    return
+                }
+
                 if (frame == null) {
-                    SharinganStateUpdate.update { it.copy(lastError = "live_capture_failed") }
+                    if (src is LiveScreenSource.ShellSource) {
+                        // Shell captures run every tick — a null IS a failure here.
+                        SharinganStateUpdate.update { it.copy(lastError = "live_capture_failed") }
+                    }
+                    // Projection null = screen had no update (NOT a failure):
+                    // honest static flag after 8s of nothing new.
+                    if (System.currentTimeMillis() - latestFrameAtMs > STATIC_AFTER_MS && framesCaptured > 0) {
+                        SharinganStateUpdate.update { it.copy(liveStatic = true) }
+                    }
                 } else {
+                    SharinganStateUpdate.update { it.copy(liveStatic = false, lastError = null) }
                     framesCaptured++
                     lastCaptureAt = System.currentTimeMillis()
-                    val changed = frame.hash != lastHash
+                    val changed = lastHash == null || frame.base64 != lastHash
                     if (changed) {
-                        lastHash = frame.hash
+                        lastHash = frame.base64
                         framesChanged++
-                        changesSinceText++
-                        val pkg = packageOf(frame.activity)
+                        latestFrame = frame
+                        latestFrameAtMs = System.currentTimeMillis()
+                        val activity = src.topActivity()
+                        latestActivity = activity
+                        val pkg = packageOf(activity)
                         val activitySwitched = pkg != null && pkg != lastActivityPkg
                         if (activitySwitched) lastActivityPkg = pkg
 
-                        // uiautomator is 1-2s of shell work — run it only when the
-                        // activity switched or every TEXT_EVERY_CHANGES changes.
-                        val wantText = activitySwitched || changesSinceText >= TEXT_EVERY_CHANGES
-                        var text: String? = null
-                        if (wantText) {
-                            text = moe.shizuku.manager.sharingan.ScreenCapture
-                                .screenText(maxChars = 300)?.take(260)
-                            if (text != null) changesSinceText = 0
-                        }
                         synchronized(observations) {
-                            observations.addFirst(Observation(elapsed, frame.activity, text))
+                            observations.addFirst(Observation(elapsed, activity))
                             while (observations.size > MAX_OBSERVATIONS) observations.removeLast()
                         }
 
-                        // THE PERFORMANCE FIX: compress to Gemini-spec JPEG before
-                        // anything leaves the device.
-                        val jpeg = LiveFrameCodec.jpegFromPngPath(frame.pngPath)
-                        if (jpeg != null) {
-                            latestFrame = jpeg
-                            latestActivity = frame.activity
-                            latestFrameAtMs = System.currentTimeMillis()
-                            moe.shizuku.manager.sharingan.SharinganVisionHub.setLiveFrame(
-                                base64 = jpeg.base64, mime = jpeg.mime,
-                                activity = frame.activity, frameHash = frame.hash,
-                                source = "live_engine"
-                            )
+                        moe.shizuku.manager.sharingan.SharinganVisionHub.setLiveFrame(
+                            base64 = frame.base64, mime = frame.mime,
+                            activity = activity, frameHash = hashTag(src, frame),
+                            source = "live_engine_${src.kind}"
+                        )
+
+                        SharinganStateUpdate.update {
+                            it.copy(liveFrames = framesCaptured, liveObserved = framesChanged)
                         }
-                        SharinganStateUpdate.update { it.copy(liveFrames = framesCaptured, liveObserved = framesChanged) }
 
                         // PROACTIVITY (Gemini Live behaviour): a real app switch
                         // is the strongest "worth noticing" signal we have.
-                        if (activitySwitched) maybeProactive(ctx, frame.activity)
-                        if (framesChanged % 10 == 0) {
+                        if (activitySwitched) maybeProactive(appContext ?: ctxFallback(), activity)
+                        if (framesChanged % 20 == 0) {
                             moe.shizuku.manager.sharingan.ScreenCapture.pruneOld()
                         }
+                    } else {
+                        SharinganStateUpdate.update { it.copy(liveFrames = framesCaptured) }
                     }
-                    SharinganStateUpdate.update { it.copy(liveFrames = framesCaptured) }
                 }
 
                 // adaptive cadence (never above 1 FPS effective rate)
@@ -249,15 +274,28 @@ object SharinganLiveEngine {
                 delay(next)
             }
         } catch (t: Throwable) {
+            // r1437-expert-fix: an external stop() lands here as a
+            // CancellationException — rethrow it, never treat a normal stop
+            // as a crash (the old path double-stopped and could kill a NEW
+            // session started right after).
+            if (t is kotlinx.coroutines.CancellationException) throw t
             Log.w(TAG, "perception loop ended: ${t.message}")
             SharinganStateUpdate.update { it.copy(lastError = "live_session_crashed") }
-            stop(ctx)
+            stop(appContext ?: return)
         }
     }
 
+    private fun hashTag(src: LiveScreenSource, frame: LiveFrameCodec.JpegFrame): String =
+        try { src.hashOf(frame).take(12) } catch (_: Throwable) { "n${frame.bytes}" }
+
+    private fun ctxFallback(): Context = appContext ?: throw IllegalStateException("no context")
+
+    private val ACTIVITY_PAT_1 = Regex("u0 ([\\w.]+)/")
+    private val ACTIVITY_PAT_2 = Regex("([\\w.]+)/(?:[\\w.]+\\.)?[\\w$]+\\s*[,}]")
+
     private fun packageOf(activityLine: String?): String? =
         activityLine?.let { line ->
-            val m = Regex("u0 ([\\w.]+)/").find(line) ?: Regex("([\\w.]+)/(?:[\\w.]+\\.)?[\\w$]+\\s*[,}]").find(line)
+            val m = ACTIVITY_PAT_1.find(line) ?: ACTIVITY_PAT_2.find(line)
             m?.groupValues?.get(1)?.takeIf { it.contains('.') }
         }
 
@@ -291,9 +329,7 @@ object SharinganLiveEngine {
 
     /**
      * One live dialogue turn: user text + live history + the newest REAL frame
-     * → ONE provider call (no tools, no agent loop) → spoken-style reply.
-     * If the reply carries [[ACT]]…[[/ACT]], actionCommand is returned and the
-     * CALLER routes it to AgentOrchestrator (real execution in background).
+     * → ONE provider call → spoken-style reply. [[ACT]] → routed by the caller.
      */
     suspend fun say(context: Context, userText: String): TurnResult {
         if (!active) return TurnResult(null, null, 0, refused = true, error = "not_active")
@@ -349,7 +385,6 @@ object SharinganLiveEngine {
         }
         if (reply.isBlank()) reply = if (action != null)
             "أنفّذ الآن — سأخبرك بالنتيجة الحقيقية عند الانتهاء." else "(empty reply)"
-        // dialogue memory (spoken turns only, no ACT payload)
         synchronized(liveHistory) {
             liveHistory.addLast("user" to userText)
             liveHistory.addLast("assistant" to reply.take(400))
@@ -363,9 +398,9 @@ object SharinganLiveEngine {
     private suspend fun maybeProactive(ctx: Context, activityLine: String?) {
         val st = SharinganStateUpdate.state.value
         val now = System.currentTimeMillis()
-        if (!st.voiceActive) return                          // narration is SPOKEN
-        if (st.voiceSpeaking) return                          // never talk over itself
-        if (moe.shizuku.manager.agent.AgentOrchestrator.state.value.busy) return // executor owns the mic moment
+        if (!st.voiceActive) return
+        if (st.voiceSpeaking) return
+        if (moe.shizuku.manager.agent.AgentOrchestrator.state.value.busy) return
         if (proactiveTurns + proactiveSilent >= PROACTIVE_MAX * 2) return
         if (proactiveTurns >= PROACTIVE_MAX) return
         if (now - lastProactiveAt < PROACTIVE_MIN_GAP_MS) return
@@ -387,7 +422,7 @@ object SharinganLiveEngine {
                 is LlmDecision.Text -> {
                     val clean = decision.text.trim()
                     if (clean.equals(LivePersonas.NO_REPLY, ignoreCase = true) || clean.isBlank()) {
-                        proactiveSilent++   // honest: chose silence, counted
+                        proactiveSilent++
                     } else {
                         proactiveTurns++
                         lastSpokenAt = System.currentTimeMillis()
@@ -438,10 +473,10 @@ object SharinganLiveEngine {
                     LlmMessage(
                         role = "user",
                         text = "[LIVE FRAME] real JPEG screenshot of the CURRENT screen " +
-                            "(md5-verified capture, downscaled to 720px, captured " +
-                            "${(System.currentTimeMillis() - latestFrameAtMs) / 1000}s ago, " +
+                            "(captured ${(System.currentTimeMillis() - latestFrameAtMs) / 1000}s ago, " +
                             "activity=${latestActivity?.take(120) ?: "unknown"}). " +
-                            "Analyze it visually; never invent content not present in it.",
+                            "Analyze it visually: layout, buttons, icons, colors — even what has no text. " +
+                            "Never invent content not present in it.",
                         imagePngBase64 = f.base64,
                         imageMime = f.mime
                     )
@@ -460,9 +495,7 @@ object SharinganLiveEngine {
     private fun ringSummary(): String = synchronized(observations) {
         if (observations.isEmpty()) ""
         else observations.joinToString("\n") { o ->
-            val sb = StringBuilder("- t=+${"%.1f".format(o.tMs / 1000.0)}s activity=${o.activity ?: "?"}")
-            if (!o.text.isNullOrBlank()) sb.append(" | screen_text: \"${o.text}\"")
-            sb.toString()
+            "- t=+${"%.1f".format(o.tMs / 1000.0)}s activity=${o.activity ?: "unknown"}"
         }
     }
 
@@ -470,8 +503,7 @@ object SharinganLiveEngine {
 
     /**
      * [SHARINGAN LIVE — ACTIVE SESSION] block injected into EVERY orchestrator
-     * round while the broadcast runs (replaces r1435's session block; the
-     * newest JPEG frame is attached to the round via SharinganVisionHub).
+     * round while the broadcast runs; the newest JPEG frame rides with it.
      */
     fun contextBlock(): String {
         if (!active) return ""
@@ -484,8 +516,7 @@ object SharinganLiveEngine {
             sb.appendLine("no visual changes captured yet — the screen has been static since the session started.")
         } else {
             list.forEach { o ->
-                sb.appendLine("- t=+${"%.1f".format(o.tMs / 1000.0)}s activity=${o.activity ?: "?"}")
-                if (!o.text.isNullOrBlank()) sb.appendLine("  screen_text: \"${o.text}\"")
+                sb.appendLine("- t=+${"%.1f".format(o.tMs / 1000.0)}s activity=${o.activity ?: "unknown"}")
             }
         }
         sb.appendLine("The NEWEST frame is attached as a real JPEG image in this round — analyze it visually. " +
@@ -507,5 +538,15 @@ internal object SharinganStateUpdate {
     val state get() = moe.shizuku.manager.sharingan.SharinganState.state
     fun update(transform: (moe.shizuku.manager.sharingan.SharinganUiState) -> moe.shizuku.manager.sharingan.SharinganUiState) {
         moe.shizuku.manager.sharingan.SharinganState.update(transform)
+    }
+}
+
+/** Auto-stop notification bridge (kept out of the engine's import tree). */
+internal object SharinganTaskNotifierViaLive {
+    fun notifyAutoStop(context: Context) {
+        moe.shizuku.manager.sharingan.SharinganTaskNotifier.taskDone(
+            context,
+            context.getString(moe.shizuku.manager.R.string.sharingan_live_auto_stopped, 30)
+        )
     }
 }

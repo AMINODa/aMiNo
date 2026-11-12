@@ -104,9 +104,25 @@ object OpenAiCompatProvider : LlmProvider {
         return messages
     }
 
-    /** Shared request-body builder (also used by CloudflareProvider). */
+    /** Shared request-body builder (also used by CloudflareProvider).
+     *
+     *  r1437 — REASONING-MODEL FIX (proven against the live endpoint before
+     *  shipping): reasoning models (e.g. nvidia/nemotron-*-vl) burn the token
+     *  budget on reasoning_content and return content=null at the default
+     *  max_tokens — the old builder sent no max_tokens, so live turns came
+     *  back "(empty reply)". Now: a real 2048 budget + thinking OFF for
+     *  nemotron models (chat_template_kwargs — accepted by the endpoint,
+     *  live latency drops from ~8s of silent thinking to a direct answer).
+     */
     internal fun buildBody(model: String, messages: JSONArray, tools: List<ToolSpec>): JSONObject {
-        val body = JSONObject().put("model", model).put("messages", messages).put("temperature", 0.3)
+        val body = JSONObject()
+            .put("model", model)
+            .put("messages", messages)
+            .put("temperature", 0.3)
+            .put("max_tokens", 4096)   // r1437-expert: generous enough for long agent final answers too
+        if (model.contains("nemotron", ignoreCase = true)) {
+            body.put("chat_template_kwargs", JSONObject().put("thinking", false))
+        }
         if (tools.isNotEmpty()) {
             val arr = JSONArray()
             for (t in tools) arr.put(JSONObject().put("type", "function").put("function",
@@ -162,8 +178,22 @@ object OpenAiCompatProvider : LlmProvider {
                 calls.add(ToolCall(fn.getString("name"), args))
             }
         }
-        val content = msg.optString("content", "")
+        // r1437 — reasoning models: the final answer can land in
+        // reasoning_content while content stays null (proven on
+        // nvidia/nemotron). Prefer content; fall back honestly; strip any
+        // inline <think> blocks so TTS never reads the model's thinking.
+        // NOTE: optString("content") on an EXPLICIT JSON null can return the
+        // literal "null" on some org.json builds — isNull() guard first.
+        var content = if (msg.isNull("content")) "" else msg.optString("content", "").trim()
+        if (content.isEmpty()) {
+            content = if (msg.isNull("reasoning_content")) ""
+                      else msg.optString("reasoning_content", "").trim()
+                .substringAfterLast("</think>").trim()
+        }
+        content = THINK_BLOCK.replace(content, "").trim()
         return if (calls.isNotEmpty()) LlmDecision.ToolCalls(calls)
         else LlmDecision.Text(content.ifBlank { "(empty reply)" })
     }
+
+    private val THINK_BLOCK = Regex("<think>[\\s\\S]*?</think>")
 }

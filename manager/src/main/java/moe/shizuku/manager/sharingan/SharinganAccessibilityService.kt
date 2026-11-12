@@ -51,8 +51,15 @@ class SharinganAccessibilityService : AccessibilityService() {
         try { moe.shizuku.manager.agent.TaskMemory.rescheduleAll(this) } catch (_: Throwable) {}
         // r1414 — THE ONE BUTTON: the floating eye appears as soon as the
         // service is up, over any app. No nav-bar button, no system chooser,
-        // no extra settings — one tap on it opens the command panel.
+        // no extra settings — one tap on it opens the live panel.
         try { SharinganBubble.show(this) } catch (_: Throwable) {}
+        // r1437 — DOCK SELF-HEAL: the broadcast lives in LiveBroadcastService
+        // (FGS), so if THIS service rebinds mid-broadcast (the r1436 "it
+        // disappears within seconds" trigger) the Gemini-style dock returns
+        // instead of vanishing with the session.
+        if (moe.shizuku.manager.sharingan.live.LiveBroadcastService.running) {
+            try { moe.shizuku.manager.sharingan.live.LiveOverlay.show(this) } catch (_: Throwable) {}
+        }
     }
 
     // We do not consume events in the alpha (canRetrieveWindowContent=false);
@@ -66,10 +73,10 @@ class SharinganAccessibilityService : AccessibilityService() {
         SharinganPanel.hide()
         SharinganBubble.hide()
         moe.shizuku.manager.sharingan.live.LiveOverlay.hide()
-        // r1436 — live broadcast & voice are lifecycle-bound to the service: a
-        // disconnected service must never leave a broadcast/loop running.
-        try { moe.shizuku.manager.sharingan.live.SharinganLiveEngine.stop(this) } catch (_: Throwable) {}
-        try { SharinganVoice.stop(this) } catch (_: Throwable) {}
+        // r1437 — the broadcast & voice DO NOT die here anymore: they belong
+        // to LiveBroadcastService (FGS). Killing them on every rebind was the
+        // r1436 "disappears within seconds" bug. Only the a11y-hosted chrome
+        // (panel/bubble/dock) is removed; the dock self-heals on reconnect.
         try {
             buttonCallback?.let { getAccessibilityButtonController().unregisterAccessibilityButtonCallback(it) }
         } catch (_: Throwable) {}
@@ -83,8 +90,6 @@ class SharinganAccessibilityService : AccessibilityService() {
         SharinganPanel.hide()
         SharinganBubble.hide()
         moe.shizuku.manager.sharingan.live.LiveOverlay.hide()
-        try { moe.shizuku.manager.sharingan.live.SharinganLiveEngine.stop(this) } catch (_: Throwable) {}
-        try { SharinganVoice.stop(this) } catch (_: Throwable) {}
         super.onDestroy()
     }
 

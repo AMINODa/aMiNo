@@ -47,6 +47,11 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- aMiNo r1437 — Sharingan Live broadcast FGS: Gemini-style screen share
+         (MediaProjection) + continuous voice (microphone type keeps mic access
+         while-in-use for the recognizer during the broadcast). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <!-- aMiNo r1418 — durable task memory: PARTIAL_WAKE_LOCK keeps the CPU on
          during an in-process task_wait (<=120s) so timed steps really tick;
          SCHEDULE_EXACT_ALARM lets a durable continuation (task_wait >120s,
@@ -332,6 +337,45 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/sharingan_accessibility_service_config" />
         </service>
+
+        <!-- aMiNo r1437 — Sharingan LIVE BROADCAST FGS: owns the broadcast
+             session (MediaProjection frames + voice loop). The persistent
+             notification IS the broadcast; the accessibility service rebind
+             can no longer kill the session (the r1436 disappearing bug). -->
+        <service
+            android:name=".sharingan.live.LiveBroadcastService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection|microphone|specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Sharingan Live shell-fallback broadcast: when the user denies the MediaProjection consent dialog but the aMiNo shell is connected, frames are captured via the service shell (screencap) instead of MediaProjection; the FGS keeps the honest broadcast alive." />
+        </service>
+
+        <!-- r1437 — the broadcast notification's END action. -->
+        <receiver
+            android:name=".sharingan.live.LiveStopReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- r1437 — translucent trampolines: runtime permissions (mic/notifications)
+             then the SYSTEM MediaProjection consent dialog — both required before
+             the one-tap broadcast can actually start (panel overlays cannot host
+             permission dialogs). -->
+        <!-- r1437-fix — NO noHistory: it silently kills onActivityResult /
+             onRequestPermissionsResult delivery (the consent result would never
+             reach the trampoline and the broadcast would never start).
+             excludeFromRecents keeps them out of the task switcher. -->
+        <activity
+            android:name=".sharingan.live.LivePermissionActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <activity
+            android:name=".sharingan.live.LiveConsentActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <service
             android:name=".service.WatchdogService"

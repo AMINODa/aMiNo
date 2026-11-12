@@ -56,6 +56,15 @@ object SharinganVoice {
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     private var appContext: Context? = null
+    // r1437-expert-fix: barge-in echo guard — on devices without echo
+    // cancellation the device's OWN TTS voice trips the rms barge-in and the
+    // reply cuts itself off mid-first-sentence. Bare loudness within this
+    // window after TTS starts is treated as echo, not user speech.
+    @Volatile private var ttsStartedAt = 0L
+    private const val ECHO_GUARD_MS = 700L
+    // r1437-expert-fix: exponential backoff for the recognizer restart loop
+    // (an engine failing instantly no longer retries every 250ms forever).
+    @Volatile private var consecutiveErrors = 0
 
     var active = false
         private set
@@ -88,12 +97,17 @@ object SharinganVoice {
 
         // --- TTS first (so the first reply can be spoken) ---
         tts = TextToSpeech(context.applicationContext) { status ->
+            val thisTts = tts
+            // r1437-expert-fix: the init callback can fire after stop() (or a
+            // quick restart) — never mark a destroyed/replaced engine ready.
+            if (!active || thisTts == null || tts !== thisTts) return@TextToSpeech
             ttsReady = status == TextToSpeech.SUCCESS
             if (ttsReady) {
                 runCatching { tts?.language = Locale.getDefault() }
                 tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) {
                         speaking = true
+                        ttsStartedAt = System.currentTimeMillis()
                         SharinganState.update { it.copy(voiceSpeaking = true, voiceListening = false) }
                     }
                     override fun onDone(utteranceId: String?) {
@@ -123,7 +137,7 @@ object SharinganVoice {
                 }
                 override fun onBeginningOfSpeech() {
                     // BARGE-IN: the user started talking while AMINO speaks.
-                    if (speaking) stopSpeaking()
+                    if (speaking && userSpeechTrusted()) stopSpeaking()
                 }
                 override fun onRmsChanged(rmsdB: Float) {
                     // real mic level → waveform + eye pulse (throttled to 0.06 steps)
@@ -132,7 +146,7 @@ object SharinganVoice {
                     if (Math.abs(lvl - st.micLevel) > 0.06f) {
                         SharinganState.update { it.copy(micLevel = lvl) }
                     }
-                    if (speaking && rmsdB > 6f) stopSpeaking()
+                    if (speaking && rmsdB > 6f && userSpeechTrusted()) stopSpeaking()
                 }
                 override fun onBufferReceived(buffer: ByteArray?) {}
                 override fun onEndOfSpeech() {
@@ -142,6 +156,8 @@ object SharinganVoice {
                 override fun onError(error: Int) {
                     listening = false
                     SharinganState.update { it.copy(voiceListening = false) }
+                    consecutiveErrors++
+                    val backoff = minOf(250L * (1 shl minOf(consecutiveErrors, 4)), 4_000L)
                     when (error) {
                         SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> {
                             stop(context.applicationContext)
@@ -149,13 +165,14 @@ object SharinganVoice {
                             return
                         }
                         SpeechRecognizer.ERROR_RECOGNIZER_BUSY ->
-                            main.postDelayed({ if (active) startListeningInternal() }, 1_000L)
+                            main.postDelayed({ if (active) startListeningInternal() }, backoff)
                         // no match / speech timeout / network hiccups → keep the loop alive
-                        else -> main.postDelayed({ if (active) startListeningInternal() }, RESTART_DELAY_MS)
+                        else -> main.postDelayed({ if (active) startListeningInternal() }, backoff)
                     }
                 }
                 override fun onResults(results: Bundle?) {
                     listening = false
+                    consecutiveErrors = 0
                     SharinganState.update { it.copy(voiceListening = false) }
                     val text = results
                         ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
@@ -168,8 +185,13 @@ object SharinganVoice {
                     handleUtterance(text)
                 }
                 override fun onPartialResults(partialResults: Bundle?) {
-                    // BARGE-IN (partial path): any partial while speaking cuts the reply
-                    if (speaking) stopSpeaking()
+                    // BARGE-IN (partial path): real partial TEXT while speaking
+                    // cuts the reply — text, not bare loudness, so TTS echo
+                    // can never kill the reply it just started.
+                    val partial = partialResults
+                        ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        ?.firstOrNull()?.trim().orEmpty()
+                    if (speaking && partial.isNotBlank() && userSpeechTrusted()) stopSpeaking()
                 }
                 override fun onEvent(eventType: Int, params: Bundle?) {}
             })
@@ -221,6 +243,11 @@ object SharinganVoice {
             }
         }
     }
+
+    /** True when the current loudness/partial can be trusted as USER speech
+     *  (outside the TTS echo-guard window right after our own voice starts). */
+    private fun userSpeechTrusted(): Boolean =
+        System.currentTimeMillis() - ttsStartedAt > ECHO_GUARD_MS
 
     private fun startListeningInternal() {
         if (!active || recognizer == null) return

@@ -674,7 +674,22 @@
     <string name="sharingan_live_overlay_failed">تعذر إظهار واجهة البث الحي</string>
     <string name="sharingan_toast_mic_started">الصوت ON — تحدّث بأوامرك، وAMINO يجيبك بصوت مسموع (تحدث أثناء ردّه لمقاطعته).</string>
     <string name="sharingan_toast_mic_stopped">تم إيقاف الصوت</string>
-    <string name="sharingan_status_live">بثّ %1$d إطار (%2$d تغيّر) — العين ترى</string>
+    <string name="sharingan_status_live">بثّ حي · %1$d تحديث (%2$d تغيّر) — العين ترى</string>
+    <!-- aMiNo 2.0 r1437 — LIVE FIRST -->
+    <string name="sharingan_panel_live_start">بدء البث الحي ▶ (يرى ويسمع وينفّذ)</string>
+    <string name="sharingan_panel_live_stop">إيقاف البث ⏹</string>
+    <string name="sharingan_status_live_shell">بثّ حي · وضع التقاط shell — %1$d إطار (%2$d تغيّر)</string>
+    <string name="sharingan_status_live_shell_fallback_note">بثّ حي على إطارات shell (تم رفض مشاركة الشاشة) — اضغط البث مجدداً واسمح بالمشاركة للوضع السريع</string>
+    <string name="sharingan_live_static">الشاشة ثابتة — لا تحديثات</string>
+    <string name="sharingan_err_no_source">البث يحتاج مصدراً: اسمح بمشاركة الشاشة في نافذة الموافقة، أو اربط خدمة aMiNo (القائمة ← Adb)</string>
+    <string name="sharingan_err_capture">فشل التقاط الإطار — تحقق من اتصال الخدمة (القائمة ← Adb) أو أعد تشغيل البث</string>
+    <string name="sharingan_err_projection_stopped">أوقفت النظام مشاركة الشاشة — انتهى البث</string>
+    <string name="sharingan_err_notifications_denied">الإشعارات محجوبة — البث يعمل لكن إشعاره (بزر الإيقاف) مخفي؛ اسمح بالإشعارات لتطبيق aMiNo من إعدادات النظام</string>
+    <string name="sharingan_notif_live_channel">بثّ شارينغان الحي</string>
+    <string name="sharingan_notif_live_title">بثّ شارينغان الحي يعمل</string>
+    <string name="sharingan_notif_live_text">يراقب ويسمع شاشتك — تكلم بحرية، والأوامر تُنفّذ فعلاً</string>
+    <string name="sharingan_notif_live_shell">وضع إطارات shell (تم رفض المشاركة) — بثّ بصري بإطارات أبطأ</string>
+    <string name="sharingan_notif_live_stop">إيقاف البث</string>
     <string name="sharingan_status_voice">الصوت نشط — أستمع…</string>
     <string name="sharingan_voice_mic_denied">إذن الميكروفون غير ممنوح — افتح القائمة الجانبية › الصلاحيات وامنحه ثم اضغط المايك مجدداً</string>
     <string name="sharingan_voice_no_engine">لا يوجد محرّك تعرّف على الكلام في هذا الجهاز — الإدخال الصوتي غير متاح (الكتابة تعمل كالمعتاد)</string>

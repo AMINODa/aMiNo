@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
+import android.os.Handler
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -36,7 +37,8 @@ import moe.shizuku.manager.sharingan.SharinganVoice
  *  - the eye cries BLACK TEARS (Amaterasu) the whole broadcast, spins faster
  *    while thinking, and burns black flames while the executor works;
  *  - the stats line is the requested "screen share performance monitor":
- *    frames · changes · model turns · last latency in ms · frame bytes.
+ *    frames · changes · model turns · last latency in ms (+ honest static
+ *    note when the screen produces no updates).
  *  - touches outside the dock pass straight through to the app underneath
  *    (FLAG_NOT_TOUCH_MODAL) — the user keeps using their phone normally.
  */
@@ -49,6 +51,7 @@ object LiveOverlay {
     private var phaseLabel: TextView? = null
     private var statsLabel: TextView? = null
     private var stateScope: CoroutineScope? = null
+    private val main = Handler(android.os.Looper.getMainLooper())
 
     val visible: Boolean get() = dock != null
 
@@ -122,11 +125,11 @@ object LiveOverlay {
             layoutParams = LinearLayout.LayoutParams(dp(44), dp(44))
             contentDescription = service.getString(R.string.sharingan_live_end_cd)
         }
+        // r1437 — ONE stop truth: the FGS tears down engine + voice + source
+        // and posts the ended state. No more three-way partial stops.
         endBtn.setOnClickListener {
             val ctx = it.context
-            try { SharinganVoice.stop(ctx) } catch (_: Throwable) {}
-            try { hide() } catch (_: Throwable) {}
-            try { SharinganLiveEngine.stop(ctx) } catch (_: Throwable) {}
+            try { LiveBroadcastService.stopBroadcast(ctx) } catch (_: Throwable) {}
             Toast.makeText(ctx, ctx.getString(R.string.sharingan_live_stopped), Toast.LENGTH_SHORT).show()
         }
 
@@ -178,11 +181,13 @@ object LiveOverlay {
                         "executing" -> WaveView.MODE_EXECUTING
                         else -> WaveView.MODE_IDLE
                     }
+                    // r1437 — honest stats: real frame updates (projection delivers
+                    // frames ONLY when the screen changes) + the static truth.
                     stats.text = service.getString(
                         R.string.sharingan_live_stats,
                         s.liveFrames, s.liveObserved, s.liveCalls,
                         s.liveLatencyMs.toString()
-                    )
+                    ) + if (s.liveStatic) " · " + service.getString(R.string.sharingan_live_static) else ""
                 }
             }
         }
@@ -190,12 +195,32 @@ object LiveOverlay {
         try {
             wm.addView(dockLayout, params)
         } catch (t: Throwable) {
-            dock = null
+            // r1437-expert-fix: a failed addView must not leak the state
+            // collector (it would keep consuming state forever + orphan views).
+            dock = null; eye = null; wave = null
+            phaseLabel = null; statsLabel = null
+            stateScope?.cancel(); stateScope = null
+            windowManager = null
             Toast.makeText(service, service.getString(R.string.sharingan_live_overlay_failed), Toast.LENGTH_LONG).show()
         }
     }
 
+    /**
+     * r1437-expert-fix: hide() is callable from the engine's IO thread —
+     * WindowManager.removeView MUST run on the main thread (a
+     * CalledFromWrongThreadException here used to leave the dock attached
+     * while its refs were nulled → a frozen dock for the rest of the
+     * process). Post the whole teardown to the main looper.
+     */
     fun hide() {
+        if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+            hideInternal()
+        } else {
+            main.post { hideInternal() }
+        }
+    }
+
+    private fun hideInternal() {
         stateScope?.cancel(); stateScope = null
         val v = dock ?: return
         try { windowManager?.removeView(v) } catch (_: Throwable) {}

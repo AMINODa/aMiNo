@@ -1,20 +1,15 @@
 package moe.shizuku.manager.sharingan
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.graphics.Color
-import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.os.Looper
-import android.text.InputType
-import android.text.TextWatcher
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.view.inputmethod.EditorInfo
-import android.widget.EditText
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -27,24 +22,32 @@ import moe.shizuku.manager.R
 import moe.shizuku.manager.agent.AgentOrchestrator
 import moe.shizuku.manager.agent.AgentStatus
 import moe.shizuku.manager.keys.ApiKeysStore
-import moe.shizuku.manager.shell.ShellSession
+import moe.shizuku.manager.sharingan.live.LiveBroadcastService
+import moe.shizuku.manager.sharingan.live.LiveConsentActivity
+import moe.shizuku.manager.sharingan.live.LivePermissionActivity
 
 /**
- * The Sharingan Live floating panel v2 (PLAN_aMiNo2.md §2.2, r1413 redesign
- * from the user's field report: "لا يظهر حقل إدخال كما طلبت" — the panel is
- * now a DIRECT COMMAND BOX: type + send, with the real screen staged as
- * context automatically).
+ * The Sharingan floating panel v3 (r1437 — LIVE FIRST, the user's order:
+ * «احذف اترك فقط live watching … بدون الضغط علا تسجيل و ارسال»).
  *
- * Dark aMiNo styling: bg #F20B0B0E, accent #E53935, LED circle, drag anywhere
- * (title/status rows), auto-hide after 60s idle — never while typing.
- * Created inside the accessibility service window
- * (TYPE_ACCESSIBILITY_OVERLAY → no SYSTEM_ALERT_WINDOW permission needed).
+ * WHAT IS DELETED (r1413-r1436 structure):
+ *  - the command input + ⚡ send (typed commands live in the full chat UI)
+ *  - Record ⏺ / Execute (context staging) — the OLD text-trace path
+ *  - Mic 🎤 button — voice is now PART of the broadcast (auto starts/stops)
+ *  - SharinganRecorder usage — the old OCR-flavored trace loop
+ *
+ * WHAT REMAINS — ONE button:
+ *  [ 👁 SHARINGAN            ● ]
+ *  [      START LIVE ▶        ]  → permission trampoline → system projection
+ *  [ status                    ]    consent → LiveBroadcastService (FGS)
+ *  [ last real answer          ]  (dock = the Gemini-Live UI during broadcast)
+ *
+ * Auto-hide still exists (60s idle) but NEVER while a broadcast runs — the
+ * r1436 «يختفي خلال ثواني» complaint is structurally impossible now: the
+ * broadcast is an FGS, the dock self-heals, the panel can hide freely.
  */
 object SharinganPanel {
 
-    // r1412: 60s (was 10s) — the panel was auto-hiding before the user ever
-    // noticed it; r1413: while the input is focused the hide is POSTPONED, so
-    // it can never vanish under a typing user.
     private const val AUTO_HIDE_MS = 60_000L
 
     private var windowManager: WindowManager? = null
@@ -52,24 +55,16 @@ object SharinganPanel {
     private var scope: CoroutineScope? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    // UI refs updated by state collection
     private var led: View? = null
-    private var recordBtn: TextView? = null
     private var liveBtn: TextView? = null
-    private var micBtn: TextView? = null
     private var statusLine: TextView? = null
-    private var input: EditText? = null
-    // r1416: the panel SHOWS the result itself — the expert audit found the
-    // outcome channel was notifications-only; with notifications off the
-    // command succeeded and the user saw nothing anywhere (F2).
     private var resultView: TextView? = null
-    private var hintView: TextView? = null
+    private var eyeView: AmaterasuEyeView? = null
 
     private val autoHideRunnable: Runnable = object : Runnable {
         override fun run() {
-            // r1416: a running background task ALSO postpones the hide — the
-            // user must be able to come back and read the result HERE.
-            if (input?.hasFocus() == true || AgentOrchestrator.state.value.busy) {
+            // Never hide under an active broadcast — the user is mid-session.
+            if (SharinganState.state.value.liveActive || AgentOrchestrator.state.value.busy) {
                 mainHandler.postDelayed(this, AUTO_HIDE_MS)
                 return
             }
@@ -84,10 +79,7 @@ object SharinganPanel {
         GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color) }
 
     private fun rounded(color: Int, radiusDp: Float): GradientDrawable =
-        GradientDrawable().apply {
-            setColor(color)
-            cornerRadius = radiusDp
-        }
+        GradientDrawable().apply { setColor(color); cornerRadius = radiusDp }
 
     val visible: Boolean get() = rootView != null
 
@@ -98,23 +90,26 @@ object SharinganPanel {
 
         val panel = LinearLayout(service).apply {
             orientation = LinearLayout.VERTICAL
-            background = rounded(Color.parseColor("#F20B0B0E"), 16f)
-            setPadding(dp(14, this), dp(10, this), dp(14, this), dp(12, this))
+            background = rounded(Color.parseColor("#F20B0B0E"), 18f)
+            setPadding(dp(14, this), dp(12, this), dp(14, this), dp(12, this))
             elevation = dp(6, this).toFloat()
         }
         rootView = panel
 
-        // ── Row 1: eye + title + LED ─────────────────────────────────────────
-        val row1 = LinearLayout(service).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-        val eye = ImageView(service).apply {
-            setImageResource(R.drawable.ic_sharingan)
-            layoutParams = LinearLayout.LayoutParams(dp(26, panel), dp(26, panel)).apply { marginEnd = dp(8, panel) }
+        // ── Row 1: the LIVE eye + title + LED (draggable) ────────────────────
+        val row1 = LinearLayout(service).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
         }
+        val eye = AmaterasuEyeView(service).apply {
+            layoutParams = LinearLayout.LayoutParams(dp(30, panel), dp(30, panel)).apply {
+                marginEnd = dp(8, panel) }
+        }
+        eyeView = eye
         row1.addView(eye)
         val title = TextView(service).apply {
             text = "SHARINGAN"
             setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
             textSize = 14f
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
@@ -127,133 +122,39 @@ object SharinganPanel {
         row1.addView(ledView)
         panel.addView(row1)
 
-        // ── Row 2: THE COMMAND INPUT + send (r1413 — the user's ask) ─────────
-        val row2 = LinearLayout(service).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val cmdInput = EditText(service).apply {
-            hint = service.getString(R.string.sharingan_hint_command)
-            setTextColor(Color.WHITE)
-            setHintTextColor(Color.parseColor("#78909C"))
-            textSize = 13f
-            inputType = InputType.TYPE_CLASS_TEXT
-            imeOptions = EditorInfo.IME_ACTION_SEND
-            maxLines = 1
-            isSingleLine = true
-            background = rounded(Color.parseColor("#263238"), 12f)
-            setPadding(dp(10, panel), dp(8, panel), dp(10, panel), dp(8, panel))
-            layoutParams = LinearLayout.LayoutParams(0, dp(44, panel), 1f).apply {
-                marginEnd = dp(8, panel); topMargin = dp(10, panel)
-            }
-            addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
-                override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) { resetAutoHide() }
-                override fun afterTextChanged(s: android.text.Editable?) {}
-            })
-            setOnEditorActionListener { _, actionId, _ ->
-                if (actionId == EditorInfo.IME_ACTION_SEND) { resetAutoHide(); sendCommand(service); true } else false
-            }
-        }
-        input = cmdInput
-        row2.addView(cmdInput)
-        val sendBtn = TextView(service).apply {
-            text = "⚡"
-            setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
-            textSize = 18f
-            gravity = Gravity.CENTER
-            background = rounded(Color.parseColor("#E53935"), 12f)
-            layoutParams = LinearLayout.LayoutParams(dp(48, panel), dp(44, panel)).apply { topMargin = dp(10, panel) }
-        }
-        row2.addView(sendBtn)
-        panel.addView(row2)
-
-        // -- r1416: HOW IT WORKS hint (user: "ولا أفهم كيف يعمل") ----------------
-        val hint = TextView(service).apply {
-            text = service.getString(R.string.sharingan_panel_hint)
-            setTextColor(Color.parseColor("#78909C"))
-            textSize = 11f
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(6, panel) }
-        }
-        hintView = hint
-        panel.addView(hint)
-
-        // ── Row 3: Record ⏺ / Stop + context-only Execute (kept compact) ─────
-        val row3 = LinearLayout(service).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-        }
-        val recBtn = TextView(service).apply {
-            text = service.getString(R.string.sharingan_btn_record)
-            setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
-            textSize = 12f
-            gravity = Gravity.CENTER
-            background = rounded(Color.parseColor("#37474F"), 10f)
-            layoutParams = LinearLayout.LayoutParams(0, dp(34, panel), 1f).apply { marginEnd = dp(8, panel); topMargin = dp(8, panel) }
-        }
-        recordBtn = recBtn
-        val execBtn = TextView(service).apply {
-            text = service.getString(R.string.sharingan_btn_execute)
-            setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
-            textSize = 12f
-            gravity = Gravity.CENTER
-            background = rounded(Color.parseColor("#37474F"), 10f)
-            layoutParams = LinearLayout.LayoutParams(0, dp(34, panel), 1f).apply { topMargin = dp(8, panel) }
-        }
-        row3.addView(recBtn); row3.addView(execBtn)
-        panel.addView(row3)
-
-        // ── Row 3b (r1435 — LIVE VISION & VOICE): LIVE 👁 / MIC 🎤 ───────────
-        val row3b = LinearLayout(service).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-        }
+        // ── Row 2: THE one button — START LIVE / STOP ────────────────────────
         val liveButton = TextView(service).apply {
-            text = service.getString(R.string.sharingan_btn_live)
+            text = service.getString(R.string.sharingan_panel_live_start)
             setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
-            textSize = 12f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            textSize = 14f
             gravity = Gravity.CENTER
-            background = rounded(Color.parseColor("#37474F"), 10f)
-            layoutParams = LinearLayout.LayoutParams(0, dp(34, panel), 1f).apply { marginEnd = dp(8, panel); topMargin = dp(8, panel) }
+            background = rounded(Color.parseColor("#B71C1C"), 14f)
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(46, panel)
+            ).apply { topMargin = dp(10, panel) }
         }
         liveBtn = liveButton
-        val micButton = TextView(service).apply {
-            text = service.getString(R.string.sharingan_btn_mic)
-            setTextColor(Color.WHITE)
-            typeface = Typeface.DEFAULT_BOLD
-            textSize = 12f
-            gravity = Gravity.CENTER
-            background = rounded(Color.parseColor("#37474F"), 10f)
-            layoutParams = LinearLayout.LayoutParams(0, dp(34, panel), 1f).apply { topMargin = dp(8, panel) }
-        }
-        micBtn = micButton
-        row3b.addView(liveButton); row3b.addView(micButton)
-        panel.addView(row3b)
+        panel.addView(liveButton)
 
-        // ── Row 4: status line ───────────────────────────────────────────────
+        // ── Row 3: status line ───────────────────────────────────────────────
         val status = TextView(service).apply {
             text = service.getString(R.string.sharingan_status_ready)
-            setTextColor(Color.parseColor("#9E9E9E"))
+            setTextColor(Color.parseColor("#9E9EA8"))
             textSize = 11f
             gravity = Gravity.CENTER
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(6, panel) }
+            ).apply { topMargin = dp(8, panel) }
         }
         statusLine = status
         panel.addView(status)
 
-        // -- r1416: RESULT AREA — the agent's real final answer, in the panel --
+        // ── Row 4: last real answer (orchestrator) ───────────────────────────
         val result = TextView(service).apply {
             setTextColor(Color.parseColor("#CFD8DC"))
             textSize = 12f
-            maxLines = 8
+            maxLines = 6
             visibility = View.GONE
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
@@ -262,9 +163,7 @@ object SharinganPanel {
         resultView = result
         panel.addView(result)
 
-        // ── window params (top-right start) ──────────────────────────────────
-        // r1413: NOT_FOCUSABLE is GONE — the input must be typeable. The panel
-        // still lets touches pass to apps behind it (NOT_TOUCH_MODAL).
+        // ── window params ────────────────────────────────────────────────────
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -276,7 +175,7 @@ object SharinganPanel {
             x = dp(24, panel); y = dp(180, panel)
         }
 
-        // ── drag (title/status rows) + tap-to-collapse + auto-hide ───────────
+        // ── drag (title row) + tap-to-collapse ───────────────────────────────
         val touch = object : View.OnTouchListener {
             private var downX = 0f; private var downY = 0f
             private var startX = 0; private var startY = 0
@@ -300,84 +199,33 @@ object SharinganPanel {
                 return true
             }
         }
-        // r1413: drag lives on the title + status rows only — the EditText and
-        // the buttons must own their own touches (typing/tap), the body stays
-        // tap-to-collapse. Row1/Row4 are pure display views, safe to drag.
         row1.setOnTouchListener(touch)
-        status.setOnTouchListener(touch)
 
-        // ── buttons ──────────────────────────────────────────────────────────
-        sendBtn.setOnClickListener { resetAutoHide(); sendCommand(service) }
-        execBtn.setOnClickListener {
-            resetAutoHide()
-            executeStaged(service)
-        }
-        recBtn.setOnClickListener {
-            resetAutoHide()
-            if (SharinganRecorder.recording) {
-                SharinganRecorder.stop(service)
-                Toast.makeText(service, service.getString(R.string.sharingan_toast_record_stopped), Toast.LENGTH_SHORT).show()
-            } else {
-                val ok = SharinganRecorder.start(service)
-                Toast.makeText(
-                    service,
-                    service.getString(if (ok) R.string.sharingan_toast_record_started else R.string.sharingan_toast_offline),
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-
-        // ── r1436: LIVE 👁 = ONE-TAP GEMINI-LIVE BROADCAST ───────────────────
-        // Starts the SharinganLiveEngine (Gemini-spec JPEG ≤1FPS perception +
-        // proactive narration + fast live conversation), the immersive bottom
-        // dock (eye + waveform + honest performance stats + ⏹), and the voice
-        // loop when the mic is available. The user's exact ask: «ميزات ومظهر
-        // جيميني وتحليلي وسكرين بارتاج مثل جيمني + سيطرة وتنفيذ أوامر مباشرة».
+        // ── THE button: one tap → permission → consent → FGS broadcast ──────
         liveButton.setOnClickListener {
             resetAutoHide()
-            if (moe.shizuku.manager.sharingan.live.SharinganLiveEngine.active) {
-                moe.shizuku.manager.sharingan.live.LiveOverlay.hide()
-                SharinganVoice.stop(service)
-                moe.shizuku.manager.sharingan.live.SharinganLiveEngine.stop(service)
-                Toast.makeText(service, service.getString(R.string.sharingan_toast_live_stopped), Toast.LENGTH_SHORT).show()
-            } else {
-                val ok = moe.shizuku.manager.sharingan.live.SharinganLiveEngine.start(service)
-                if (ok) {
-                    moe.shizuku.manager.sharingan.live.LiveOverlay.show(service)
-                    val micGranted = androidx.core.content.ContextCompat.checkSelfPermission(
-                        service, android.Manifest.permission.RECORD_AUDIO
-                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                    if (micGranted && android.speech.SpeechRecognizer.isRecognitionAvailable(service)) {
-                        when (SharinganVoice.start(service)) {
-                            is SharinganVoice.StartResult.Started ->
-                                Toast.makeText(service, service.getString(R.string.sharingan_toast_live_started), Toast.LENGTH_LONG).show()
-                            else ->
-                                Toast.makeText(service, service.getString(R.string.sharingan_live_vision_only), Toast.LENGTH_LONG).show()
-                        }
-                    } else {
-                        Toast.makeText(service, service.getString(R.string.sharingan_live_vision_only), Toast.LENGTH_LONG).show()
-                    }
-                } else {
-                    Toast.makeText(service, service.getString(R.string.sharingan_toast_offline), Toast.LENGTH_SHORT).show()
-                }
+            if (LiveBroadcastService.running || SharinganState.state.value.liveActive) {
+                LiveBroadcastService.stopBroadcast(service)
+                Toast.makeText(service, service.getString(R.string.sharingan_live_stopped), Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
-        }
-
-        // ── r1435: MIC 🎤 (live voice loop — barge-in, spoken replies) ──────
-        micButton.setOnClickListener {
-            resetAutoHide()
-            if (SharinganVoice.active) {
-                SharinganVoice.stop(service)
-                Toast.makeText(service, service.getString(R.string.sharingan_toast_mic_stopped), Toast.LENGTH_SHORT).show()
-            } else {
-                when (val r = SharinganVoice.start(service)) {
-                    is SharinganVoice.StartResult.Started ->
-                        Toast.makeText(service, service.getString(R.string.sharingan_toast_mic_started), Toast.LENGTH_SHORT).show()
-                    is SharinganVoice.StartResult.Refused ->
-                        Toast.makeText(service,
-                            if (r.reasonArg != null) r.reasonArg
-                            else service.getString(r.reasonRes), Toast.LENGTH_LONG).show()
-                }
+            if (!ApiKeysStore.hasKey(service)) {
+                statusLine?.text = service.getString(R.string.sharingan_no_apikey)
+                Toast.makeText(service, service.getString(R.string.sharingan_no_apikey), Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            val micOk = LiveBroadcastService.micGranted(service)
+            val notifOk = if (android.os.Build.VERSION.SDK_INT >= 33)
+                androidx.core.content.ContextCompat.checkSelfPermission(
+                    service, android.Manifest.permission.POST_NOTIFICATIONS) ==
+                    android.content.pm.PackageManager.PERMISSION_GRANTED
+            else true
+            val intent = if (!micOk || !notifOk)
+                Intent(service, LivePermissionActivity::class.java)
+            else Intent(service, LiveConsentActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            runCatching { service.startActivity(intent) }.onFailure {
+                Toast.makeText(service, service.getString(R.string.sharingan_live_overlay_failed), Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -387,51 +235,39 @@ object SharinganPanel {
                 SharinganState.state.collect { s ->
                     ledView.background = circle(
                         when {
+                            s.liveActive -> Color.parseColor("#E53935")   // broadcasting
                             !s.serviceUp -> Color.parseColor("#9E9E9E")   // offline
-                            s.recording -> Color.parseColor("#E53935")    // recording
                             else -> Color.parseColor("#4CAF50")           // ready
                         }
                     )
-                    recBtn.text = service.getString(
-                        if (s.recording) R.string.sharingan_btn_stop else R.string.sharingan_btn_record
-                    )
-                    // r1435: LIVE + MIC button labels follow their sessions
+                    val live = s.liveActive || LiveBroadcastService.running
                     liveButton.text = service.getString(
-                        if (s.liveActive) R.string.sharingan_btn_live_on else R.string.sharingan_btn_live
-                    )
+                        if (live) R.string.sharingan_panel_live_stop else R.string.sharingan_panel_live_start)
                     liveButton.background = rounded(
-                        if (s.liveActive) Color.parseColor("#B71C1C") else Color.parseColor("#37474F"), 10f)
-                    micButton.text = service.getString(
-                        when {
-                            s.voiceSpeaking -> R.string.sharingan_btn_mic_speaking
-                            s.voiceListening -> R.string.sharingan_btn_mic_listening
-                            else -> if (s.voiceActive) R.string.sharingan_btn_mic_on else R.string.sharingan_btn_mic
-                        }
-                    )
-                    micButton.background = rounded(
-                        if (s.voiceActive) Color.parseColor("#1B5E20") else Color.parseColor("#37474F"), 10f)
-                    // r1416: recording/offline/error keep this line; the IDLE
-                    // line is owned by the agent collector below (shell note).
-                    if (!(s.serviceUp && !s.recording && s.lastError == null &&
-                        !AgentOrchestrator.state.value.busy)) {
+                        if (live) Color.parseColor("#455A64") else Color.parseColor("#B71C1C"), 14f)
+                    // the eye mirrors the broadcast mode (black tears while live)
+                    eyeView?.setMode(when {
+                        !live && s.voiceActive -> AmaterasuEyeView.MODE_VOICE
+                        live && s.livePhase == SharinganLiveEnginePhase.EXECUTING -> AmaterasuEyeView.MODE_EXECUTING
+                        live && s.livePhase == SharinganLiveEnginePhase.THINKING -> AmaterasuEyeView.MODE_THINKING
+                        live -> AmaterasuEyeView.MODE_AMATERASU
+                        else -> AmaterasuEyeView.MODE_IDLE
+                    })
+                    if (!AgentOrchestrator.state.value.busy) {
                         statusLine?.text = when {
+                            live && s.lastError != null -> errorHuman(service, s.lastError!!)
+                            live -> service.getString(
+                                if (s.liveSource == "shell") R.string.sharingan_status_live_shell
+                                else R.string.sharingan_status_live,
+                                s.liveFrames, s.liveObserved
+                            ) + if (s.liveStatic) " · " + service.getString(R.string.sharingan_live_static) else ""
                             !s.serviceUp -> service.getString(R.string.sharingan_status_offline)
-                            s.recording -> service.getString(
-                                R.string.sharingan_status_recording,
-                                s.framesCaptured, s.framesChanged
-                            )
-                            s.liveActive -> service.getString(
-                                R.string.sharingan_status_live, s.liveFrames, s.liveObserved
-                            )
-                            s.voiceActive -> service.getString(R.string.sharingan_status_voice)
-                            else -> s.lastError ?: service.getString(R.string.sharingan_status_ready)
+                            s.lastError != null -> errorHuman(service, s.lastError!!)
+                            else -> service.getString(R.string.sharingan_status_ready)
                         }
                     }
                 }
             }
-            // r1416: agent state → live progress + the REAL result, in-panel
-            // (audit F2: notifications-only outcomes were invisible when
-            // notifications were disabled — now the panel shows everything).
             cs.launch {
                 AgentOrchestrator.state.collect { s ->
                     if (s.busy) {
@@ -442,18 +278,11 @@ object SharinganPanel {
                                 service.getString(R.string.sharingan_status_verifying)
                             else -> service.getString(R.string.sharingan_status_thinking)
                         }
-                    } else if (s.status is AgentStatus.NotConfigured) {
-                        statusLine?.text = service.getString(R.string.sharingan_no_apikey)
-                    } else {
-                        val shellOk = ShellSession.state.value is ShellSession.ConnectionState.Connected
-                        statusLine?.text = service.getString(R.string.sharingan_status_ready) +
-                            if (!shellOk) " • " + service.getString(R.string.sharingan_shell_down) else ""
                     }
                     val last = s.items.lastOrNull {
                         it.role == "assistant" && it.toolName == null && it.text.isNotBlank()
                     }
                     if (last != null) {
-                        hintView?.visibility = View.GONE
                         resultView?.visibility = View.VISIBLE
                         resultView?.text = last.text.take(600) +
                             if (last.text.length > 600) "…" else ""
@@ -462,9 +291,35 @@ object SharinganPanel {
             }
         }
 
-        wm.addView(panel, params)
+        runCatching { wm.addView(panel, params) }.onFailure {
+            // r1437-expert-fix: a failed addView must not leave rootView set
+            // (visible==true forever → every later show() early-returns and
+            // the panel dies permanently).
+            rootView = null; led = null; statusLine = null; liveBtn = null
+            resultView = null; eyeView = null
+            scope?.cancel(); scope = null
+            SharinganState.update { it.copy(panelVisible = false) }
+            return
+        }
         SharinganState.update { it.copy(panelVisible = true) }
         resetAutoHide()
+    }
+
+    /** Honest human text for the real error codes (never a raw dump). */
+    private fun errorHuman(service: android.content.Context, code: String): String = when (code) {
+        "live_no_source_projection_denied_shell_down" ->
+            service.getString(R.string.sharingan_err_no_source)
+        "live_mic_denied_vision_only" ->
+            service.getString(R.string.sharingan_live_vision_only)
+        "live_notifications_denied" ->
+            service.getString(R.string.sharingan_err_notifications_denied)
+        "live_projection_denied_shell_mode" ->
+            service.getString(R.string.sharingan_status_live_shell_fallback_note)
+        "live_capture_failed" ->
+            service.getString(R.string.sharingan_err_capture)
+        "live_projection_stopped_by_system" ->
+            service.getString(R.string.sharingan_err_projection_stopped)
+        else -> code
     }
 
     fun hide() {
@@ -472,14 +327,10 @@ object SharinganPanel {
         scope?.cancel(); scope = null
         mainHandler.removeCallbacks(autoHideRunnable)
         try { windowManager?.removeView(v) } catch (_: Throwable) {}
-        rootView = null; led = null; recordBtn = null; statusLine = null; input = null
-        liveBtn = null; micBtn = null
-        resultView = null; hintView = null
+        rootView = null; led = null; statusLine = null; liveBtn = null
+        resultView = null; eyeView = null
         SharinganState.update { it.copy(panelVisible = false) }
-        // r1414 — the ONE button always comes back: the moment the panel goes
-        // away (auto-hide, toggle), the eye bubble returns so the user is
-        // never left without an on-screen entry point. While the service is
-        // shutting down, instance is already null → no re-show there.
+        // The eye bubble always comes back (r1414 rule, unchanged).
         SharinganAccessibilityService.instance?.let {
             try { SharinganBubble.show(it) } catch (_: Throwable) {}
         }
@@ -489,102 +340,21 @@ object SharinganPanel {
         if (rootView != null) hide() else show(service)
     }
 
-    /**
-     * r1436 — the broadcast hit its battery cap while the user was anywhere:
-     * the honest auto-stop surfaces via SharinganTaskNotifier (visible even
-     * outside the app) + closes the immersive dock.
-     */
-    fun maybeNotifyAutoStop(service: android.content.Context) {
-        runCatching {
-            moe.shizuku.manager.sharingan.live.LiveOverlay.hide()
-            SharinganTaskNotifier.taskDone(
-                service,
-                service.getString(moe.shizuku.manager.R.string.sharingan_live_auto_stopped, 15)
-            )
-        }
-    }
-
     private fun resetAutoHide() {
         mainHandler.removeCallbacks(autoHideRunnable)
         mainHandler.postDelayed(autoHideRunnable, AUTO_HIDE_MS)
     }
 
     private fun toggleCompact(panel: LinearLayout) {
-        // tap on the body collapses/expands rows 2+3 (title row always visible)
-        val target = panel.childCount
-        for (i in 1 until target) {
+        for (i in 1 until panel.childCount) {
             val child = panel.getChildAt(i)
             child.visibility = if (child.visibility == View.GONE) View.VISIBLE else View.GONE
         }
     }
+}
 
-    /**
-     * ⚡ SEND (r1416 — honest pre-flight, nothing silent):
-     * expert audit found two silent deaths: no-API-key and busy dropped the
-     * command AFTER the optimistic toast; staging ran on the panel's scope so
-     * auto-hide could cancel a send mid-capture. Now: pre-flight REJECTS
-     * visibly, and [AgentOrchestrator.sendSharingan] owns staging + task
-     * notifications + a guaranteed terminal result. The outcome is visible
-     * THREE ways: live status + result area HERE, notification, and the chat.
-     */
-    private fun sendCommand(service: android.content.Context) {
-        val text = input?.text?.toString()?.trim().orEmpty()
-        if (text.isEmpty()) return
-        if (!ApiKeysStore.hasKey(service)) {
-            statusLine?.text = service.getString(R.string.sharingan_no_apikey)
-            Toast.makeText(service, service.getString(R.string.sharingan_no_apikey), Toast.LENGTH_LONG).show()
-            return
-        }
-        if (AgentOrchestrator.state.value.busy) {
-            Toast.makeText(service, service.getString(R.string.sharingan_task_busy), Toast.LENGTH_LONG).show()
-            return
-        }
-        input?.setText("")
-        resetAutoHide()
-        val accepted = AgentOrchestrator.sendSharingan(service, text)
-        if (!accepted) {
-            // busy/not-configured race between the check and the call — still visible
-            Toast.makeText(service, service.getString(R.string.sharingan_task_busy), Toast.LENGTH_LONG).show()
-            return
-        }
-        // Honest channel messaging — notifications state FIRST (audit F2: the
-        // old toast promised a notification even when notifications were off).
-        val notifOk = androidx.core.app.NotificationManagerCompat
-            .from(service).areNotificationsEnabled()
-        Toast.makeText(
-            service,
-            service.getString(
-                if (notifOk) R.string.sharingan_toast_bg_sent
-                else R.string.sharingan_task_no_notif
-            ),
-            Toast.LENGTH_LONG
-        ).show()
-    }
-
-    /**
-     * نفذ ⚡ — context-only path (r1415: stays ON SCREEN too):
-     * stage the current/last real trace (or take a live snapshot when none)
-     * and tell the user to type the command — no activity launch, the next
-     * panel send consumes the context in the background.
-     */
-    private fun executeStaged(service: android.content.Context) {
-        scope?.launch(Dispatchers.IO) {
-            val id = SharinganState.state.value.lastTraceId
-                ?.takeIf { TraceStore.exists(service, it) }
-                ?: run {
-                    val f = ScreenCapture.capture() ?: return@run null
-                    runCatching { TraceStore.snapshot(service, f) }.getOrNull()
-                }
-            if (id == null) {
-                launch(Dispatchers.Main) {
-                    Toast.makeText(service, service.getString(R.string.sharingan_toast_offline), Toast.LENGTH_SHORT).show()
-                }
-                return@launch
-            }
-            SharinganContextHub.stage(id)
-            launch(Dispatchers.Main) {
-                Toast.makeText(service, service.getString(R.string.sharingan_context_ready), Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
+/** Phase constants bridge (avoids importing the engine object into the panel). */
+object SharinganLiveEnginePhase {
+    const val THINKING = "thinking"
+    const val EXECUTING = "executing"
 }

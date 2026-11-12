@@ -700,7 +700,22 @@
     <string name="sharingan_live_overlay_failed">Could not show the live overlay</string>
     <string name="sharingan_toast_mic_started">Voice ON — speak your commands; AMINO replies out loud (tap its speech to interrupt).</string>
     <string name="sharingan_toast_mic_stopped">Voice off</string>
-    <string name="sharingan_status_live">LIVE %1$d frames (%2$d changes) — the eye sees</string>
+    <string name="sharingan_status_live">LIVE · %1$d updates (%2$d changes) — the eye sees</string>
+    <!-- aMiNo 2.0 r1437 — LIVE FIRST panel (one button, old structure deleted) -->
+    <string name="sharingan_panel_live_start">START LIVE ▶ (watch + hear + act)</string>
+    <string name="sharingan_panel_live_stop">STOP BROADCAST ⏹</string>
+    <string name="sharingan_status_live_shell">LIVE · shell-screencap mode — %1$d frames (%2$d changes)</string>
+    <string name="sharingan_status_live_shell_fallback_note">LIVE on shell frames (projection denied) — tap LIVE again and allow screen share for the fast mode</string>
+    <string name="sharingan_live_static">screen static — no updates</string>
+    <string name="sharingan_err_no_source">Live needs a source: allow screen share in the consent dialog, or connect the aMiNo shell (drawer → Adb)</string>
+    <string name="sharingan_err_capture">Frame capture failed — check the shell connection (drawer → Adb) or restart the broadcast</string>
+    <string name="sharingan_err_projection_stopped">Screen share was stopped by the system — broadcast ended</string>
+    <string name="sharingan_err_notifications_denied">Notifications blocked — the broadcast runs but its notification (with the Stop button) is hidden; allow notifications for aMiNo in system settings</string>
+    <string name="sharingan_notif_live_channel">Sharingan Live broadcast</string>
+    <string name="sharingan_notif_live_title">Sharingan Live broadcast ON</string>
+    <string name="sharingan_notif_live_text">Watching + hearing your screen — speak freely; commands run for real</string>
+    <string name="sharingan_notif_live_shell">Shell-frame mode (projection denied) — vision live, slower frames</string>
+    <string name="sharingan_notif_live_stop">Stop broadcast</string>
     <string name="sharingan_status_voice">Voice active — listening…</string>
     <string name="sharingan_voice_mic_denied">Microphone permission missing — open the side menu › Permissions and grant it, then tap Mic again</string>
     <string name="sharingan_voice_no_engine">No speech recognition engine on this device — voice input unavailable (typing still works)</string>
