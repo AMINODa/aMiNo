@@ -51,13 +51,15 @@ object OpenAiCompatProvider : LlmProvider {
         for (m in history) {
             when (m.role) {
                 "user" -> {
-                    // r1435 VISION: image-bearing user turns become multimodal
-                    // content parts ({type:text},{type:image_url:data-url}).
+                    // r1435 VISION + r1436 LIVE: image-bearing user turns become
+                    // multimodal content parts ({type:text},{type:image_url:data-url});
+                    // the mime follows the source (PNG screen_look / JPEG live).
                     if (m.imagePngBase64 != null) {
+                        val mime = m.imageMime ?: "image/png"
                         val content = JSONArray()
                             .put(JSONObject().put("type", "text").put("text", m.text))
                             .put(JSONObject().put("type", "image_url").put("image_url",
-                                JSONObject().put("url", "data:image/png;base64," + m.imagePngBase64)))
+                                JSONObject().put("url", "data:$mime;base64," + m.imagePngBase64)))
                         messages.put(JSONObject().put("role", "user").put("content", content))
                     } else {
                         messages.put(JSONObject().put("role", "user").put("content", m.text))

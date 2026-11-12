@@ -63,15 +63,20 @@ object SharinganBubble {
         }
         rootView = eye
 
-        // r1435 — the eye reacts to the live/voice state in real time.
+        // r1436 — the eye reacts to the broadcast phase + mic level in real time.
         stateScope = CoroutineScope(SupervisorJob() + Dispatchers.Main).also { cs ->
             cs.launch {
                 SharinganState.state.collect { s ->
                     eye.setMode(when {
+                        s.liveActive && s.livePhase == moe.shizuku.manager.sharingan
+                            .live.SharinganLiveEngine.PHASE_EXECUTING -> AmaterasuEyeView.MODE_EXECUTING
+                        s.liveActive && s.livePhase == moe.shizuku.manager.sharingan
+                            .live.SharinganLiveEngine.PHASE_THINKING -> AmaterasuEyeView.MODE_THINKING
                         s.liveActive -> AmaterasuEyeView.MODE_AMATERASU
                         s.voiceActive -> AmaterasuEyeView.MODE_VOICE
                         else -> AmaterasuEyeView.MODE_IDLE
                     })
+                    eye.setAmplitudeNorm(s.micLevel)
                 }
             }
         }

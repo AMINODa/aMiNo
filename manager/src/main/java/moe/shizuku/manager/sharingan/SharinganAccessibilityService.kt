@@ -65,9 +65,10 @@ class SharinganAccessibilityService : AccessibilityService() {
         if (instance === this) instance = null
         SharinganPanel.hide()
         SharinganBubble.hide()
-        // r1435 — live vision & voice are lifecycle-bound to the service: a
+        moe.shizuku.manager.sharingan.live.LiveOverlay.hide()
+        // r1436 — live broadcast & voice are lifecycle-bound to the service: a
         // disconnected service must never leave a broadcast/loop running.
-        try { SharinganLiveSession.stop(this) } catch (_: Throwable) {}
+        try { moe.shizuku.manager.sharingan.live.SharinganLiveEngine.stop(this) } catch (_: Throwable) {}
         try { SharinganVoice.stop(this) } catch (_: Throwable) {}
         try {
             buttonCallback?.let { getAccessibilityButtonController().unregisterAccessibilityButtonCallback(it) }
@@ -81,7 +82,8 @@ class SharinganAccessibilityService : AccessibilityService() {
         if (instance === this) instance = null
         SharinganPanel.hide()
         SharinganBubble.hide()
-        try { SharinganLiveSession.stop(this) } catch (_: Throwable) {}
+        moe.shizuku.manager.sharingan.live.LiveOverlay.hide()
+        try { moe.shizuku.manager.sharingan.live.SharinganLiveEngine.stop(this) } catch (_: Throwable) {}
         try { SharinganVoice.stop(this) } catch (_: Throwable) {}
         super.onDestroy()
     }

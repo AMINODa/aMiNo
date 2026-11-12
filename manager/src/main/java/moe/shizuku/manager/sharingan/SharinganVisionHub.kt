@@ -6,13 +6,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * aMiNo 2.0 — Sharingan VISION (r1435): the eye that SEES, not just reads.
+ * aMiNo 2.0 — Sharingan VISION (r1435, extended r1436): the eye that SEES, not just reads.
  *
  * Bridges the real captured screen IMAGE (a genuine PNG produced by `screencap`
  * through the aMiNo shell) to the LLM providers that support vision input:
- *  - Gemini        : inline_data { mime_type: image/png, data: base64 }
- *  - OpenAI-compat : image_url { url: "data:image/png;base64,..." }
+ *  - Gemini        : inline_data { mime_type, data: base64 }
+ *  - OpenAI-compat : image_url { url: "data:<mime>;base64,..." }
  *    (same wire shape shared by OpenRouter / AgentRouter / Cloudflare).
+ *
+ * r1436: the live engine stages GEMINI-SPEC JPEG frames (720px, image/jpeg,
+ * ~60-160KB — the researched Gemini Live performance envelope); screen_look
+ * keeps the full-quality PNG (image/jpeg vs image/png mime follows the source).
  *
  * HONESTY RULES (unchanged from the Sharingan doctrine):
  *  - the image is a REAL frame captured on the device — never generated,
@@ -33,20 +37,31 @@ object SharinganVisionHub {
 
     data class StagedImage(
         val base64: String,
+        val mime: String = "image/png",   // r1436: JPEG live frames carry image/jpeg
         val activity: String?,
         val frameHash: String,
         val capturedAtMs: Long,
-        val source: String   // "screen_look" | "live_session" | "panel_snapshot"
+        val source: String   // "screen_look" | "live_engine" | "panel_snapshot"
     )
 
     /** The one image staged for the NEXT provider round (read-once). */
     @Volatile
     private var pending: StagedImage? = null
 
-    /** The newest image of an ACTIVE live session (overwritten each changed
-     *  frame; consumed by the next round while the session keeps running). */
+    /** The newest image of an ACTIVE live broadcast (overwritten each changed
+     *  frame by the engine; consumed by the next round while it keeps running).
+     *  r1436: staged by SharinganLiveEngine as a compressed JPEG. */
     @Volatile
     internal var latestLive: StagedImage? = null
+
+    /** r1436 — the live engine publishes each changed frame here (JPEG). */
+    fun setLiveFrame(base64: String, mime: String, activity: String?,
+                     frameHash: String, source: String) {
+        latestLive = StagedImage(
+            base64 = base64, mime = mime, activity = activity,
+            frameHash = frameHash,
+            capturedAtMs = System.currentTimeMillis(), source = source)
+    }
 
     fun hasPending(): Boolean = pending != null
 
@@ -87,18 +102,18 @@ object SharinganVisionHub {
         return img
     }
 
-    /** Consume the staged image (or, during a live session, its newest frame). */
+    /** Consume the staged image (or, during a live broadcast, its newest frame). */
     fun consumeForNextRound(): StagedImage? {
         val p = pending
         if (p != null) { pending = null; return p }
-        return if (SharinganLiveSession.active) latestLive else null
+        return if (moe.shizuku.manager.sharingan.live.SharinganLiveEngine.active) latestLive else null
     }
 
     /**
      * Read the PNG bytes the shell owns — the app cannot open /data/local/tmp
      * files directly, so the bytes come back through the proven shell path
      * (`base64 -w0`). Oversized frames are refused honestly (null).
-     * internal so SharinganLiveSession reuses the exact same truth path.
+     * internal so SharinganLiveEngine reuses the exact same truth path.
      */
     internal suspend fun readPngBase64(path: String): String? {
         val size = moe.shizuku.manager.terminal.linux.ShizukuExec.oneShot(

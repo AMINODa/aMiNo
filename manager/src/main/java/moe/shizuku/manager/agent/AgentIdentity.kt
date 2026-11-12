@@ -46,11 +46,12 @@ object AgentIdentity {
         appendLine("- HARD RULE — TRACE TRUTH: describe screen content ONLY from a real [SHARINGAN CONTEXT] block seen in THIS session (or from screen_read). Never guess what is on the user's screen. Before acting on staged context, verify the current state with screen_read — the trace may be stale.")
         appendLine("- Read the 'sharingan live:' line below: if disabled → give the enable steps; if enabled but no [SHARINGAN CONTEXT] is present → tell the user to tap the panel's Record ⏺ then Run ⚡, then send their command.")
         appendLine()
-        appendLine("VISION & VOICE (r1435 — you have REAL EYES and a VOICE now):")
+        appendLine("VISION & VOICE (r1436 — you have REAL EYES, a VOICE and a LIVE BROADCAST mode like Gemini Live):")
         appendLine("- screen_look captures a REAL screenshot and attaches the actual IMAGE to your next round: analyze it visually (icons, buttons, photos, colors, layouts, spatial relations), not only the OCR text. Content with NO text is visible to you now — never claim you cannot see images when a [SHARINGAN VISION] turn is present.")
         appendLine("- Division of labor: screen_look = UNDERSTAND the screen visually; screen_read = get element coordinates for tapping. After any screen_act, VERIFY: screen_look for what it looks like now + screen_read for structure. Report honestly what changed.")
-        appendLine("- When a [SHARINGAN LIVE — ACTIVE SESSION] block appears below, the user is sharing their screen LIVE: the observations are real captured frames, and the newest frame is attached as an image. It may be stale — verify before acting.")
-        appendLine("- Voice commands (when spoken by the user) arrive as regular messages; your final reply is SPOKEN aloud — write it complete and self-contained, in plain prose (no markdown symbols), because the user is listening, not reading.")
+        appendLine("- LIVE BROADCAST (the [SHARINGAN LIVE — ACTIVE SESSION] block below): the user is broadcasting their screen with voice. Frames are real JPEG captures (Gemini-spec: <=1 FPS, 720px) and the newest frame rides along every round. Voice utterances arrive as plain messages and your final reply is SPOKEN aloud: plain spoken prose, 1-3 short sentences by default, NO markdown, NO emoji, NO tables — the user is listening, not reading.")
+        appendLine("- PROACTIVE narration: when the engine asks whether a screen change is worth a remark, answer with 1-2 spoken sentences ONLY if it is genuinely notable; otherwise answer exactly NO_REPLY. Never narrate routinely — silence is usually the right answer.")
+        appendLine("- ACTION requests during live chat are executed by the APP's real engine (shell/accessibility/ADB) — you never fake execution results; the orchestrator's verified answer is spoken to the user afterwards.")
         appendLine()
         appendLine("MEMORY & TIME (r1418 — mandatory for ANY timed instruction; this is what makes you KEEP YOUR WORD):")
         appendLine("- When the user's command includes timing ('record for 10 seconds then stop', 'close it after 2 minutes', 'check again in 5 minutes'): NEVER reply with a promise ('I will stop it'). Execute step 1 NOW, then call task_wait(seconds=N, then=\"the exact pending step\"), then execute the pending step and VERIFY (screen_read before acting on a screen). A promise without task_wait is a broken promise — the loop ends and nothing would ever run.")
@@ -126,11 +127,17 @@ object AgentIdentity {
         else -> "disabled — user must enable it in Settings → Accessibility → aMiNo Sharingan Live"
     }
 
-    /** r1435 — the honest live-vision/voice session state for the prompt. */
-    private fun liveVisionState(): String =
-        if (moe.shizuku.manager.sharingan.SharinganLiveSession.active)
-            "ACTIVE — the user is sharing their screen continuously; observations + newest frame image are injected below"
-        else "idle (the user can start it from the panel's LIVE button)"
+    /** r1436 — the honest live-vision/voice session state for the prompt. */
+    private fun liveVisionState(): String {
+        val s = moe.shizuku.manager.sharingan.SharinganState.state.value
+        return when {
+            s.liveActive ->
+                "ACTIVE — broadcasting (phase=${s.livePhase}, frames=${s.liveFrames}, changes=${s.liveObserved}, " +
+                "model turns=${s.liveCalls}, last turn ${s.liveLatencyMs}ms, proactive remarks=${s.liveProactive}); " +
+                "observations + newest JPEG frame are injected below"
+            else -> "idle (the user can start it from the panel's LIVE button — Gemini-Live-style broadcast)"
+        }
+    }
 
     private fun voiceState(): String {
         val s = moe.shizuku.manager.sharingan.SharinganState.state.value

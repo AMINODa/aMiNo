@@ -47,11 +47,12 @@ object GeminiProvider : LlmProvider {
         for (m in history) {
             when (m.role) {
                 "user" -> {
-                    // r1435 VISION: the user turn may carry a real screen image.
+                    // r1435 VISION + r1436 LIVE: the user turn may carry a real
+                    // screen image (PNG from screen_look, JPEG from live engine).
                     val parts = JSONArray()
                     if (m.imagePngBase64 != null) {
                         parts.put(JSONObject().put("inline_data", JSONObject()
-                            .put("mime_type", "image/png")
+                            .put("mime_type", m.imageMime ?: "image/png")
                             .put("data", m.imagePngBase64)))
                     }
                     parts.put(obj("text", m.text))

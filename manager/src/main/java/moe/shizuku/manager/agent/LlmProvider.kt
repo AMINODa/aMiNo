@@ -9,6 +9,10 @@ import org.json.JSONObject
  * panel). Providers translate it to their native wire format; providers
  * without vision support simply ignore it (the OCR text fallback always
  * accompanies it).
+ *
+ * aMiNo 2.0 (r1436) — LIVE: imageMime lets the live engine attach its
+ * Gemini-spec JPEG frames (image/jpeg) while screen_look keeps full PNG
+ * (image/png). null mime = image/png (back-compat).
  */
 data class LlmMessage(
     val role: String,
@@ -16,7 +20,8 @@ data class LlmMessage(
     val toolName: String? = null,
     val toolArgsJson: String? = null,   // for assistant tool-call messages
     val toolOk: Boolean? = null,
-    val imagePngBase64: String? = null
+    val imagePngBase64: String? = null,
+    val imageMime: String? = null       // r1436: "image/png" (default) | "image/jpeg"
 )
 
 /** A tool the model may call. */

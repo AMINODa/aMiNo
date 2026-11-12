@@ -327,19 +327,39 @@ object SharinganPanel {
             }
         }
 
-        // ── r1435: LIVE 👁 (continuous screen sharing — the Amaterasu eye) ───
+        // ── r1436: LIVE 👁 = ONE-TAP GEMINI-LIVE BROADCAST ───────────────────
+        // Starts the SharinganLiveEngine (Gemini-spec JPEG ≤1FPS perception +
+        // proactive narration + fast live conversation), the immersive bottom
+        // dock (eye + waveform + honest performance stats + ⏹), and the voice
+        // loop when the mic is available. The user's exact ask: «ميزات ومظهر
+        // جيميني وتحليلي وسكرين بارتاج مثل جيمني + سيطرة وتنفيذ أوامر مباشرة».
         liveButton.setOnClickListener {
             resetAutoHide()
-            if (SharinganLiveSession.active) {
-                SharinganLiveSession.stop(service)
+            if (moe.shizuku.manager.sharingan.live.SharinganLiveEngine.active) {
+                moe.shizuku.manager.sharingan.live.LiveOverlay.hide()
+                SharinganVoice.stop(service)
+                moe.shizuku.manager.sharingan.live.SharinganLiveEngine.stop(service)
                 Toast.makeText(service, service.getString(R.string.sharingan_toast_live_stopped), Toast.LENGTH_SHORT).show()
             } else {
-                val ok = SharinganLiveSession.start(service)
-                Toast.makeText(
-                    service,
-                    service.getString(if (ok) R.string.sharingan_toast_live_started else R.string.sharingan_toast_offline),
-                    Toast.LENGTH_SHORT
-                ).show()
+                val ok = moe.shizuku.manager.sharingan.live.SharinganLiveEngine.start(service)
+                if (ok) {
+                    moe.shizuku.manager.sharingan.live.LiveOverlay.show(service)
+                    val micGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                        service, android.Manifest.permission.RECORD_AUDIO
+                    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                    if (micGranted && android.speech.SpeechRecognizer.isRecognitionAvailable(service)) {
+                        when (SharinganVoice.start(service)) {
+                            is SharinganVoice.StartResult.Started ->
+                                Toast.makeText(service, service.getString(R.string.sharingan_toast_live_started), Toast.LENGTH_LONG).show()
+                            else ->
+                                Toast.makeText(service, service.getString(R.string.sharingan_live_vision_only), Toast.LENGTH_LONG).show()
+                        }
+                    } else {
+                        Toast.makeText(service, service.getString(R.string.sharingan_live_vision_only), Toast.LENGTH_LONG).show()
+                    }
+                } else {
+                    Toast.makeText(service, service.getString(R.string.sharingan_toast_offline), Toast.LENGTH_SHORT).show()
+                }
             }
         }
 
@@ -467,6 +487,21 @@ object SharinganPanel {
 
     fun toggle(service: android.content.Context) {
         if (rootView != null) hide() else show(service)
+    }
+
+    /**
+     * r1436 — the broadcast hit its battery cap while the user was anywhere:
+     * the honest auto-stop surfaces via SharinganTaskNotifier (visible even
+     * outside the app) + closes the immersive dock.
+     */
+    fun maybeNotifyAutoStop(service: android.content.Context) {
+        runCatching {
+            moe.shizuku.manager.sharingan.live.LiveOverlay.hide()
+            SharinganTaskNotifier.taskDone(
+                service,
+                service.getString(moe.shizuku.manager.R.string.sharingan_live_auto_stopped, 15)
+            )
+        }
     }
 
     private fun resetAutoHide() {

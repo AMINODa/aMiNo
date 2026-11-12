@@ -318,10 +318,10 @@ object AgentOrchestrator {
                 if (msgs.none { it.role == "user" }) MemoryRepository.touchConversation(ctx, convId, text)
                 MemoryRepository.addMessage(ctx, convId, "user", text)
 
-                // r1435 — LIVE VISION: an active live session shares its newest
-                // real frame with this command automatically (the model starts
+                // r1436 — LIVE VISION: an active live broadcast shares its newest
+                // real JPEG frame with this command automatically (the model starts
                 // from the CURRENT screen, not from stale text).
-                if (moe.shizuku.manager.sharingan.SharinganLiveSession.active) {
+                if (moe.shizuku.manager.sharingan.live.SharinganLiveEngine.active) {
                     runCatching { moe.shizuku.manager.sharingan.SharinganVisionHub.stageFromLive() }
                 }
 
@@ -367,11 +367,15 @@ object AgentOrchestrator {
                     last?.content?.takeIf { it.isNotBlank() }
                         ?: "⚠️ The task ended without a result row (internal error) — reopen the chat to check the conversation."
                 )
-                // r1435 — VOICE: the real final answer is SPOKEN (verbatim row
-                // policy; barge-in handled inside SharinganVoice).
+                // r1436 — VOICE: the real final answer is SPOKEN (verbatim row
+                // policy; barge-in handled inside SharinganVoice). The live
+                // engine records the speech moment (proactive quiet window).
                 if (viaVoice) {
                     last?.content?.takeIf { it.isNotBlank() }?.let {
                         runCatching { moe.shizuku.manager.sharingan.SharinganVoice.speak(ctx, it) }
+                        runCatching {
+                            moe.shizuku.manager.sharingan.live.SharinganLiveEngine.noteSpoken()
+                        }
                     }
                 }
                 // r1418 — auto-lesson (strong memory loop): the outcome of every
@@ -526,10 +530,11 @@ object AgentOrchestrator {
                     history = history + LlmMessage(
                         role = "user",
                         text = "[SHARINGAN VISION] A REAL screenshot of the user's CURRENT screen is attached as an image " +
-                            "(source=${vision.source}, activity=${vision.activity ?: "unknown"}, md5=${vision.frameHash.take(12)}). " +
+                            "(source=${vision.source}, format=${vision.mime}, activity=${vision.activity ?: "unknown"}, md5=${vision.frameHash.take(12)}). " +
                             "Analyze it visually — layout, icons, colors, spatial relations; content without text counts too. " +
                             "It may be slightly stale by the time you act: verify with screen_read before precise taps.",
-                        imagePngBase64 = vision.base64
+                        imagePngBase64 = vision.base64,
+                        imageMime = vision.mime
                     )
                 }
                 val systemPrompt = AgentIdentity.systemPrompt(
@@ -670,10 +675,10 @@ object AgentOrchestrator {
                 sb.appendLine("- in ${inSec}s (at ${fmt.format(Date(c.fireAt))}): ${c.action.take(150)}")
             }
         }
-        // r1435 — LIVE SESSION: the continuous screen-sharing observations are
+        // r1436 — LIVE SESSION: the continuous screen-sharing observations are
         // injected EVERY round (the loop cannot forget what it is watching).
         val liveBlock = runCatching {
-            moe.shizuku.manager.sharingan.SharinganLiveSession.contextBlock()
+            moe.shizuku.manager.sharingan.live.SharinganLiveEngine.contextBlock()
         }.getOrNull()
         if (!liveBlock.isNullOrBlank()) {
             sb.appendLine()
