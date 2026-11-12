@@ -393,6 +393,26 @@ object ToolRegistry {
         },
         RegisteredTool(
             ToolSpec(
+                "screen_look",
+                "SEE the CURRENT screen as a REAL IMAGE (r1435 — true visual intelligence): captures an " +
+                    "actual PNG screenshot and attaches it to YOUR NEXT ROUND, so you can analyse it " +
+                    "visually like a human — icons, buttons, photos, colors, layouts, spatial relations, " +
+                    "even content with NO text (which screen_read cannot see). The result row also carries " +
+                    "the focused activity and the OCR text fallback. Use screen_read for tap coordinates; " +
+                    "use screen_look to UNDERSTAND what the screen shows. After a UI change, call it again " +
+                    "to VERIFY visually. Requires the aMiNo service (Shizuku).",
+                JSONObject().put("type", "object").put("properties",
+                    JSONObject().put("question", JSONObject()
+                        .put("type", "string")
+                        .put("description", "Optional: what you want to verify/see on this screenshot — " +
+                            "injected with the image in your next round")))
+            ),
+            requiresShell = false
+        ) { ctx, args ->
+            runBlocking { moe.shizuku.manager.agent.AgentTools.screenLook(ctx, args) }
+        },
+        RegisteredTool(
+            ToolSpec(
                 "screen_act",
                 "ACT on the current screen with REAL input injection (the adb-identical channel, through " +
                     "the aMiNo service): action = tap {x,y} | longtap {x,y} | swipe {x,y,x2,y2,duration_ms} | " +

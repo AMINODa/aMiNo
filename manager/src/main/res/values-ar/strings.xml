@@ -651,6 +651,21 @@
     <string name="sharingan_btn_execute">نفّذ ⚡</string>
     <string name="sharingan_btn_record">تسجيل ⏺</string>
     <string name="sharingan_btn_stop">إيقاف ⏹</string>
+    <!-- aMiNo 2.0 r1435 — شارينغان لايف: الرؤية والصوت -->
+    <string name="sharingan_btn_live">بثّ 👁</string>
+    <string name="sharingan_btn_live_on">البثّ يعمل ⏹</string>
+    <string name="sharingan_btn_mic">مايك 🎤</string>
+    <string name="sharingan_btn_mic_on">المايك يعمل 🎤</string>
+    <string name="sharingan_btn_mic_listening">أستمع… 🎤</string>
+    <string name="sharingan_btn_mic_speaking">أتحدث… 🔊</string>
+    <string name="sharingan_toast_live_started">مشاركة الشاشة الحيّة ON — العين الآن تدمع دموعاً سوداء (أماتيراسو). اطلب أي شيء عمّا تراه.</string>
+    <string name="sharingan_toast_live_stopped">تم إيقاف مشاركة الشاشة الحيّة</string>
+    <string name="sharingan_toast_mic_started">الصوت ON — تحدّث بأوامرك، وAMINO يجيبك بصوت مسموع (تحدث أثناء ردّه لمقاطعته).</string>
+    <string name="sharingan_toast_mic_stopped">تم إيقاف الصوت</string>
+    <string name="sharingan_status_live">بثّ %1$d إطار (%2$d تغيّر) — العين ترى</string>
+    <string name="sharingan_status_voice">الصوت نشط — أستمع…</string>
+    <string name="sharingan_voice_mic_denied">إذن الميكروفون غير ممنوح — افتح القائمة الجانبية › الصلاحيات وامنحه ثم اضغط المايك مجدداً</string>
+    <string name="sharingan_voice_no_engine">لا يوجد محرّك تعرّف على الكلام في هذا الجهاز — الإدخال الصوتي غير متاح (الكتابة تعمل كالمعتاد)</string>
     <string name="sharingan_status_ready">جاهز</string>
     <string name="sharingan_status_recording">تسجيل %1$d إطار (%2$d متغيّر)</string>
     <string name="sharingan_status_offline">الخدمة غير موصولة — شغّل خدمة aMiNo أولاً</string>

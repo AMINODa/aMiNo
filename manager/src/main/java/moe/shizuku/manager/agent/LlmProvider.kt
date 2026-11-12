@@ -2,13 +2,21 @@ package moe.shizuku.manager.agent
 
 import org.json.JSONObject
 
-/** One message in the agent conversation (role: "user" | "assistant" | "tool"). */
+/** One message in the agent conversation (role: "user" | "assistant" | "tool").
+ *
+ * aMiNo 2.0 (r1435) — VISION: a message may carry ONE real screen image
+ * (PNG, base64) captured by Sharingan (screen_look tool / live session /
+ * panel). Providers translate it to their native wire format; providers
+ * without vision support simply ignore it (the OCR text fallback always
+ * accompanies it).
+ */
 data class LlmMessage(
     val role: String,
     val text: String,
     val toolName: String? = null,
     val toolArgsJson: String? = null,   // for assistant tool-call messages
-    val toolOk: Boolean? = null
+    val toolOk: Boolean? = null,
+    val imagePngBase64: String? = null
 )
 
 /** A tool the model may call. */

@@ -413,5 +413,34 @@ object AgentTools {
             "Do NOT claim the pending step already ran; your reply must state the resume plan only.")
     }
 
+    /**
+     * r1435 — screen_look: TRUE VISUAL INTELLIGENCE. Captures a real PNG
+     * screenshot through the proven shell path and stages it in
+     * SharinganVisionHub; the orchestrator attaches it to the NEXT provider
+     * round as an actual image (Gemini inline_data / OpenAI image_url). The
+     * tool result itself stays honest text: focused activity + OCR fallback +
+     * an explicit "image attached" contract. NULL capture = honest failure —
+     * no fabricated visual claims.
+     */
+    suspend fun screenLook(context: Context, args: JSONObject): ToolResult {
+        val question = args.optString("question", "").trim()
+        val staged = moe.shizuku.manager.sharingan.SharinganVisionHub
+            .stage(context, source = "screen_look")
+        if (staged == null) {
+            val shellOk = moe.shizuku.manager.terminal.linux.ShizukuExec.available()
+            return ToolResult(false, if (shellOk)
+                "screen_look failed: screencap produced no readable frame — nothing was attached (no image to analyse)."
+            else
+                "screen_look unavailable: the aMiNo service (Shizuku) is not connected — open the Shell page / start the service first.")
+        }
+        val ocr = moe.shizuku.manager.sharingan.ScreenCapture.screenText(maxChars = 1200)
+        val q = if (question.isNotBlank()) "\nquestion: $question" else ""
+        return ToolResult(true,
+            "SCREEN IMAGE CAPTURED — it is attached as a REAL IMAGE to your NEXT round (analyse it visually: " +
+                "layout, icons, colors, spatial relations; never invent elements you cannot see). " +
+                "activity=${staged.activity ?: "unknown"} • frame_md5=${staged.frameHash.take(12)}$q" +
+                (if (ocr.isNullOrBlank()) "\nocr_text: (none readable — judge from the image)" else "\nocr_text (fallback): $ocr"))
+    }
+
     data class ToolResult(val ok: Boolean, val output: String)
 }

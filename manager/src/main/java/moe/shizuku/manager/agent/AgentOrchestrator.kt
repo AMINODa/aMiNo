@@ -281,7 +281,7 @@ object AgentOrchestrator {
      *    even if persistence or anything before runLoop crashes (F7). The
      *    posted text is the REAL last assistant row, verbatim.
      */
-    fun sendSharingan(context: Context, userText: String): Boolean {
+    fun sendSharingan(context: Context, userText: String, viaVoice: Boolean = false): Boolean {
         init(context)
         if (_state.value.busy) return false
         val text = userText.trim()
@@ -317,6 +317,13 @@ object AgentOrchestrator {
                 val msgs = MemoryRepository.messages(ctx, convId)
                 if (msgs.none { it.role == "user" }) MemoryRepository.touchConversation(ctx, convId, text)
                 MemoryRepository.addMessage(ctx, convId, "user", text)
+
+                // r1435 — LIVE VISION: an active live session shares its newest
+                // real frame with this command automatically (the model starts
+                // from the CURRENT screen, not from stale text).
+                if (moe.shizuku.manager.sharingan.SharinganLiveSession.active) {
+                    runCatching { moe.shizuku.manager.sharingan.SharinganVisionHub.stageFromLive() }
+                }
 
                 // r1419 — DURATION GUARDIAN (the panel is the user's real path):
                 // detect timing locally BEFORE the loop; never trust the model
@@ -360,6 +367,13 @@ object AgentOrchestrator {
                     last?.content?.takeIf { it.isNotBlank() }
                         ?: "⚠️ The task ended without a result row (internal error) — reopen the chat to check the conversation."
                 )
+                // r1435 — VOICE: the real final answer is SPOKEN (verbatim row
+                // policy; barge-in handled inside SharinganVoice).
+                if (viaVoice) {
+                    last?.content?.takeIf { it.isNotBlank() }?.let {
+                        runCatching { moe.shizuku.manager.sharingan.SharinganVoice.speak(ctx, it) }
+                    }
+                }
                 // r1418 — auto-lesson (strong memory loop): the outcome of every
                 // Sharingan task lands in episodic memory, failures included.
                 // (skipped for delayed-start — nothing executed yet)
@@ -498,7 +512,26 @@ object AgentOrchestrator {
                 while (recentRows.isNotEmpty() && recentRows.first().role == "tool") {
                     recentRows = recentRows.drop(1)
                 }
-                val history = toLlmHistory(recentRows)
+                var history = toLlmHistory(recentRows)
+
+                // r1435 — VISION: a staged real screen image (screen_look tool /
+                // panel snapshot / live session) is appended as a dedicated user
+                // turn carrying an actual IMAGE part (Gemini inline_data /
+                // OpenAI image_url). During an active live session the newest
+                // frame rides along EVERY round — continuous screen awareness.
+                val vision = runCatching {
+                    moe.shizuku.manager.sharingan.SharinganVisionHub.consumeForNextRound()
+                }.getOrNull()
+                if (vision != null) {
+                    history = history + LlmMessage(
+                        role = "user",
+                        text = "[SHARINGAN VISION] A REAL screenshot of the user's CURRENT screen is attached as an image " +
+                            "(source=${vision.source}, activity=${vision.activity ?: "unknown"}, md5=${vision.frameHash.take(12)}). " +
+                            "Analyze it visually — layout, icons, colors, spatial relations; content without text counts too. " +
+                            "It may be slightly stale by the time you act: verify with screen_read before precise taps.",
+                        imagePngBase64 = vision.base64
+                    )
+                }
                 val systemPrompt = AgentIdentity.systemPrompt(
                     context,
                     AgentIdentity.contextBlock(context, userText) + taskMemoryBlock(context, convId))
@@ -636,6 +669,15 @@ object AgentOrchestrator {
                 val inSec = ((c.fireAt - System.currentTimeMillis()).coerceAtLeast(0)) / 1000
                 sb.appendLine("- in ${inSec}s (at ${fmt.format(Date(c.fireAt))}): ${c.action.take(150)}")
             }
+        }
+        // r1435 — LIVE SESSION: the continuous screen-sharing observations are
+        // injected EVERY round (the loop cannot forget what it is watching).
+        val liveBlock = runCatching {
+            moe.shizuku.manager.sharingan.SharinganLiveSession.contextBlock()
+        }.getOrNull()
+        if (!liveBlock.isNullOrBlank()) {
+            sb.appendLine()
+            sb.appendLine(liveBlock)
         }
         return sb.toString()
     }

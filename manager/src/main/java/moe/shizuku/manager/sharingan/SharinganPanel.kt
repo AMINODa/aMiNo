@@ -55,6 +55,8 @@ object SharinganPanel {
     // UI refs updated by state collection
     private var led: View? = null
     private var recordBtn: TextView? = null
+    private var liveBtn: TextView? = null
+    private var micBtn: TextView? = null
     private var statusLine: TextView? = null
     private var input: EditText? = null
     // r1416: the panel SHOWS the result itself — the expert audit found the
@@ -206,6 +208,34 @@ object SharinganPanel {
         row3.addView(recBtn); row3.addView(execBtn)
         panel.addView(row3)
 
+        // ── Row 3b (r1435 — LIVE VISION & VOICE): LIVE 👁 / MIC 🎤 ───────────
+        val row3b = LinearLayout(service).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+        }
+        val liveButton = TextView(service).apply {
+            text = service.getString(R.string.sharingan_btn_live)
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            textSize = 12f
+            gravity = Gravity.CENTER
+            background = rounded(Color.parseColor("#37474F"), 10f)
+            layoutParams = LinearLayout.LayoutParams(0, dp(34, panel), 1f).apply { marginEnd = dp(8, panel); topMargin = dp(8, panel) }
+        }
+        liveBtn = liveButton
+        val micButton = TextView(service).apply {
+            text = service.getString(R.string.sharingan_btn_mic)
+            setTextColor(Color.WHITE)
+            typeface = Typeface.DEFAULT_BOLD
+            textSize = 12f
+            gravity = Gravity.CENTER
+            background = rounded(Color.parseColor("#37474F"), 10f)
+            layoutParams = LinearLayout.LayoutParams(0, dp(34, panel), 1f).apply { topMargin = dp(8, panel) }
+        }
+        micBtn = micButton
+        row3b.addView(liveButton); row3b.addView(micButton)
+        panel.addView(row3b)
+
         // ── Row 4: status line ───────────────────────────────────────────────
         val status = TextView(service).apply {
             text = service.getString(R.string.sharingan_status_ready)
@@ -297,6 +327,40 @@ object SharinganPanel {
             }
         }
 
+        // ── r1435: LIVE 👁 (continuous screen sharing — the Amaterasu eye) ───
+        liveButton.setOnClickListener {
+            resetAutoHide()
+            if (SharinganLiveSession.active) {
+                SharinganLiveSession.stop(service)
+                Toast.makeText(service, service.getString(R.string.sharingan_toast_live_stopped), Toast.LENGTH_SHORT).show()
+            } else {
+                val ok = SharinganLiveSession.start(service)
+                Toast.makeText(
+                    service,
+                    service.getString(if (ok) R.string.sharingan_toast_live_started else R.string.sharingan_toast_offline),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        // ── r1435: MIC 🎤 (live voice loop — barge-in, spoken replies) ──────
+        micButton.setOnClickListener {
+            resetAutoHide()
+            if (SharinganVoice.active) {
+                SharinganVoice.stop(service)
+                Toast.makeText(service, service.getString(R.string.sharingan_toast_mic_stopped), Toast.LENGTH_SHORT).show()
+            } else {
+                when (val r = SharinganVoice.start(service)) {
+                    is SharinganVoice.StartResult.Started ->
+                        Toast.makeText(service, service.getString(R.string.sharingan_toast_mic_started), Toast.LENGTH_SHORT).show()
+                    is SharinganVoice.StartResult.Refused ->
+                        Toast.makeText(service,
+                            if (r.reasonArg != null) r.reasonArg
+                            else service.getString(r.reasonRes), Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
         // ── state → UI ───────────────────────────────────────────────────────
         scope = CoroutineScope(SupervisorJob() + Dispatchers.Main).also { cs ->
             cs.launch {
@@ -311,6 +375,21 @@ object SharinganPanel {
                     recBtn.text = service.getString(
                         if (s.recording) R.string.sharingan_btn_stop else R.string.sharingan_btn_record
                     )
+                    // r1435: LIVE + MIC button labels follow their sessions
+                    liveButton.text = service.getString(
+                        if (s.liveActive) R.string.sharingan_btn_live_on else R.string.sharingan_btn_live
+                    )
+                    liveButton.background = rounded(
+                        if (s.liveActive) Color.parseColor("#B71C1C") else Color.parseColor("#37474F"), 10f)
+                    micButton.text = service.getString(
+                        when {
+                            s.voiceSpeaking -> R.string.sharingan_btn_mic_speaking
+                            s.voiceListening -> R.string.sharingan_btn_mic_listening
+                            else -> if (s.voiceActive) R.string.sharingan_btn_mic_on else R.string.sharingan_btn_mic
+                        }
+                    )
+                    micButton.background = rounded(
+                        if (s.voiceActive) Color.parseColor("#1B5E20") else Color.parseColor("#37474F"), 10f)
                     // r1416: recording/offline/error keep this line; the IDLE
                     // line is owned by the agent collector below (shell note).
                     if (!(s.serviceUp && !s.recording && s.lastError == null &&
@@ -321,6 +400,10 @@ object SharinganPanel {
                                 R.string.sharingan_status_recording,
                                 s.framesCaptured, s.framesChanged
                             )
+                            s.liveActive -> service.getString(
+                                R.string.sharingan_status_live, s.liveFrames, s.liveObserved
+                            )
+                            s.voiceActive -> service.getString(R.string.sharingan_status_voice)
                             else -> s.lastError ?: service.getString(R.string.sharingan_status_ready)
                         }
                     }
@@ -370,6 +453,7 @@ object SharinganPanel {
         mainHandler.removeCallbacks(autoHideRunnable)
         try { windowManager?.removeView(v) } catch (_: Throwable) {}
         rootView = null; led = null; recordBtn = null; statusLine = null; input = null
+        liveBtn = null; micBtn = null
         resultView = null; hintView = null
         SharinganState.update { it.copy(panelVisible = false) }
         // r1414 — the ONE button always comes back: the moment the panel goes

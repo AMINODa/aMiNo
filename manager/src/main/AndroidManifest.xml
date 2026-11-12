@@ -6,6 +6,11 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- aMiNo 2.0 r1435 — Sharingan Live Voice: SpeechRecognizer input.
+         The mic is NOT required at install time (voice is optional; typing
+         and vision keep working on mic-less devices). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <!-- Android 17 (SDK 37): local network access is gated behind these permissions;
          required for mDNS discovery used by wireless ADB pairing and for the
          privileged server to reach loopback. -->
@@ -73,6 +78,10 @@
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <!-- aMiNo 2.0 r1435 — Sharingan Live Voice: the recognition engine. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
         </intent>
     </queries>
 

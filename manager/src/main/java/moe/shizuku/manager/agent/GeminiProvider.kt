@@ -21,6 +21,9 @@ import java.util.concurrent.TimeUnit
  *
  * The API key is only sent in the X-goog-api-key header. It is never logged and
  * never placed inside prompts or tool payloads.
+ *
+ * aMiNo 2.0 (r1435): vision-capable — user turns may include inline_data
+ * image parts (see LlmMessage.imagePngBase64); Gemini natively analyses them.
  */
 object GeminiProvider : LlmProvider {
 
@@ -43,7 +46,17 @@ object GeminiProvider : LlmProvider {
         val contents = JSONArray()
         for (m in history) {
             when (m.role) {
-                "user" -> contents.put(obj("role", "user").put("parts", arr(obj("text", m.text))))
+                "user" -> {
+                    // r1435 VISION: the user turn may carry a real screen image.
+                    val parts = JSONArray()
+                    if (m.imagePngBase64 != null) {
+                        parts.put(JSONObject().put("inline_data", JSONObject()
+                            .put("mime_type", "image/png")
+                            .put("data", m.imagePngBase64)))
+                    }
+                    parts.put(obj("text", m.text))
+                    contents.put(obj("role", "user").put("parts", parts))
+                }
                 "assistant" -> {
                     if (m.toolName != null) {
                         // model's tool call turn

@@ -677,6 +677,21 @@
     <string name="sharingan_btn_execute">Run ⚡</string>
     <string name="sharingan_btn_record">Record ⏺</string>
     <string name="sharingan_btn_stop">Stop ⏹</string>
+    <!-- aMiNo 2.0 r1435 — Sharingan Live Vision & Voice -->
+    <string name="sharingan_btn_live">LIVE 👁</string>
+    <string name="sharingan_btn_live_on">LIVE ON ⏹</string>
+    <string name="sharingan_btn_mic">Mic 🎤</string>
+    <string name="sharingan_btn_mic_on">Mic ON 🎤</string>
+    <string name="sharingan_btn_mic_listening">Listening… 🎤</string>
+    <string name="sharingan_btn_mic_speaking">Speaking… 🔊</string>
+    <string name="sharingan_toast_live_started">Live screen sharing ON — the eye now cries black tears (Amaterasu). Ask anything about what it sees.</string>
+    <string name="sharingan_toast_live_stopped">Live screen sharing stopped</string>
+    <string name="sharingan_toast_mic_started">Voice ON — speak your commands; AMINO replies out loud (tap its speech to interrupt).</string>
+    <string name="sharingan_toast_mic_stopped">Voice off</string>
+    <string name="sharingan_status_live">LIVE %1$d frames (%2$d changes) — the eye sees</string>
+    <string name="sharingan_status_voice">Voice active — listening…</string>
+    <string name="sharingan_voice_mic_denied">Microphone permission missing — open the side menu › Permissions and grant it, then tap Mic again</string>
+    <string name="sharingan_voice_no_engine">No speech recognition engine on this device — voice input unavailable (typing still works)</string>
     <string name="sharingan_status_ready">Ready</string>
     <string name="sharingan_status_recording">REC %1$d frames (%2$d changed)</string>
     <string name="sharingan_status_offline">Service not connected — start the aMiNo service first</string>

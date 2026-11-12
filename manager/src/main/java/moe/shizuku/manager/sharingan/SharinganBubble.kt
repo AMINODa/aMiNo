@@ -8,8 +8,12 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.widget.ImageView
 import android.widget.Toast
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import moe.shizuku.manager.R
 
 /**
@@ -22,7 +26,11 @@ import moe.shizuku.manager.R
  * the app owns the whole flow: enable the toggle → the eye appears (over any
  * app) → tap the eye → the panel with the command input opens.
  *
- * Drag anywhere; long-press explains how to remove it. Built as
+ * aMiNo 2.0 (r1435) — the eye is ALIVE now: [AmaterasuEyeView] replaces the
+ * static PNG. It follows SharinganState: MODE_IDLE normally, MODE_AMATERASU
+ * (black tears, the user's exact ask) while the live screen-sharing session
+ * runs, MODE_VOICE (mic pulse) while the voice loop listens/speaks. Drag
+ * anywhere; long-press explains how to remove it. Built as
  * TYPE_ACCESSIBILITY_OVERLAY from the service context → no
  * SYSTEM_ALERT_WINDOW permission needed. NOT_FOCUSABLE so it never steals
  * the keyboard; the PANEL (input field) opens focusable separately.
@@ -30,7 +38,8 @@ import moe.shizuku.manager.R
 object SharinganBubble {
 
     private var windowManager: WindowManager? = null
-    private var rootView: ImageView? = null
+    private var rootView: AmaterasuEyeView? = null
+    private var stateScope: CoroutineScope? = null
 
     val visible: Boolean get() = rootView != null
 
@@ -42,8 +51,7 @@ object SharinganBubble {
         val dm = service.resources.displayMetrics
         fun dp(v: Int) = (v * dm.density).toInt()
 
-        val eye = ImageView(service).apply {
-            setImageResource(R.drawable.ic_sharingan)
+        val eye = AmaterasuEyeView(service).apply {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.parseColor("#E53935"))
@@ -54,6 +62,19 @@ object SharinganBubble {
             contentDescription = service.getString(R.string.sharingan_bubble_cd)
         }
         rootView = eye
+
+        // r1435 — the eye reacts to the live/voice state in real time.
+        stateScope = CoroutineScope(SupervisorJob() + Dispatchers.Main).also { cs ->
+            cs.launch {
+                SharinganState.state.collect { s ->
+                    eye.setMode(when {
+                        s.liveActive -> AmaterasuEyeView.MODE_AMATERASU
+                        s.voiceActive -> AmaterasuEyeView.MODE_VOICE
+                        else -> AmaterasuEyeView.MODE_IDLE
+                    })
+                }
+            }
+        }
 
         val params = WindowManager.LayoutParams(
             dp(48), dp(48),
@@ -122,6 +143,7 @@ object SharinganBubble {
 
     fun hide() {
         val v = rootView ?: return
+        stateScope?.cancel(); stateScope = null
         try { windowManager?.removeView(v) } catch (_: Throwable) {}
         rootView = null
         windowManager = null

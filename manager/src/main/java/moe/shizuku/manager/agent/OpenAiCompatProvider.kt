@@ -50,7 +50,19 @@ object OpenAiCompatProvider : LlmProvider {
         val open = HashMap<String, ArrayDeque<String>>()  // tool name -> ids awaiting their result
         for (m in history) {
             when (m.role) {
-                "user" -> messages.put(JSONObject().put("role", "user").put("content", m.text))
+                "user" -> {
+                    // r1435 VISION: image-bearing user turns become multimodal
+                    // content parts ({type:text},{type:image_url:data-url}).
+                    if (m.imagePngBase64 != null) {
+                        val content = JSONArray()
+                            .put(JSONObject().put("type", "text").put("text", m.text))
+                            .put(JSONObject().put("type", "image_url").put("image_url",
+                                JSONObject().put("url", "data:image/png;base64," + m.imagePngBase64)))
+                        messages.put(JSONObject().put("role", "user").put("content", content))
+                    } else {
+                        messages.put(JSONObject().put("role", "user").put("content", m.text))
+                    }
+                }
                 "assistant" -> {
                     if (m.toolName != null) {
                         val n = seq[m.toolName] ?: 0
